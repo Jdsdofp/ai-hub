@@ -4,115 +4,940 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SmartX Vision Platform v3 — EPI Check</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
-:root{--primary:#1a73e8;--success:#0d904f;--danger:#d93025;--warning:#f9ab00;--bg:#f8f9fa;--card:#fff;--border:#e0e0e0;--text:#202124;--muted:#5f6368}
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text)}
-.header{background:#1a1a2e;color:#fff;padding:12px 24px;display:flex;align-items:center;gap:16px}
-.header h1{font-size:17px;font-weight:600}.header .logo{font-size:22px;font-weight:800;color:#4dabf7}
-.header .company-sel{margin-left:auto;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:#fff;padding:6px 12px;border-radius:6px;font-size:14px}
-.tabs{display:flex;background:#fff;border-bottom:2px solid var(--border);padding:0 8px;overflow-x:auto;flex-wrap:nowrap}
-.tab{padding:10px 14px;cursor:pointer;font-size:13px;font-weight:500;color:var(--muted);border-bottom:3px solid transparent;white-space:nowrap;transition:all .2s}
-.tab:hover{color:var(--primary);background:#f0f6ff}.tab.active{color:var(--primary);border-bottom-color:var(--primary)}
-.panel{display:none;padding:20px;max-width:1200px;margin:0 auto}.panel.active{display:block}
-.card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:20px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)}
-.card h3{font-size:15px;margin-bottom:12px}
-.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
-@media(max-width:768px){.grid-2,.grid-3{grid-template-columns:1fr}}
-label{display:block;font-size:13px;font-weight:500;color:var(--muted);margin-bottom:4px}
-input,select,textarea{width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:14px;margin-bottom:12px}
-input[type=file]{padding:6px}input[type=checkbox]{width:auto;margin-right:8px}
-.checkbox-row{display:flex;align-items:center;padding:6px 0}.checkbox-row label{margin:0;cursor:pointer}
-.btn{padding:10px 20px;border:none;border-radius:6px;font-size:14px;font-weight:500;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:6px}
-.btn-primary{background:var(--primary);color:#fff}.btn-primary:hover{background:#1557b0}
-.btn-success{background:var(--success);color:#fff}.btn-danger{background:var(--danger);color:#fff}
-.btn-warning{background:var(--warning);color:#333}.btn-sm{padding:6px 12px;font-size:12px}
-.badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600}
-.badge-ok{background:#e6f4ea;color:var(--success)}.badge-warn{background:#fff3e0;color:#e65100}
-.badge-err{background:#fce8e6;color:var(--danger)}.badge-off{background:#f1f3f4;color:var(--muted)}
-.preview-img{max-width:100%;border-radius:8px;border:1px solid var(--border)}
-.stream-container{background:#000;border-radius:8px;overflow:hidden;position:relative;min-height:300px;display:flex;align-items:center;justify-content:center}
-.stream-container img{width:100%;height:auto}.stream-placeholder{color:#888;font-size:14px}
-.result-box{padding:16px;border-radius:8px;margin:12px 0}
-.result-compliant{background:#e6f4ea;border:1px solid #a8dab5}.result-noncompliant{background:#fce8e6;border:1px solid #f5c6cb}
-.toast{position:fixed;top:20px;right:20px;padding:14px 20px;border-radius:8px;color:#fff;font-size:14px;z-index:9999;animation:slideIn .3s ease;display:none}
-.toast.success{background:var(--success)}.toast.error{background:var(--danger)}
-@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
-.progress-bar{width:100%;height:8px;background:#e0e0e0;border-radius:4px;overflow:hidden}
-.progress-fill{height:100%;background:var(--primary);transition:width .5s}
-table{width:100%;border-collapse:collapse;font-size:13px}
-th,td{padding:8px 12px;text-align:left;border-bottom:1px solid var(--border)}
-th{background:#f8f9fa;font-weight:600;color:var(--muted)}
-#ann-canvas-wrap{position:relative;display:inline-block;cursor:crosshair}
-#ann-canvas-wrap canvas{position:absolute;top:0;left:0}
+:root {
+  --bg: #f0f4f8;
+  --surface: #ffffff;
+  --surface2: #f7f9fc;
+  --surface3: #edf2f7;
+  --border: rgba(26,115,232,0.12);
+  --border-bright: rgba(26,115,232,0.35);
+  --primary: #1a73e8;
+  --primary-dim: rgba(26,115,232,0.08);
+  --accent: #e67700;
+  --accent-dim: rgba(230,119,0,0.1);
+  --success: #1e8c45;
+  --success-dim: rgba(30,140,69,0.08);
+  --danger: #d93025;
+  --danger-dim: rgba(217,48,37,0.08);
+  --warning: #b06000;
+  --text: #1a202c;
+  --text-muted: #4a5568;
+  --text-dim: #a0aec0;
+  --glow: 0 2px 12px rgba(26,115,232,0.1);
+  --glow-strong: 0 4px 24px rgba(26,115,232,0.18);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Subtle background */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background:
+    radial-gradient(ellipse 80% 50% at 20% 10%, rgba(26,115,232,0.04) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 40% at 80% 80%, rgba(230,119,0,0.03) 0%, transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* HEADER */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(255,255,255,0.95);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: 56px;
+  box-shadow: 0 1px 8px rgba(26,115,232,0.08);
+}
+
+.logo-mark {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+}
+
+.logo-img {
+  height: 36px;
+  width: auto;
+  object-fit: contain;
+}
+
+.logo-version {
+  font-size: 10px;
+  color: var(--text-muted);
+  background: var(--surface2);
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  font-family: 'Space Mono', monospace;
+}
+
+.header-divider {
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  background: var(--success);
+  border-radius: 50%;
+  box-shadow: 0 0 8px var(--success);
+  animation: pulse-dot 2s infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.status-text {
+  font-size: 12px;
+  color: var(--success);
+  font-family: 'Space Mono', monospace;
+}
+
+.company-selector {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.company-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-family: 'Space Mono', monospace;
+}
+
+.company-sel {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: 'DM Sans', sans-serif;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.company-sel:hover { border-color: var(--border-bright); }
+
+/* TABS */
+.tabs-wrapper {
+  position: sticky;
+  top: 56px;
+  z-index: 99;
+  background: rgba(255,255,255,0.97);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  overflow-x: auto;
+  display: flex;
+  scrollbar-width: none;
+  box-shadow: 0 1px 4px rgba(26,115,232,0.05);
+}
+
+.tabs-wrapper::-webkit-scrollbar { display: none; }
+
+.tab {
+  padding: 14px 16px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-family: 'Space Mono', monospace;
+  position: relative;
+}
+
+.tab:hover { color: var(--primary); background: var(--primary-dim); }
+
+.tab.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+
+.tab-icon { font-size: 14px; }
+
+/* PANELS */
+.panels {
+  padding: 24px;
+  position: relative;
+  z-index: 1;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.panel { display: none; animation: fadeIn 0.3s ease; }
+.panel.active { display: block; }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* CARDS */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 16px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-shadow: 0 1px 4px rgba(26,115,232,0.05);
+}
+
+.card:hover { border-color: var(--border-bright); box-shadow: var(--glow-strong); }
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.card-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  background: var(--primary-dim);
+  border: 1px solid var(--border);
+}
+
+.card-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-family: 'Space Mono', monospace;
+}
+
+/* GRID */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+.grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 16px; }
+
+@media(max-width: 900px) {
+  .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+}
+
+/* STAT CARDS */
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: all 0.2s;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(26,115,232,0.05);
+}
+
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--primary), transparent);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.stat-card:hover::before { opacity: 1; }
+.stat-card:hover { border-color: var(--border-bright); box-shadow: var(--glow-strong); }
+
+.stat-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-family: 'Space Mono', monospace;
+}
+
+.stat-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--primary);
+  font-family: 'Space Mono', monospace;
+  line-height: 1;
+}
+
+.stat-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* FORM ELEMENTS */
+label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-family: 'Space Mono', monospace;
+}
+
+input, select, textarea {
+  width: 100%;
+  padding: 10px 14px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 14px;
+  font-family: 'DM Sans', sans-serif;
+  margin-bottom: 14px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  outline: none;
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(26,115,232,0.1);
+  background: #fff;
+}
+
+input[type=file] {
+  padding: 8px;
+  cursor: pointer;
+  color: var(--text-muted);
+}
+
+input[type=range] {
+  -webkit-appearance: none;
+  height: 4px;
+  background: var(--surface3);
+  border: none;
+  border-radius: 2px;
+  padding: 0;
+  margin-bottom: 6px;
+  cursor: pointer;
+}
+
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  background: var(--primary);
+  border-radius: 50%;
+  box-shadow: 0 1px 4px rgba(26,115,232,0.4);
+  cursor: pointer;
+}
+
+input[type=checkbox] {
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+  accent-color: var(--primary);
+}
+
+.range-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.range-row input[type=range] { flex: 1; margin-bottom: 0; }
+
+.range-val {
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+  color: var(--primary);
+  min-width: 36px;
+  text-align: right;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 14px;
+  gap: 4px;
+}
+
+.checkbox-row label {
+  margin: 0;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 400;
+}
+
+/* BUTTONS */
+.btn {
+  padding: 10px 18px;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'DM Sans', sans-serif;
+  letter-spacing: 0.02em;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn:active { transform: scale(0.97); }
+
+.btn-primary {
+  background: var(--primary);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(26,115,232,0.3);
+}
+.btn-primary:hover { background: #1557b0; box-shadow: 0 4px 12px rgba(26,115,232,0.4); }
+
+.btn-success {
+  background: var(--success);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(30,140,69,0.3);
+}
+.btn-success:hover { background: #166c37; }
+
+.btn-danger {
+  background: var(--danger);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(217,48,37,0.3);
+}
+.btn-danger:hover { background: #b71c1c; }
+
+.btn-warning {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(230,119,0,0.3);
+}
+.btn-warning:hover { background: #c45900; }
+
+.btn-ghost {
+  background: var(--surface2);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+.btn-ghost:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-dim); }
+
+.btn-sm { padding: 6px 12px; font-size: 12px; border-radius: 6px; }
+
+.btn-group { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* BADGES */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: 'Space Mono', monospace;
+  letter-spacing: 0.04em;
+}
+
+.badge-ok {
+  background: rgba(30,140,69,0.1);
+  color: var(--success);
+  border: 1px solid rgba(30,140,69,0.25);
+}
+
+.badge-warn {
+  background: rgba(176,96,0,0.08);
+  color: var(--warning);
+  border: 1px solid rgba(176,96,0,0.2);
+}
+
+.badge-err {
+  background: var(--danger-dim);
+  color: var(--danger);
+  border: 1px solid rgba(217,48,37,0.2);
+}
+
+.badge-off {
+  background: var(--surface3);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+
+.badge-blue {
+  background: var(--primary-dim);
+  color: var(--primary);
+  border: 1px solid rgba(26,115,232,0.2);
+}
+
+/* TABLES */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+th {
+  padding: 10px 14px;
+  text-align: left;
+  background: var(--surface2);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-family: 'Space Mono', monospace;
+  border-bottom: 1px solid var(--border);
+}
+
+th:first-child { border-radius: 8px 0 0 0; }
+th:last-child { border-radius: 0 8px 0 0; }
+
+td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+}
+
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: var(--surface2); }
+
+/* TOAST */
+.toast {
+  position: fixed;
+  top: 72px;
+  right: 20px;
+  padding: 14px 20px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  z-index: 9999;
+  display: none;
+  animation: toastIn 0.3s cubic-bezier(0.34,1.56,0.64,1);
+  border: 1px solid;
+  min-width: 240px;
+  font-family: 'DM Sans', sans-serif;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+}
+
+@keyframes toastIn {
+  from { transform: translateX(100%) scale(0.8); opacity: 0; }
+  to { transform: translateX(0) scale(1); opacity: 1; }
+}
+
+.toast.success {
+  background: #f0fdf4;
+  border-color: rgba(30,140,69,0.3);
+  color: var(--success);
+}
+
+.toast.error {
+  background: #fef2f2;
+  border-color: rgba(217,48,37,0.3);
+  color: var(--danger);
+}
+
+/* PROGRESS BAR */
+.progress-bar {
+  width: 100%;
+  height: 6px;
+  background: var(--surface3);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary), #4299e1);
+  border-radius: 3px;
+  transition: width 0.5s;
+  box-shadow: 0 0 6px rgba(26,115,232,0.4);
+}
+
+/* DETECTION RESULT */
+.result-box {
+  padding: 16px;
+  border-radius: 10px;
+  margin: 12px 0;
+  border: 1px solid;
+}
+
+.result-compliant {
+  background: #f0fdf4;
+  border-color: rgba(30,140,69,0.25);
+}
+
+.result-noncompliant {
+  background: #fef2f2;
+  border-color: rgba(217,48,37,0.25);
+}
+
+.result-title {
+  font-size: 16px;
+  font-weight: 700;
+  font-family: 'Space Mono', monospace;
+  margin-bottom: 8px;
+}
+
+.result-title.ok { color: var(--success); }
+.result-title.fail { color: var(--danger); }
+
+/* STREAM */
+.stream-container {
+  background: var(--surface2);
+  border-radius: 10px;
+  overflow: hidden;
+  position: relative;
+  min-height: 320px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+}
+
+.stream-container img { width: 100%; height: auto; }
+
+.stream-placeholder {
+  color: var(--text-dim);
+  font-size: 13px;
+  font-family: 'Space Mono', monospace;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.stream-placeholder::before {
+  content: '◉';
+  font-size: 32px;
+  color: var(--text-dim);
+}
+
+/* ANNOTATION CANVAS */
+#ann-canvas-wrap {
+  position: relative;
+  display: inline-block;
+  cursor: crosshair;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+#ann-canvas-wrap canvas { position: absolute; top: 0; left: 0; }
+
+/* PREVIEW IMAGE */
+.preview-img {
+  max-width: 100%;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+}
+
+/* PPE CONFIG CHECKBOXES */
+.ppe-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+}
+
+.ppe-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.ppe-item:hover { border-color: var(--border-bright); }
+.ppe-item input { width: auto; margin: 0; }
+.ppe-item label { margin: 0; text-transform: none; letter-spacing: 0; font-size: 13px; color: var(--text); cursor: pointer; font-family: 'DM Sans', sans-serif; font-weight: 400; }
+
+/* ANN LOG */
+.ann-log {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  background: var(--surface2);
+  color: var(--text-muted);
+  padding: 10px 14px;
+  border-radius: 8px;
+  margin-top: 10px;
+  max-height: 120px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  line-height: 1.8;
+}
+
+/* SECTION HEADER */
+.section-header {
+  margin-bottom: 20px;
+}
+
+.section-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+  font-family: 'Space Mono', monospace;
+  margin-bottom: 4px;
+}
+
+.section-sub {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* SCROLLBAR */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--surface2); }
+::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--primary); }
+
+/* INFO ROW */
+.info-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.info-row:last-child { border-bottom: none; }
+.info-key { color: var(--text-muted); font-family: 'Space Mono', monospace; font-size: 11px; }
+.info-val { color: var(--text); font-weight: 500; }
+
+/* EMPTY STATE */
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-family: 'Space Mono', monospace;
+}
+
+.empty-state::before {
+  content: attr(data-icon);
+  display: block;
+  font-size: 32px;
+  margin-bottom: 12px;
+  opacity: 0.4;
+}
+
+/* LOADING SHIMMER */
+.shimmer {
+  background: linear-gradient(90deg, var(--surface2) 0%, var(--surface3) 50%, var(--surface2) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 6px;
+  height: 14px;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
 </style>
 </head>
 <body>
 
-<div class="header">
-  <span class="logo">SmartX</span>
-  <h1>Vision Platform v3 — EPI Check</h1>
-  <select class="company-sel" id="companySelect" onchange="switchCompany()">
-    <option value="1">Company 1</option><option value="2">Company 2</option><option value="3">Company 3</option>
-  </select>
-</div>
+<!-- HEADER -->
+<header class="header">
+  <div class="logo-mark">
+    <img class="logo-img" src="/static/img/logoSmartx.jpeg" alt="SmartX">
+    <span class="logo-version">v3.0</span>
+  </div>
+  <div class="header-divider"></div>
+  <div class="status-dot"></div>
+  <span class="status-text">ONLINE</span>
+  <div class="company-selector">
+    <span class="company-label">Company</span>
+    <select class="company-sel" id="companySelect" onchange="switchCompany()">
+      <option value="1">Company 1</option>
+      <option value="2">Company 2</option>
+      <option value="3">Company 3</option>
+    </select>
+  </div>
+</header>
 
-<div class="tabs">
-  <div class="tab active" onclick="showPanel('dashboard')">Dashboard</div>
-  <div class="tab" onclick="showPanel('config')">PPE Config</div>
-  <div class="tab" onclick="showPanel('upload')">Upload</div>
-  <div class="tab" onclick="showPanel('convert')">Converter</div>
-  <div class="tab" onclick="showPanel('annotate')">Annotate</div>
-  <div class="tab" onclick="showPanel('train')">Train</div>
-  <div class="tab" onclick="showPanel('detect')">Detect Image</div>
-  <div class="tab" onclick="showPanel('video')">Detect Video</div>
-  <div class="tab" onclick="showPanel('faces')">Face Register</div>
-  <div class="tab" onclick="showPanel('stream')">Live Stream</div>
-</div>
+<!-- TABS -->
+<nav class="tabs-wrapper">
+  <div class="tab active" onclick="showPanel('dashboard', this)"><span class="tab-icon">⬡</span> Dashboard</div>
+  <div class="tab" onclick="showPanel('config', this)"><span class="tab-icon">◈</span> PPE Config</div>
+  <div class="tab" onclick="showPanel('upload', this)"><span class="tab-icon">↑</span> Upload</div>
+  <div class="tab" onclick="showPanel('convert', this)"><span class="tab-icon">⇌</span> Converter</div>
+  <div class="tab" onclick="showPanel('annotate', this)"><span class="tab-icon">◻</span> Annotate</div>
+  <div class="tab" onclick="showPanel('train', this)"><span class="tab-icon">⚙</span> Train</div>
+  <div class="tab" onclick="showPanel('detect', this)"><span class="tab-icon">◎</span> Detect Image</div>
+  <div class="tab" onclick="showPanel('video', this)"><span class="tab-icon">▶</span> Detect Video</div>
+  <div class="tab" onclick="showPanel('faces', this)"><span class="tab-icon">◉</span> Faces</div>
+  <div class="tab" onclick="showPanel('stream', this)"><span class="tab-icon">◈</span> Live Stream</div>
+</nav>
 
 <div class="toast" id="toast"></div>
 
+<div class="panels">
+
 <!-- ===== DASHBOARD ===== -->
 <div class="panel active" id="panel-dashboard">
-  <div class="grid-3">
-    <div class="card"><h3>Active PPE Classes</h3><div id="dash-classes">Loading...</div></div>
-    <div class="card"><h3>Models / People</h3><div id="dash-models">Loading...</div></div>
-    <div class="card"><h3>Storage</h3><div id="dash-storage">Loading...</div></div>
+  <div class="section-header">
+    <div class="section-title">System Overview</div>
+    <div class="section-sub">Real-time platform status and metrics</div>
+  </div>
+  <div class="grid-4" style="margin-bottom:16px">
+    <div class="stat-card">
+      <div class="stat-label">Active Classes</div>
+      <div class="stat-value" id="stat-classes">—</div>
+      <div class="stat-sub">PPE categories</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Models</div>
+      <div class="stat-value" id="stat-models">—</div>
+      <div class="stat-sub">trained models</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">People</div>
+      <div class="stat-value" id="stat-people">—</div>
+      <div class="stat-sub">face profiles</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Storage</div>
+      <div class="stat-value" id="stat-storage">—</div>
+      <div class="stat-sub">MB used</div>
+    </div>
   </div>
   <div class="grid-2">
-    <div class="card"><h3>Photos Summary</h3><div id="dash-photos">Loading...</div></div>
-    <div class="card"><h3>Annotations</h3><div id="dash-annotations">Loading...</div></div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-icon">◈</div>
+        <div class="card-title">PPE Classes Status</div>
+      </div>
+      <div id="dash-classes"><div class="shimmer" style="width:80%"></div></div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-icon">⚙</div>
+        <div class="card-title">Training Status</div>
+      </div>
+      <div id="dash-train"><div class="shimmer" style="width:60%"></div></div>
+    </div>
   </div>
-  <div class="card"><h3>Training Status</h3><div id="dash-train">Loading...</div></div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-icon">↑</div>
+        <div class="card-title">Photos by Category</div>
+      </div>
+      <div id="dash-photos"><div class="shimmer"></div></div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-icon">◻</div>
+        <div class="card-title">Annotation Stats</div>
+      </div>
+      <div id="dash-annotations"><div class="shimmer"></div></div>
+    </div>
+  </div>
 </div>
 
 <!-- ===== PPE CONFIG ===== -->
 <div class="panel" id="panel-config">
+  <div class="section-header">
+    <div class="section-title">PPE Configuration</div>
+    <div class="section-sub">Enable only the PPE types you have training images for</div>
+  </div>
   <div class="card">
-    <h3>Configure Active PPE Classes</h3>
-    <p style="color:var(--muted);margin-bottom:16px;">Enable only the PPE types you have training images for.</p>
-    <div id="config-checkboxes"></div><br>
+    <div class="ppe-grid" id="config-checkboxes"></div>
+    <br>
     <button class="btn btn-primary" onclick="savePPEConfig()">Save Configuration</button>
   </div>
 </div>
 
 <!-- ===== UPLOAD ===== -->
 <div class="panel" id="panel-upload">
+  <div class="section-header">
+    <div class="section-title">Upload Training Data</div>
+    <div class="section-sub">Add images to train your detection models</div>
+  </div>
   <div class="grid-2">
     <div class="card">
-      <h3>Upload Training Photos</h3>
+      <div class="card-header">
+        <div class="card-icon">↑</div>
+        <div class="card-title">Training Photos</div>
+      </div>
       <label>Category</label>
-      <select id="upload-category"><option value="helmet" selected>helmet</option><option value="boots">boots</option><option value="person">person</option><option value="gloves">gloves</option><option value="thermal_coat">thermal_coat</option><option value="thermal_pants">thermal_pants</option><option value="full_body">full_body</option></select>
-      <label>Images</label><input type="file" id="upload-files" multiple accept="image/*">
-      <button class="btn btn-primary" onclick="uploadPhotos()">Upload</button>
+      <select id="upload-category">
+        <option value="helmet">helmet</option>
+        <option value="boots">boots</option>
+        <option value="person">person</option>
+        <option value="gloves">gloves</option>
+        <option value="thermal_coat">thermal_coat</option>
+        <option value="thermal_pants">thermal_pants</option>
+        <option value="full_body">full_body</option>
+      </select>
+      <label>Images</label>
+      <input type="file" id="upload-files" multiple accept="image/*">
+      <button class="btn btn-primary" onclick="uploadPhotos()">↑ Upload Photos</button>
       <div id="upload-result" style="margin-top:12px"></div>
     </div>
     <div class="card">
-      <h3>Bulk Upload — Images + TXT Labels</h3>
-      <label>Category</label><select id="bulk-category"><option value="mixed" selected>mixed</option><option value="helmet">helmet</option><option value="boots">boots</option><option value="person">person</option></select>
-      <label>Class ID Remap JSON (optional)</label><input type="text" id="bulk-remap" value="{}" placeholder='{"0":3,"1":4}'>
-      <label>Files (images + .txt)</label><input type="file" id="bulk-files" multiple accept="image/*,.txt">
-      <button class="btn btn-primary" onclick="bulkUpload()">Bulk Upload</button>
+      <div class="card-header">
+        <div class="card-icon">⬡</div>
+        <div class="card-title">Bulk Upload — Images + Labels</div>
+      </div>
+      <label>Category</label>
+      <select id="bulk-category">
+        <option value="mixed">mixed</option>
+        <option value="helmet">helmet</option>
+        <option value="boots">boots</option>
+        <option value="person">person</option>
+      </select>
+      <label>Class ID Remap JSON (optional)</label>
+      <input type="text" id="bulk-remap" value="{}" placeholder='{"0":3,"1":4}'>
+      <label>Files (images + .txt)</label>
+      <input type="file" id="bulk-files" multiple accept="image/*,.txt">
+      <button class="btn btn-primary" onclick="bulkUpload()">↑ Bulk Upload</button>
       <div id="bulk-result" style="margin-top:12px"></div>
     </div>
   </div>
@@ -120,159 +945,324 @@ th{background:#f8f9fa;font-weight:600;color:var(--muted)}
 
 <!-- ===== CONVERTER ===== -->
 <div class="panel" id="panel-convert">
+  <div class="section-header">
+    <div class="section-title">Annotation Converter</div>
+    <div class="section-sub">Convert Polygon/OBB → YOLO BBox format</div>
+  </div>
   <div class="card">
-    <h3>Annotation Converter — Polygon/OBB → YOLO BBox</h3>
-    <p style="color:var(--muted);margin-bottom:16px;">If your .txt files have 9 values per line (Roboflow OBB), convert them to YOLO bbox (5 values).</p>
-    <label>Class ID Remap JSON</label><input type="text" id="conv-remap" value='{"0":3}' placeholder='{"0":3,"1":4}'>
-    <p style="font-size:12px;color:var(--muted);margin-top:-8px;margin-bottom:12px;">notebook IDs: 0=thermal_coat, 1=thermal_pants, 2=gloves, 3=helmet, 4=boots, 5=person</p>
-    <label>Upload Roboflow files (images + .txt)</label><input type="file" id="conv-files" multiple accept="image/*,.txt">
-    <button class="btn btn-warning" onclick="convertUpload()">Convert & Import</button>
+    <label>Class ID Remap JSON</label>
+    <input type="text" id="conv-remap" value='{"0":3}' placeholder='{"0":3,"1":4}'>
+    <p style="font-size:12px;color:var(--text-muted);margin-top:-10px;margin-bottom:14px;font-family:'Space Mono',monospace;">IDs: 0=thermal_coat · 1=thermal_pants · 2=gloves · 3=helmet · 4=boots · 5=person</p>
+    <label>Upload Roboflow Files (images + .txt)</label>
+    <input type="file" id="conv-files" multiple accept="image/*,.txt">
+    <button class="btn btn-warning" onclick="convertUpload()">⇌ Convert & Import</button>
     <div id="conv-result" style="margin-top:12px"></div>
   </div>
 </div>
 
 <!-- ===== ANNOTATE ===== -->
 <div class="panel" id="panel-annotate">
+  <div class="section-header">
+    <div class="section-title">Visual Annotation</div>
+    <div class="section-sub">Draw bounding boxes directly on images</div>
+  </div>
   <div class="card">
-    <h3>Visual Annotation Tool</h3>
-    <p style="color:var(--muted);margin-bottom:12px;">Draw bounding boxes on images. Select class, click and drag.</p>
-    <div class="grid-3" style="margin-bottom:12px">
-      <div><label>Class</label><select id="ann-class"></select></div>
-      <div><label>Image</label><select id="ann-image-sel" onchange="loadAnnotationImage()"></select></div>
-      <div style="padding-top:20px">
-        <button class="btn btn-sm btn-warning" onclick="annUndo()">Undo</button>
-        <button class="btn btn-sm btn-danger" onclick="annClear()">Clear</button>
-        <button class="btn btn-sm btn-success" onclick="annSave()">Save</button>
-        <button class="btn btn-sm btn-primary" onclick="loadAnnotationImages()">Refresh</button>
+    <div class="grid-3" style="margin-bottom:14px">
+      <div>
+        <label>Class</label>
+        <select id="ann-class"></select>
+      </div>
+      <div>
+        <label>Image</label>
+        <select id="ann-image-sel" onchange="loadAnnotationImage()"></select>
+      </div>
+      <div style="padding-top:22px">
+        <div class="btn-group">
+          <button class="btn btn-sm btn-ghost" onclick="annUndo()">↩ Undo</button>
+          <button class="btn btn-sm btn-danger" onclick="annClear()">✕ Clear</button>
+          <button class="btn btn-sm btn-success" onclick="annSave()">✓ Save</button>
+          <button class="btn btn-sm btn-ghost" onclick="loadAnnotationImages()">↻</button>
+        </div>
       </div>
     </div>
     <div id="ann-canvas-wrap">
-      <p id="ann-placeholder" style="color:var(--muted);padding:40px;">Select an image to annotate</p>
+      <p id="ann-placeholder" style="color:var(--text-muted);padding:48px;font-family:'Space Mono',monospace;font-size:13px;">◻ Select an image to annotate</p>
     </div>
-    <div id="ann-log" style="font-family:monospace;font-size:12px;background:#f5f5f5;padding:8px;border-radius:4px;margin-top:8px;max-height:120px;overflow-y:auto"></div>
+    <div class="ann-log" id="ann-log"></div>
   </div>
 </div>
 
 <!-- ===== TRAIN ===== -->
 <div class="panel" id="panel-train">
+  <div class="section-header">
+    <div class="section-title">Model Training</div>
+    <div class="section-sub">Generate datasets and train YOLOv8 models</div>
+  </div>
   <div class="grid-2">
     <div class="card">
-      <h3>1. Generate Dataset</h3>
-      <label>Train/Valid Split</label>
-      <input type="range" id="train-split" min="0.5" max="0.95" step="0.05" value="0.8" oninput="document.getElementById('split-val').textContent=this.value">
-      <span id="split-val">0.8</span><br><br>
-      <button class="btn btn-primary" onclick="generateDataset()">Generate Dataset</button>
-      <div id="dataset-result" style="margin-top:12px"></div>
+      <div class="card-header">
+        <div class="card-icon">⬡</div>
+        <div class="card-title">1 — Generate Dataset</div>
+      </div>
+      <label>Train / Valid Split</label>
+      <div class="range-row">
+        <input type="range" id="train-split" min="0.5" max="0.95" step="0.05" value="0.8"
+          oninput="document.getElementById('split-val').textContent=this.value">
+        <span class="range-val" id="split-val">0.8</span>
+      </div>
+      <br>
+      <button class="btn btn-primary" onclick="generateDataset()">⬡ Generate Dataset</button>
+      <div id="dataset-result" style="margin-top:14px"></div>
     </div>
     <div class="card">
-      <h3>2. Train Model</h3>
+      <div class="card-header">
+        <div class="card-icon">⚙</div>
+        <div class="card-title">2 — Train Model</div>
+      </div>
       <label>Base Model</label>
-      <select id="train-model"><option value="yolov8n.pt">yolov8n (Fast)</option><option value="yolov8s.pt">yolov8s (Small)</option><option value="yolov8m.pt" selected>yolov8m (Medium)</option><option value="yolov8l.pt">yolov8l (Large)</option></select>
+      <select id="train-model">
+        <option value="yolov8n.pt">yolov8n — Fast</option>
+        <option value="yolov8s.pt">yolov8s — Small</option>
+        <option value="yolov8m.pt" selected>yolov8m — Medium</option>
+        <option value="yolov8l.pt">yolov8l — Large</option>
+      </select>
       <div class="grid-2">
-        <div><label>Epochs</label><input type="number" id="train-epochs" value="60" min="10" max="300"></div>
-        <div><label>Batch Size</label><input type="number" id="train-batch" value="16" min="4" max="64"></div>
+        <div>
+          <label>Epochs</label>
+          <input type="number" id="train-epochs" value="60" min="10" max="300">
+        </div>
+        <div>
+          <label>Batch Size</label>
+          <input type="number" id="train-batch" value="16" min="4" max="64">
+        </div>
       </div>
       <div class="grid-2">
-        <div><label>Image Size</label><input type="number" id="train-imgsz" value="640"></div>
-        <div><label>Patience</label><input type="number" id="train-patience" value="15"></div>
+        <div>
+          <label>Image Size</label>
+          <input type="number" id="train-imgsz" value="640">
+        </div>
+        <div>
+          <label>Patience</label>
+          <input type="number" id="train-patience" value="15">
+        </div>
       </div>
-      <button class="btn btn-success" onclick="startTraining()">Start Training</button>
-      <div id="train-status" style="margin-top:12px"></div>
+      <button class="btn btn-success" onclick="startTraining()">⚙ Start Training</button>
+      <div id="train-status" style="margin-top:14px"></div>
     </div>
   </div>
 </div>
 
 <!-- ===== DETECT IMAGE ===== -->
 <div class="panel" id="panel-detect">
+  <div class="section-header">
+    <div class="section-title">Image Detection</div>
+    <div class="section-sub">Analyze single images for PPE compliance</div>
+  </div>
   <div class="grid-2">
     <div class="card">
-      <h3>Upload Image for PPE Detection</h3>
-      <label>Image</label><input type="file" id="detect-file" accept="image/*" onchange="previewDetect(this)">
-      <label>Confidence</label>
-      <input type="range" id="detect-conf" min="0.1" max="0.9" step="0.05" value="0.45" oninput="document.getElementById('conf-val').textContent=this.value">
-      <span id="conf-val">0.45</span>
-      <div class="checkbox-row"><input type="checkbox" id="detect-faces" checked><label for="detect-faces">Enable Face Recognition</label></div>
+      <div class="card-header">
+        <div class="card-icon">◎</div>
+        <div class="card-title">Detection Settings</div>
+      </div>
+      <label>Image</label>
+      <input type="file" id="detect-file" accept="image/*" onchange="previewDetect(this)">
+      <label>Confidence Threshold</label>
+      <div class="range-row">
+        <input type="range" id="detect-conf" min="0.1" max="0.9" step="0.05" value="0.45"
+          oninput="document.getElementById('conf-val').textContent=this.value">
+        <span class="range-val" id="conf-val">0.45</span>
+      </div>
+      <div class="checkbox-row">
+        <input type="checkbox" id="detect-faces" checked>
+        <label for="detect-faces">Enable Face Recognition</label>
+      </div>
       <label>Face Similarity Threshold</label>
-      <input type="range" id="detect-face-thr" min="0.20" max="0.80" step="0.05" value="0.45" oninput="document.getElementById('fthr-val').textContent=this.value">
-      <span id="fthr-val">0.45</span>
-      <br><br>
-      <button class="btn btn-primary" onclick="detectImage()">Detect PPE + Face</button>
+      <div class="range-row">
+        <input type="range" id="detect-face-thr" min="0.20" max="0.80" step="0.05" value="0.45"
+          oninput="document.getElementById('fthr-val').textContent=this.value">
+        <span class="range-val" id="fthr-val">0.45</span>
+      </div>
+      <button class="btn btn-primary" onclick="detectImage()">◎ Detect PPE + Face</button>
       <div id="detect-result" style="margin-top:16px"></div>
     </div>
     <div class="card">
-      <h3>Result</h3>
-      <div id="detect-preview" style="text-align:center"><p style="color:var(--muted);padding:40px">Upload an image and click Detect</p></div>
+      <div class="card-header">
+        <div class="card-icon">▦</div>
+        <div class="card-title">Result</div>
+      </div>
+      <div id="detect-preview" class="empty-state" data-icon="◎">Upload image and run detection</div>
     </div>
   </div>
 </div>
 
 <!-- ===== DETECT VIDEO ===== -->
 <div class="panel" id="panel-video">
+  <div class="section-header">
+    <div class="section-title">Video Detection</div>
+    <div class="section-sub">Frame-by-frame compliance analysis</div>
+  </div>
   <div class="grid-2">
     <div class="card">
-      <h3>Video File (MP4)</h3>
-      <label>Upload Video</label><input type="file" id="video-file" accept="video/*">
-      <label>Skip Frames</label><input type="number" id="video-skip" value="5" min="1" max="30">
+      <div class="card-header">
+        <div class="card-icon">▶</div>
+        <div class="card-title">Video File</div>
+      </div>
+      <label>Upload Video (MP4)</label>
+      <input type="file" id="video-file" accept="video/*">
+      <label>Skip Frames</label>
+      <input type="number" id="video-skip" value="5" min="1" max="30">
       <label>Confidence</label>
-      <input type="range" id="video-conf" min="0.1" max="0.9" step="0.05" value="0.45" oninput="document.getElementById('vconf-val').textContent=this.value">
-      <span id="vconf-val">0.45</span>
-      <div class="checkbox-row"><input type="checkbox" id="video-faces"><label for="video-faces">Face Recognition</label></div>
-      <button class="btn btn-primary" onclick="detectVideo()">Process Video</button>
+      <div class="range-row">
+        <input type="range" id="video-conf" min="0.1" max="0.9" step="0.05" value="0.45"
+          oninput="document.getElementById('vconf-val').textContent=this.value">
+        <span class="range-val" id="vconf-val">0.45</span>
+      </div>
+      <div class="checkbox-row">
+        <input type="checkbox" id="video-faces">
+        <label for="video-faces">Face Recognition</label>
+      </div>
+      <button class="btn btn-primary" onclick="detectVideo()">▶ Process Video</button>
     </div>
     <div class="card">
-      <h3>YouTube Video</h3>
-      <label>YouTube URL</label><input type="text" id="yt-url" placeholder="https://www.youtube.com/watch?v=...">
-      <label>Max Frames</label><input type="number" id="yt-max" value="100" min="10" max="1000">
-      <button class="btn btn-danger" onclick="detectYouTube()">Process YouTube</button>
+      <div class="card-header">
+        <div class="card-icon">▶</div>
+        <div class="card-title">YouTube Video</div>
+      </div>
+      <label>YouTube URL</label>
+      <input type="text" id="yt-url" placeholder="https://www.youtube.com/watch?v=...">
+      <label>Max Frames</label>
+      <input type="number" id="yt-max" value="100" min="10" max="1000">
+      <button class="btn btn-danger" onclick="detectYouTube()">▶ Process YouTube</button>
     </div>
   </div>
-  <div class="card"><h3>Results</h3><div id="video-result"><p style="color:var(--muted)">Upload a video or paste a YouTube URL</p></div></div>
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon">⬡</div>
+      <div class="card-title">Results</div>
+    </div>
+    <div id="video-result" class="empty-state" data-icon="▶">Upload a video or paste a YouTube URL</div>
+  </div>
 </div>
 
 <!-- ===== FACE REGISTER ===== -->
 <div class="panel" id="panel-faces">
+  <div class="section-header">
+    <div class="section-title">Face Registry</div>
+    <div class="section-sub">Register people for recognition during detection</div>
+  </div>
   <div class="grid-2">
     <div class="card">
-      <h3>Register Person</h3>
-      <label>Person Code (unique ID)</label><input type="text" id="face-code" placeholder="john_silva">
-      <label>Full Name</label><input type="text" id="face-name" placeholder="John Silva">
-      <label>Badge ID</label><input type="text" id="face-badge" placeholder="EMP001">
-      <label>Face Photo</label><input type="file" id="face-file" accept="image/*">
-      <button class="btn btn-success" onclick="registerFace()">Register Face</button>
+      <div class="card-header">
+        <div class="card-icon">◉</div>
+        <div class="card-title">Register Person</div>
+      </div>
+      <label>Person Code</label>
+      <input type="text" id="face-code" placeholder="john_silva">
+      <label>Full Name</label>
+      <input type="text" id="face-name" placeholder="John Silva">
+      <label>Badge ID</label>
+      <input type="text" id="face-badge" placeholder="EMP001">
+      <label>Face Photo</label>
+      <input type="file" id="face-file" accept="image/*">
+      <button class="btn btn-success" onclick="registerFace()">◉ Register Face</button>
       <div id="face-result" style="margin-top:12px"></div>
     </div>
     <div class="card">
-      <h3>Registered People</h3>
-      <button class="btn btn-sm btn-primary" onclick="loadPeople()" style="margin-bottom:12px">Refresh</button>
-      <button class="btn btn-sm btn-warning" onclick="rebuildFaceDB()">Rebuild Face DB</button>
-      <div id="people-list" style="margin-top:12px"></div>
+      <div class="card-header">
+        <div class="card-icon">⬡</div>
+        <div class="card-title">Registered People</div>
+      </div>
+      <div class="btn-group" style="margin-bottom:16px">
+        <button class="btn btn-sm btn-ghost" onclick="loadPeople()">↻ Refresh</button>
+        <button class="btn btn-sm btn-warning" onclick="rebuildFaceDB()">⚙ Rebuild DB</button>
+      </div>
+      <div id="people-list" class="empty-state" data-icon="◉">No people registered</div>
     </div>
   </div>
 </div>
 
 <!-- ===== LIVE STREAM ===== -->
 <div class="panel" id="panel-stream">
+  <div class="section-header">
+    <div class="section-title">Live Stream</div>
+    <div class="section-sub">Real-time PPE detection on camera feeds</div>
+  </div>
   <div class="card">
-    <h3>Start Live Stream with Real-Time Detection</h3>
     <div class="grid-3">
-      <div><label>Source Type</label><select id="stream-type"><option value="rtsp">RTSP Camera</option><option value="youtube">YouTube Live</option><option value="webcam">Webcam</option><option value="file">Video File</option></select></div>
-      <div><label>Source URL / Path</label><input type="text" id="stream-source" placeholder="rtsp://admin:pass@192.168.1.100:554/stream"></div>
-      <div><label>Confidence</label><input type="range" id="stream-conf" min="0.1" max="0.9" step="0.05" value="0.45" oninput="document.getElementById('sconf-val').textContent=this.value"><span id="sconf-val">0.45</span></div>
+      <div>
+        <label>Source Type</label>
+        <select id="stream-type">
+          <option value="rtsp">RTSP Camera</option>
+          <option value="youtube">YouTube Live</option>
+          <option value="webcam">Webcam</option>
+          <option value="file">Video File</option>
+        </select>
+      </div>
+      <div>
+        <label>Source URL / Path</label>
+        <input type="text" id="stream-source" placeholder="rtsp://admin:pass@192.168.1.100:554/stream">
+      </div>
+      <div>
+        <label>Confidence</label>
+        <div class="range-row">
+          <input type="range" id="stream-conf" min="0.1" max="0.9" step="0.05" value="0.45"
+            oninput="document.getElementById('sconf-val').textContent=this.value">
+          <span class="range-val" id="sconf-val">0.45</span>
+        </div>
+      </div>
     </div>
-    <div class="checkbox-row"><input type="checkbox" id="stream-faces" checked><label for="stream-faces">Face Recognition</label></div>
-    <label>Face Threshold</label>
-    <input type="range" id="stream-face-thr" min="0.20" max="0.80" step="0.05" value="0.45" oninput="document.getElementById('sfthr-val').textContent=this.value">
-    <span id="sfthr-val">0.45</span>
-    <br>
-    <button class="btn btn-success" onclick="startStream()">Start</button>
-    <button class="btn btn-danger" onclick="stopStream()">Stop</button>
-    <button class="btn btn-warning btn-sm" onclick="refreshSessions()">Refresh</button>
+    <div class="grid-2">
+      <div>
+        <div class="checkbox-row">
+          <input type="checkbox" id="stream-faces" checked>
+          <label for="stream-faces">Face Recognition</label>
+        </div>
+        <label>Face Threshold</label>
+        <div class="range-row">
+          <input type="range" id="stream-face-thr" min="0.20" max="0.80" step="0.05" value="0.45"
+            oninput="document.getElementById('sfthr-val').textContent=this.value">
+          <span class="range-val" id="sfthr-val">0.45</span>
+        </div>
+      </div>
+      <div style="padding-top:8px">
+        <div class="btn-group">
+          <button class="btn btn-success" onclick="startStream()">◈ Start</button>
+          <button class="btn btn-danger" onclick="stopStream()">◼ Stop</button>
+          <button class="btn btn-ghost btn-sm" onclick="refreshSessions()">↻ Sessions</button>
+        </div>
+      </div>
+    </div>
   </div>
   <div class="grid-2">
-    <div class="card"><h3>Live Feed</h3><div class="stream-container" id="stream-container"><span class="stream-placeholder">No stream active</span></div></div>
-    <div class="card"><h3>Stream Info</h3><div id="stream-info"><p style="color:var(--muted)">Start a stream</p></div><h3 style="margin-top:16px">Active Sessions</h3><div id="stream-sessions"></div></div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-icon">◈</div>
+        <div class="card-title">Live Feed</div>
+      </div>
+      <div class="stream-container" id="stream-container">
+        <div class="stream-placeholder">No stream active</div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon">⬡</div>
+          <div class="card-title">Stream Info</div>
+        </div>
+        <div id="stream-info" class="empty-state" data-icon="◈">Start a stream</div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon">◉</div>
+          <div class="card-title">Active Sessions</div>
+        </div>
+        <div id="stream-sessions" class="empty-state" data-icon="◉">No active sessions</div>
+      </div>
+    </div>
   </div>
 </div>
+
+</div><!-- end panels -->
 
 <script>
 let CID={{company_id}};
@@ -283,76 +1273,309 @@ let annDrawing=false;
 let annStartX=0,annStartY=0;
 let annImgW=0,annImgH=0;
 let annCurrentFile='';
-const classColors={0:'#FF0000',1:'#0000FF',2:'#00FF00',3:'#FFFF00',4:'#FF00FF',5:'#FFA500'};
+const classColors={0:'#FC8181',1:'#63B3ED',2:'#68D391',3:'#F6E05E',4:'#B794F4',5:'#F6AD55'};
 const classNames={0:'thermal_coat',1:'thermal_pants',2:'gloves',3:'helmet',4:'boots',5:'person'};
 
 function API(p){return'/api/v1/epi'+p+'?company_id='+CID}
-function switchCompany(){CID=parseInt(document.getElementById('companySelect').value);loadDashboard();toast('Company '+CID,'success')}
-function showPanel(n){document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));document.getElementById('panel-'+n).classList.add('active');event.target.classList.add('active');if(n==='dashboard')loadDashboard();if(n==='config')loadPPEConfig();if(n==='annotate')loadAnnotationImages();if(n==='faces')loadPeople();if(n==='train')pollTrainStatus()}
-function toast(m,t='success'){const e=document.getElementById('toast');e.textContent=m;e.className='toast '+t;e.style.display='block';setTimeout(()=>e.style.display='none',3000)}
+function switchCompany(){CID=parseInt(document.getElementById('companySelect').value);loadDashboard();toast('Switched to Company '+CID)}
+function showPanel(n,el){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('panel-'+n).classList.add('active');
+  if(el)el.classList.add('active');
+  if(n==='dashboard')loadDashboard();
+  if(n==='config')loadPPEConfig();
+  if(n==='annotate')loadAnnotationImages();
+  if(n==='faces')loadPeople();
+  if(n==='train')pollTrainStatus();
+}
+function toast(m,t='success'){
+  const e=document.getElementById('toast');
+  e.textContent=m;e.className='toast '+t;e.style.display='block';
+  setTimeout(()=>e.style.display='none',3500)
+}
 
 // ---- DASHBOARD ----
-async function loadDashboard(){try{
-  const s=await(await fetch(API('/stats'))).json();
-  document.getElementById('dash-classes').innerHTML=Object.entries(s.ppe_config||{}).map(([k,v])=>'<span class="badge '+(v?'badge-ok':'badge-off')+'">'+k+'</span> ').join('');
-  document.getElementById('dash-models').innerHTML='<b>'+s.models_count+'</b> models &middot; <b>'+s.people_count+'</b> people registered';
-  document.getElementById('dash-storage').innerHTML='<b>'+(s.storage?.total_mb||0)+'</b> MB &middot; '+(s.storage?.files||0)+' files';
-  const ts=s.train_status||{};document.getElementById('dash-train').innerHTML='Status: <span class="badge badge-'+(ts.status==='complete'?'ok':ts.status==='training'?'warn':'off')+'">'+(ts.status||'idle')+'</span>';
-  const p=await(await fetch(API('/photos/summary'))).json();document.getElementById('dash-photos').innerHTML='<table><tr><th>Category</th><th>Photos</th></tr>'+Object.entries(p).map(([k,v])=>'<tr><td>'+k+'</td><td>'+v+'</td></tr>').join('')+'</table>';
-  const a=await(await fetch(API('/annotations/status'))).json();document.getElementById('dash-annotations').innerHTML='<b>'+a.annotated_images+'</b> annotated / <b>'+a.total_images+'</b> images<br>'+Object.entries(a.class_counts||{}).map(([k,v])=>k+': <b>'+v+'</b>').join(' &middot; ')
-}catch(e){console.error(e)}}
+async function loadDashboard(){
+  try{
+    const s=await(await fetch(API('/stats'))).json();
+    const cfg=s.ppe_config||{};
+    const active=Object.values(cfg).filter(v=>v).length;
+    document.getElementById('stat-classes').textContent=active;
+    document.getElementById('stat-models').textContent=s.models_count||0;
+    document.getElementById('stat-people').textContent=s.people_count||0;
+    document.getElementById('stat-storage').textContent=s.storage?.total_mb||0;
+    document.getElementById('dash-classes').innerHTML=Object.entries(cfg).map(([k,v])=>'<span class="badge '+(v?'badge-ok':'badge-off')+'" style="margin:2px">'+k+'</span>').join('');
+    const ts=s.train_status||{};
+    const statusMap={'complete':'ok','training':'warn','error':'err','idle':'off'};
+    document.getElementById('dash-train').innerHTML=
+      '<div class="info-row"><span class="info-key">STATUS</span><span class="info-val"><span class="badge badge-'+(statusMap[ts.status]||'off')+'">'+(ts.status||'idle')+'</span></span></div>'+
+      (ts.status==='training'?'<div class="progress-bar" style="margin-top:10px"><div class="progress-fill" style="width:'+((ts.epoch/ts.total_epochs*100)||5)+'%"></div></div>':'');
+    const p=await(await fetch(API('/photos/summary'))).json();
+    const photoRows=Object.entries(p).map(([k,v])=>'<tr><td>'+k+'</td><td><span class="badge badge-blue">'+v+'</span></td></tr>').join('');
+    document.getElementById('dash-photos').innerHTML='<table><tr><th>Category</th><th>Photos</th></tr>'+photoRows+'</table>';
+    const a=await(await fetch(API('/annotations/status'))).json();
+    document.getElementById('dash-annotations').innerHTML=
+      '<div class="info-row"><span class="info-key">ANNOTATED</span><span class="info-val">'+a.annotated_images+' / '+a.total_images+'</span></div>'+
+      Object.entries(a.class_counts||{}).map(([k,v])=>'<div class="info-row"><span class="info-key">'+k+'</span><span class="info-val">'+v+'</span></div>').join('');
+  }catch(e){console.error(e)}
+}
 
 // ---- CONFIG ----
-async function loadPPEConfig(){const d=await(await fetch(API('/config'))).json();document.getElementById('config-checkboxes').innerHTML=Object.entries(d.config).map(([k,v])=>'<div class="checkbox-row"><input type="checkbox" id="cfg-'+k+'" '+(v?'checked':'')+'><label for="cfg-'+k+'">'+k+'</label></div>').join('')}
-async function savePPEConfig(){const c={};document.querySelectorAll('[id^="cfg-"]').forEach(e=>{c[e.id.replace('cfg-','')]=e.checked});await fetch(API('/config'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(c)});toast('PPE config saved!');loadAnnotationClasses()}
+async function loadPPEConfig(){
+  const d=await(await fetch(API('/config'))).json();
+  document.getElementById('config-checkboxes').innerHTML=Object.entries(d.config).map(([k,v])=>
+    '<div class="ppe-item"><input type="checkbox" id="cfg-'+k+'" '+(v?'checked':'')+'><label for="cfg-'+k+'">'+k+'</label></div>'
+  ).join('');
+}
+async function savePPEConfig(){
+  const c={};
+  document.querySelectorAll('[id^="cfg-"]').forEach(e=>{c[e.id.replace('cfg-','')]=e.checked});
+  await fetch(API('/config'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(c)});
+  toast('PPE configuration saved');loadAnnotationClasses();
+}
 
 // ---- UPLOAD ----
-async function uploadPhotos(){const f=document.getElementById('upload-files').files;if(!f.length)return toast('Select files','error');const fd=new FormData();fd.append('category',document.getElementById('upload-category').value);for(const x of f)fd.append('files',x);const r=await(await fetch(API('/upload/photos'),{method:'POST',body:fd})).json();document.getElementById('upload-result').innerHTML='<span class="badge badge-ok">'+r.uploaded+' uploaded</span>';toast(r.uploaded+' photos uploaded')}
-async function bulkUpload(){const f=document.getElementById('bulk-files').files;if(!f.length)return toast('Select files','error');const fd=new FormData();fd.append('category',document.getElementById('bulk-category').value);fd.append('remap_json',document.getElementById('bulk-remap').value);for(const x of f)fd.append('files',x);const r=await(await fetch(API('/upload/bulk'),{method:'POST',body:fd})).json();document.getElementById('bulk-result').innerHTML='<span class="badge badge-ok">'+r.paired+' paired</span> <span class="badge badge-warn">'+r.images_only+' image-only</span>';toast('Bulk: '+r.paired+' paired')}
+async function uploadPhotos(){
+  const f=document.getElementById('upload-files').files;
+  if(!f.length)return toast('Select files first','error');
+  const cat=document.getElementById('upload-category').value;
+  const el=document.getElementById('upload-result');
+  el.innerHTML='<span class="badge badge-warn">Uploading '+f.length+' files to '+cat+'...</span>';
+  try{
+    const fd=new FormData();fd.append('category',cat);for(const x of f)fd.append('files',x);
+    const resp=await fetch(API('/upload/photos'),{method:'POST',body:fd});
+    if(!resp.ok){const err=await resp.json().catch(()=>({detail:resp.statusText}));el.innerHTML='<span class="badge badge-err">'+(err.detail||resp.statusText)+'</span>';toast('Upload failed','error');return;}
+    const r=await resp.json();
+    el.innerHTML='<span class="badge badge-ok">'+(r.uploaded||0)+' photos uploaded to '+cat+'</span>';
+    toast((r.uploaded||0)+' photos uploaded');
+    document.getElementById('upload-files').value='';
+  }catch(e){el.innerHTML='<span class="badge badge-err">'+e.message+'</span>';toast('Upload error','error');}
+}
+
+async function bulkUpload(){
+  const f=document.getElementById('bulk-files').files;
+  if(!f.length)return toast('Select files first','error');
+  const cat=document.getElementById('bulk-category').value;
+  const el=document.getElementById('bulk-result');
+  el.innerHTML='<span class="badge badge-warn">Uploading '+f.length+' files...</span>';
+  try{
+    const fd=new FormData();fd.append('category',cat);fd.append('remap_json',document.getElementById('bulk-remap').value);for(const x of f)fd.append('files',x);
+    const resp=await fetch(API('/upload/bulk'),{method:'POST',body:fd});
+    if(!resp.ok){const err=await resp.json().catch(()=>({detail:resp.statusText}));el.innerHTML='<span class="badge badge-err">'+(err.detail||resp.statusText)+'</span>';toast('Bulk upload failed','error');return;}
+    const r=await resp.json();
+    el.innerHTML='<span class="badge badge-ok">'+(r.paired||0)+' paired</span> <span class="badge badge-warn">'+(r.images_only||0)+' image-only</span>';
+    toast('Bulk: '+(r.paired||0)+' paired');
+  }catch(e){el.innerHTML='<span class="badge badge-err">'+e.message+'</span>';toast('Bulk error','error');}
+}
 
 // ---- CONVERTER ----
-async function convertUpload(){const f=document.getElementById('conv-files').files;if(!f.length)return toast('Select files','error');const fd=new FormData();fd.append('remap_json',document.getElementById('conv-remap').value);for(const x of f)fd.append('files',x);document.getElementById('conv-result').innerHTML='Converting...';const r=await(await fetch(API('/convert/upload'),{method:'POST',body:fd})).json();document.getElementById('conv-result').innerHTML='<span class="badge badge-ok">'+r.files_converted+' files converted</span> &middot; '+r.boxes_converted+' boxes';toast(r.files_converted+' files converted')}
+async function convertUpload(){
+  const f=document.getElementById('conv-files').files;
+  if(!f.length)return toast('Select files first','error');
+  const el=document.getElementById('conv-result');
+  el.innerHTML='<span class="badge badge-warn">Converting...</span>';
+  try{
+    const fd=new FormData();fd.append('remap_json',document.getElementById('conv-remap').value);for(const x of f)fd.append('files',x);
+    const resp=await fetch(API('/convert/upload'),{method:'POST',body:fd});
+    if(!resp.ok){const err=await resp.json().catch(()=>({detail:resp.statusText}));el.innerHTML='<span class="badge badge-err">'+(err.detail||resp.statusText)+'</span>';toast('Convert failed','error');return;}
+    const r=await resp.json();
+    el.innerHTML='<span class="badge badge-ok">'+(r.files_converted||0)+' files converted</span> · '+(r.boxes_converted||0)+' boxes';
+    toast((r.files_converted||0)+' files converted');
+  }catch(e){el.innerHTML='<span class="badge badge-err">'+e.message+'</span>';toast('Convert error','error');}
+}
 
 // ---- ANNOTATE ----
-function loadAnnotationClasses(){const sel=document.getElementById('ann-class');sel.innerHTML='';for(let i=0;i<=5;i++){const o=document.createElement('option');o.value=i;o.textContent=i+' - '+classNames[i];sel.appendChild(o)}}
-async function loadAnnotationImages(){loadAnnotationClasses();const imgs=await(await fetch(API('/annotate/images'))).json();const sel=document.getElementById('ann-image-sel');sel.innerHTML='<option value="">-- Select --</option>';imgs.forEach(im=>{const o=document.createElement('option');o.value=im.name;o.textContent=im.name+(im.has_label?' [annotated]':'');sel.appendChild(o)})}
-async function loadAnnotationImage(){const name=document.getElementById('ann-image-sel').value;if(!name)return;annCurrentFile=name;annAnnotations=[];const wrap=document.getElementById('ann-canvas-wrap');const imgEl=new Image();imgEl.onload=function(){annImgW=this.width;annImgH=this.height;let dw=Math.min(900,annImgW);let scale=dw/annImgW;let dh=Math.round(annImgH*scale);wrap.innerHTML='<img id="ann-bg" src="'+this.src+'" width="'+dw+'" height="'+dh+'"><canvas id="ann-cv" width="'+dw+'" height="'+dh+'"></canvas>';annImgW=dw;annImgH=dh;setupCanvas()};imgEl.src=API('/annotate/image/'+name);
-  // Load existing labels
-  const lb=await(await fetch(API('/annotate/labels/'+name))).json();if(lb.labels&&lb.labels.length){lb.labels.forEach(l=>{const cx=l.cx*annImgW,cy=l.cy*annImgH,bw=l.w*annImgW,bh=l.h*annImgH;annAnnotations.push({class_id:l.class_id,cx:l.cx,cy:l.cy,w:l.w,h:l.h,x1:cx-bw/2,y1:cy-bh/2,x2:cx+bw/2,y2:cy+bh/2})});setTimeout(annRedraw,300)}}
-function setupCanvas(){const cv=document.getElementById('ann-cv');if(!cv)return;const ctx=cv.getContext('2d');cv.addEventListener('mousedown',e=>{const r=cv.getBoundingClientRect();annStartX=e.clientX-r.left;annStartY=e.clientY-r.top;annDrawing=true});cv.addEventListener('mousemove',e=>{if(!annDrawing)return;const r=cv.getBoundingClientRect();const x=e.clientX-r.left,y=e.clientY-r.top;annRedraw();ctx.strokeStyle='#FFFF00';ctx.lineWidth=2;ctx.setLineDash([5,5]);ctx.strokeRect(annStartX,annStartY,x-annStartX,y-annStartY);ctx.setLineDash([])});cv.addEventListener('mouseup',e=>{if(!annDrawing)return;annDrawing=false;const r=cv.getBoundingClientRect();const x=e.clientX-r.left,y=e.clientY-r.top;const x1=Math.min(annStartX,x),y1=Math.min(annStartY,y),x2=Math.max(annStartX,x),y2=Math.max(annStartY,y);if(x2-x1<5||y2-y1<5)return;const cid=parseInt(document.getElementById('ann-class').value);annAnnotations.push({class_id:cid,cx:((x1+x2)/2)/annImgW,cy:((y1+y2)/2)/annImgH,w:(x2-x1)/annImgW,h:(y2-y1)/annImgH,x1,y1,x2,y2});annRedraw();logAnn(cid,annAnnotations.length)})}
-function annRedraw(){const cv=document.getElementById('ann-cv');if(!cv)return;const ctx=cv.getContext('2d');ctx.clearRect(0,0,annImgW,annImgH);annAnnotations.forEach(a=>{const c=classColors[a.class_id]||'#FFFF00';ctx.strokeStyle=c;ctx.lineWidth=2;ctx.strokeRect(a.x1,a.y1,a.x2-a.x1,a.y2-a.y1);ctx.fillStyle=c;ctx.font='12px monospace';ctx.fillText(classNames[a.class_id]||('cls'+a.class_id),a.x1+2,a.y1-4)})}
+function loadAnnotationClasses(){
+  const sel=document.getElementById('ann-class');sel.innerHTML='';
+  for(let i=0;i<=5;i++){const o=document.createElement('option');o.value=i;o.textContent=i+' — '+classNames[i];sel.appendChild(o)}
+}
+async function loadAnnotationImages(){
+  loadAnnotationClasses();
+  const imgs=await(await fetch(API('/annotate/images'))).json();
+  const sel=document.getElementById('ann-image-sel');
+  sel.innerHTML='<option value="">— Select Image —</option>';
+  imgs.forEach(im=>{const o=document.createElement('option');o.value=im.name;o.textContent=im.name+(im.has_label?' ✓':'');sel.appendChild(o)});
+}
+async function loadAnnotationImage(){
+  const name=document.getElementById('ann-image-sel').value;if(!name)return;
+  annCurrentFile=name;annAnnotations=[];
+  const wrap=document.getElementById('ann-canvas-wrap');
+  const imgEl=new Image();
+  imgEl.onload=function(){
+    annImgW=this.width;annImgH=this.height;
+    let dw=Math.min(900,annImgW);let scale=dw/annImgW;let dh=Math.round(annImgH*scale);
+    wrap.innerHTML='<img id="ann-bg" src="'+this.src+'" width="'+dw+'" height="'+dh+'" style="border-radius:8px"><canvas id="ann-cv" width="'+dw+'" height="'+dh+'"></canvas>';
+    annImgW=dw;annImgH=dh;setupCanvas();
+  };
+  imgEl.src=API('/annotate/image/'+name);
+  const lb=await(await fetch(API('/annotate/labels/'+name))).json();
+  if(lb.labels&&lb.labels.length){
+    lb.labels.forEach(l=>{const cx=l.cx*annImgW,cy=l.cy*annImgH,bw=l.w*annImgW,bh=l.h*annImgH;annAnnotations.push({class_id:l.class_id,cx:l.cx,cy:l.cy,w:l.w,h:l.h,x1:cx-bw/2,y1:cy-bh/2,x2:cx+bw/2,y2:cy+bh/2})});
+    setTimeout(annRedraw,300);
+  }
+}
+function setupCanvas(){
+  const cv=document.getElementById('ann-cv');if(!cv)return;
+  const ctx=cv.getContext('2d');
+  cv.addEventListener('mousedown',e=>{const r=cv.getBoundingClientRect();annStartX=e.clientX-r.left;annStartY=e.clientY-r.top;annDrawing=true});
+  cv.addEventListener('mousemove',e=>{if(!annDrawing)return;const r=cv.getBoundingClientRect();const x=e.clientX-r.left,y=e.clientY-r.top;annRedraw();ctx.strokeStyle='rgba(99,179,237,0.8)';ctx.lineWidth=2;ctx.setLineDash([5,5]);ctx.strokeRect(annStartX,annStartY,x-annStartX,y-annStartY);ctx.setLineDash([])});
+  cv.addEventListener('mouseup',e=>{if(!annDrawing)return;annDrawing=false;const r=cv.getBoundingClientRect();const x=e.clientX-r.left,y=e.clientY-r.top;const x1=Math.min(annStartX,x),y1=Math.min(annStartY,y),x2=Math.max(annStartX,x),y2=Math.max(annStartY,y);if(x2-x1<5||y2-y1<5)return;const cid=parseInt(document.getElementById('ann-class').value);annAnnotations.push({class_id:cid,cx:((x1+x2)/2)/annImgW,cy:((y1+y2)/2)/annImgH,w:(x2-x1)/annImgW,h:(y2-y1)/annImgH,x1,y1,x2,y2});annRedraw();logAnn(cid,annAnnotations.length)});
+}
+function annRedraw(){
+  const cv=document.getElementById('ann-cv');if(!cv)return;
+  const ctx=cv.getContext('2d');ctx.clearRect(0,0,annImgW,annImgH);
+  annAnnotations.forEach(a=>{const c=classColors[a.class_id]||'#63B3ED';ctx.strokeStyle=c;ctx.lineWidth=2;ctx.strokeRect(a.x1,a.y1,a.x2-a.x1,a.y2-a.y1);ctx.fillStyle=c+'33';ctx.fillRect(a.x1,a.y1,a.x2-a.x1,a.y2-a.y1);ctx.fillStyle=c;ctx.font='bold 11px Space Mono, monospace';ctx.fillText(classNames[a.class_id]||('cls'+a.class_id),a.x1+4,a.y1+14)});
+}
 function logAnn(cid,n){document.getElementById('ann-log').innerHTML+='['+n+'] '+classNames[cid]+' added<br>'}
-function annUndo(){if(annAnnotations.length){annAnnotations.pop();annRedraw();document.getElementById('ann-log').innerHTML+='[UNDO]<br>'}}
-function annClear(){annAnnotations=[];annRedraw();document.getElementById('ann-log').innerHTML='Cleared.<br>'}
-async function annSave(){if(!annCurrentFile)return toast('No image selected','error');const data=annAnnotations.map(a=>({class_id:a.class_id,cx:a.cx,cy:a.cy,w:a.w,h:a.h}));const r=await(await fetch(API('/annotate/save'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({image_filename:annCurrentFile,annotations:data})})).json();toast('Saved '+r.saved+' annotations');document.getElementById('ann-log').innerHTML+='<b>Saved '+r.saved+' annotations</b><br>'}
+function annUndo(){if(annAnnotations.length){annAnnotations.pop();annRedraw();document.getElementById('ann-log').innerHTML+='↩ undo<br>'}}
+function annClear(){annAnnotations=[];annRedraw();document.getElementById('ann-log').innerHTML='✕ cleared<br>'}
+async function annSave(){
+  if(!annCurrentFile)return toast('No image selected','error');
+  const data=annAnnotations.map(a=>({class_id:a.class_id,cx:a.cx,cy:a.cy,w:a.w,h:a.h}));
+  const r=await(await fetch(API('/annotate/save'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({image_filename:annCurrentFile,annotations:data})})).json();
+  toast('Saved '+r.saved+' annotations');document.getElementById('ann-log').innerHTML+='✓ saved '+r.saved+'<br>';
+}
 
 // ---- TRAIN ----
-async function generateDataset(){const fd=new FormData();fd.append('train_split',document.getElementById('train-split').value);const r=await(await fetch(API('/dataset/generate'),{method:'POST',body:fd})).json();if(r.error){toast(r.error,'error');return}document.getElementById('dataset-result').innerHTML='<span class="badge badge-ok">'+r.train+' train / '+r.valid+' valid</span><br>Classes: '+Object.values(r.classes||{}).join(', ');toast('Dataset generated!')}
-async function startTraining(){const b={base_model:document.getElementById('train-model').value,epochs:parseInt(document.getElementById('train-epochs').value),batch_size:parseInt(document.getElementById('train-batch').value),img_size:parseInt(document.getElementById('train-imgsz').value),patience:parseInt(document.getElementById('train-patience').value)};await fetch(API('/train/start'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});toast('Training started!');pollTrainStatus()}
-async function pollTrainStatus(){const r=await(await fetch(API('/train/status'))).json();const b=document.getElementById('train-status');if(r.status==='training'){b.innerHTML='<div class="progress-bar"><div class="progress-fill" style="width:'+((r.epoch/r.total_epochs*100)||5)+'%"></div></div><p style="margin-top:8px">Epoch '+(r.epoch||'?')+'/'+(r.total_epochs||'?')+'</p>';setTimeout(pollTrainStatus,5000)}else if(r.status==='complete'){b.innerHTML='<span class="badge badge-ok">Complete!</span> '+(r.model_path||'')}else if(r.status==='error'){b.innerHTML='<span class="badge badge-err">Error: '+r.error+'</span>'}else{b.innerHTML='<span class="badge badge-off">'+(r.status||'idle')+'</span>'}}
+async function generateDataset(){
+  const el=document.getElementById('dataset-result');
+  el.innerHTML='<span class="badge badge-warn">Generating dataset...</span>';
+  try{
+    const fd=new FormData();fd.append('train_split',document.getElementById('train-split').value);
+    const resp=await fetch(API('/dataset/generate'),{method:'POST',body:fd});
+    const r=await resp.json();
+    if(!resp.ok||r.error||r.detail){const msg=r.detail||r.error||'Unknown error';el.innerHTML='<span class="badge badge-err">'+msg+'</span>';toast(msg,'error');return;}
+    el.innerHTML='<span class="badge badge-ok">'+(r.train||0)+' train / '+(r.valid||0)+' valid</span>';
+    if(r.classes)el.innerHTML+='<div style="margin-top:8px;font-size:12px;color:var(--text-muted)">Classes: '+Object.values(r.classes).join(' · ')+'</div>';
+    toast('Dataset generated successfully');
+  }catch(e){el.innerHTML='<span class="badge badge-err">'+e.message+'</span>';toast('Dataset failed','error');}
+}
+async function startTraining(){
+  const b={base_model:document.getElementById('train-model').value,epochs:parseInt(document.getElementById('train-epochs').value),batch_size:parseInt(document.getElementById('train-batch').value),img_size:parseInt(document.getElementById('train-imgsz').value),patience:parseInt(document.getElementById('train-patience').value)};
+  await fetch(API('/train/start'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});
+  toast('Training started');pollTrainStatus();
+}
+async function pollTrainStatus(){
+  const r=await(await fetch(API('/train/status'))).json();
+  const b=document.getElementById('train-status');
+  if(r.status==='training'){
+    b.innerHTML='<div class="progress-bar"><div class="progress-fill" style="width:'+((r.epoch/r.total_epochs*100)||5)+'%"></div></div><div style="margin-top:8px;font-size:12px;color:var(--text-muted);font-family:Space Mono,monospace">Epoch '+(r.epoch||'?')+'/'+(r.total_epochs||'?')+'</div>';
+    setTimeout(pollTrainStatus,5000);
+  }else if(r.status==='complete'){
+    b.innerHTML='<span class="badge badge-ok">✓ Complete</span><div style="margin-top:8px;font-size:12px;color:var(--text-muted)">'+(r.model_path||'')+'</div>';
+  }else if(r.status==='error'){
+    b.innerHTML='<span class="badge badge-err">'+r.error+'</span>';
+  }else{
+    b.innerHTML='<span class="badge badge-off">'+(r.status||'idle')+'</span>';
+  }
+}
 
 // ---- DETECT IMAGE ----
 function previewDetect(i){if(i.files[0]){const r=new FileReader();r.onload=e=>document.getElementById('detect-preview').innerHTML='<img src="'+e.target.result+'" class="preview-img">';r.readAsDataURL(i.files[0])}}
-async function detectImage(){const f=document.getElementById('detect-file').files[0];if(!f)return toast('Select image','error');const fd=new FormData();fd.append('file',f);fd.append('confidence',document.getElementById('detect-conf').value);fd.append('detect_faces',document.getElementById('detect-faces').checked);fd.append('face_threshold',document.getElementById('detect-face-thr').value);const r=await(await fetch(API('/detect/upload'),{method:'POST',body:fd})).json();document.getElementById('detect-preview').innerHTML='<img src="data:image/jpeg;base64,'+r.annotated_base64+'" class="preview-img">';let html='<div class="result-box '+(r.compliant?'result-compliant':'result-noncompliant')+'"><b>'+(r.compliant?'COMPLIANT':'NON-COMPLIANT')+'</b><br>Detected: '+r.detected_count+'/'+r.required_count+' PPEs';if(r.missing&&r.missing.length)html+='<br>Missing: <b>'+r.missing.join(', ')+'</b>';if(r.faces&&r.faces.length){r.faces.forEach(fc=>{html+='<br>Person: <b>'+fc.person_name+'</b> ('+Math.round(fc.confidence*100)+'%)'})};html+='<br>Processing: '+r.processing_ms+'ms</div>';document.getElementById('detect-result').innerHTML=html}
+async function detectImage(){
+  const f=document.getElementById('detect-file').files[0];if(!f)return toast('Select image first','error');
+  const fd=new FormData();fd.append('file',f);fd.append('confidence',document.getElementById('detect-conf').value);fd.append('detect_faces',document.getElementById('detect-faces').checked);fd.append('face_threshold',document.getElementById('detect-face-thr').value);
+  const r=await(await fetch(API('/detect/upload'),{method:'POST',body:fd})).json();
+  document.getElementById('detect-preview').innerHTML='<img src="data:image/jpeg;base64,'+r.annotated_base64+'" class="preview-img">';
+  let html='<div class="result-box '+(r.compliant?'result-compliant':'result-noncompliant')+'">';
+  html+='<div class="result-title '+(r.compliant?'ok':'fail')+'">'+(r.compliant?'✓ COMPLIANT':'✗ NON-COMPLIANT')+'</div>';
+  html+='<div style="font-size:13px;color:var(--text-muted)">Detected: '+r.detected_count+'/'+r.required_count+' PPEs</div>';
+  if(r.missing&&r.missing.length)html+='<div style="margin-top:8px">Missing: <span style="color:var(--danger)">'+r.missing.join(', ')+'</span></div>';
+  if(r.faces&&r.faces.length){r.faces.forEach(fc=>{html+='<div style="margin-top:4px">Person: <strong>'+fc.person_name+'</strong> ('+Math.round(fc.confidence*100)+'%)</div>'})}
+  html+='<div style="margin-top:8px;font-size:11px;color:var(--text-dim);font-family:Space Mono,monospace">'+r.processing_ms+'ms</div></div>';
+  document.getElementById('detect-result').innerHTML=html;
+}
 
 // ---- VIDEO ----
-async function detectVideo(){const f=document.getElementById('video-file').files[0];if(!f)return toast('Select video','error');document.getElementById('video-result').innerHTML='Processing...';const fd=new FormData();fd.append('file',f);fd.append('skip_frames',document.getElementById('video-skip').value);fd.append('confidence',document.getElementById('video-conf').value);fd.append('detect_faces',document.getElementById('video-faces').checked);const r=await(await fetch(API('/detect/video'),{method:'POST',body:fd})).json();showVideoResult(r)}
-async function detectYouTube(){const u=document.getElementById('yt-url').value;if(!u)return toast('Enter URL','error');document.getElementById('video-result').innerHTML='Downloading & processing...';const fd=new FormData();fd.append('url',u);fd.append('max_frames',document.getElementById('yt-max').value);const r=await(await fetch(API('/detect/youtube'),{method:'POST',body:fd})).json();showVideoResult(r)}
-function showVideoResult(r){const rate=r.compliance_rate||0;const cls=rate>=80?'badge-ok':rate>=50?'badge-warn':'badge-err';document.getElementById('video-result').innerHTML='<div class="grid-3" style="margin-bottom:16px"><div><b>Frames</b><br>'+r.frames_processed+'</div><div><b>Compliant</b><br><span class="badge badge-ok">'+r.compliant_frames+'</span></div><div><b>Non-Compliant</b><br><span class="badge badge-err">'+r.non_compliant_frames+'</span></div></div><b>Rate: <span class="badge '+cls+'">'+rate+'%</span></b>'}
+async function detectVideo(){
+  const f=document.getElementById('video-file').files[0];if(!f)return toast('Select video first','error');
+  document.getElementById('video-result').innerHTML='<span class="badge badge-warn">Processing video...</span>';
+  const fd=new FormData();fd.append('file',f);fd.append('skip_frames',document.getElementById('video-skip').value);fd.append('confidence',document.getElementById('video-conf').value);fd.append('detect_faces',document.getElementById('video-faces').checked);
+  const r=await(await fetch(API('/detect/video'),{method:'POST',body:fd})).json();showVideoResult(r);
+}
+async function detectYouTube(){
+  const u=document.getElementById('yt-url').value;if(!u)return toast('Enter YouTube URL','error');
+  document.getElementById('video-result').innerHTML='<span class="badge badge-warn">Downloading & processing...</span>';
+  const fd=new FormData();fd.append('url',u);fd.append('max_frames',document.getElementById('yt-max').value);
+  const r=await(await fetch(API('/detect/youtube'),{method:'POST',body:fd})).json();showVideoResult(r);
+}
+function showVideoResult(r){
+  const rate=r.compliance_rate||0;
+  const cls=rate>=80?'badge-ok':rate>=50?'badge-warn':'badge-err';
+  document.getElementById('video-result').innerHTML=
+    '<div class="grid-3" style="margin-bottom:16px">'+
+    '<div class="stat-card"><div class="stat-label">Frames</div><div class="stat-value">'+r.frames_processed+'</div></div>'+
+    '<div class="stat-card"><div class="stat-label">Compliant</div><div class="stat-value" style="color:var(--success)">'+r.compliant_frames+'</div></div>'+
+    '<div class="stat-card"><div class="stat-label">Non-Compliant</div><div class="stat-value" style="color:var(--danger)">'+r.non_compliant_frames+'</div></div>'+
+    '</div><div><span class="badge '+cls+'" style="font-size:14px;padding:6px 14px">'+rate+'% compliance</span></div>';
+}
 
 // ---- FACES ----
-async function registerFace(){const code=document.getElementById('face-code').value;const name=document.getElementById('face-name').value;const f=document.getElementById('face-file').files[0];if(!code||!name||!f)return toast('Fill all fields','error');const fd=new FormData();fd.append('person_code',code);fd.append('person_name',name);fd.append('badge_id',document.getElementById('face-badge').value);fd.append('file',f);const r=await(await fetch(API('/faces/register'),{method:'POST',body:fd})).json();document.getElementById('face-result').innerHTML='<span class="badge badge-ok">'+name+' registered ('+r.photos+' photos)</span>';toast(name+' registered!');loadPeople()}
-async function loadPeople(){const p=await(await fetch(API('/faces/people'))).json();document.getElementById('people-list').innerHTML=p.length?'<table><tr><th>Code</th><th>Name</th><th>Badge</th><th>Photos</th></tr>'+p.map(x=>'<tr><td>'+x.person_code+'</td><td>'+x.person_name+'</td><td>'+x.badge_id+'</td><td>'+x.photos+'</td></tr>').join('')+'</table>':'<p style="color:var(--muted)">No people registered</p>'}
+async function registerFace(){
+  const code=document.getElementById('face-code').value;const name=document.getElementById('face-name').value;const f=document.getElementById('face-file').files[0];
+  if(!code||!name||!f)return toast('Fill all fields','error');
+  const fd=new FormData();fd.append('person_code',code);fd.append('person_name',name);fd.append('badge_id',document.getElementById('face-badge').value);fd.append('file',f);
+  const r=await(await fetch(API('/faces/register'),{method:'POST',body:fd})).json();
+  document.getElementById('face-result').innerHTML='<span class="badge badge-ok">'+name+' registered ('+r.photos+' photos)</span>';
+  toast(name+' registered');loadPeople();
+}
+async function loadPeople(){
+  const p=await(await fetch(API('/faces/people'))).json();
+  document.getElementById('people-list').innerHTML=p.length?
+    '<table><tr><th>Code</th><th>Name</th><th>Badge</th><th>Photos</th></tr>'+
+    p.map(x=>'<tr><td>'+x.person_code+'</td><td>'+x.person_name+'</td><td>'+x.badge_id+'</td><td><span class="badge badge-blue">'+x.photos+'</span></td></tr>').join('')+
+    '</table>':
+    '<div class="empty-state" data-icon="◉">No people registered</div>';
+}
 async function rebuildFaceDB(){const r=await(await fetch(API('/faces/rebuild'),{method:'POST'})).json();toast('Face DB rebuilt: '+r.people_loaded+' people')}
 
 // ---- STREAM ----
-async function startStream(){const fd=new FormData();fd.append('source',document.getElementById('stream-source').value);fd.append('source_type',document.getElementById('stream-type').value);fd.append('confidence',document.getElementById('stream-conf').value);fd.append('detect_faces',document.getElementById('stream-faces').checked);fd.append('face_threshold',document.getElementById('stream-face-thr').value);try{const r=await(await fetch(API('/stream/start'),{method:'POST',body:fd})).json();currentStreamId=r.session_id;document.getElementById('stream-container').innerHTML='<img src="/api/v1/epi/stream/'+currentStreamId+'/feed" style="width:100%">';toast('Stream started');streamPoll=setInterval(pollStreamInfo,2000);refreshSessions()}catch(e){toast('Stream error','error')}}
-async function stopStream(){if(!currentStreamId)return;await fetch('/api/v1/epi/stream/'+currentStreamId+'/stop?company_id='+CID,{method:'POST'});document.getElementById('stream-container').innerHTML='<span class="stream-placeholder">Stopped</span>';clearInterval(streamPoll);currentStreamId=null;toast('Stopped');refreshSessions()}
-async function pollStreamInfo(){if(!currentStreamId)return;try{const r=await(await fetch('/api/v1/epi/stream/'+currentStreamId+'/status?company_id='+CID)).json();let h='<b>FPS:</b> '+r.fps+'<br><b>Frames:</b> '+r.frame_count+'<br>';const lr=r.latest_result;if(lr){h+='<b>Status:</b> <span class="badge '+(lr.compliant?'badge-ok':'badge-err')+'">'+(lr.compliant?'COMPLIANT':'NON-COMPLIANT')+'</span><br>';if(lr.missing&&lr.missing.length)h+='<b>Missing:</b> '+lr.missing.join(', ')+'<br>';if(lr.faces&&lr.faces.length)lr.faces.forEach(f=>{h+='<b>Person:</b> '+f.person_name+' ('+Math.round(f.confidence*100)+'%)<br>'})}document.getElementById('stream-info').innerHTML=h}catch(e){}}
-async function refreshSessions(){const ss=await(await fetch(API('/stream/sessions'))).json();document.getElementById('stream-sessions').innerHTML=ss.length?'<table><tr><th>ID</th><th>Type</th><th>FPS</th><th></th></tr>'+ss.map(s=>'<tr><td>'+s.session_id+'</td><td>'+s.source_type+'</td><td>'+s.fps+'</td><td><button class="btn btn-danger btn-sm" onclick="stopSid(\''+s.session_id+'\')">Stop</button></td></tr>').join('')+'</table>':'<p style="color:var(--muted)">No sessions</p>'}
-async function stopSid(sid){await fetch('/api/v1/epi/stream/'+sid+'/stop?company_id='+CID,{method:'POST'});if(sid===currentStreamId)currentStreamId=null;refreshSessions();toast('Stopped')}
+async function startStream(){
+  const fd=new FormData();fd.append('source',document.getElementById('stream-source').value);fd.append('source_type',document.getElementById('stream-type').value);fd.append('confidence',document.getElementById('stream-conf').value);fd.append('detect_faces',document.getElementById('stream-faces').checked);fd.append('face_threshold',document.getElementById('stream-face-thr').value);
+  try{
+    const r=await(await fetch(API('/stream/start'),{method:'POST',body:fd})).json();
+    currentStreamId=r.session_id;
+    document.getElementById('stream-container').innerHTML='<img src="/api/v1/epi/stream/'+currentStreamId+'/feed" style="width:100%">';
+    toast('Stream started');streamPoll=setInterval(pollStreamInfo,2000);refreshSessions();
+  }catch(e){toast('Stream error','error')}
+}
+async function stopStream(){
+  if(!currentStreamId)return;
+  await fetch('/api/v1/epi/stream/'+currentStreamId+'/stop?company_id='+CID,{method:'POST'});
+  document.getElementById('stream-container').innerHTML='<div class="stream-placeholder">◼ Stopped</div>';
+  clearInterval(streamPoll);currentStreamId=null;toast('Stream stopped');refreshSessions();
+}
+async function pollStreamInfo(){
+  if(!currentStreamId)return;
+  try{
+    const r=await(await fetch('/api/v1/epi/stream/'+currentStreamId+'/status?company_id='+CID)).json();
+    let h='<div class="info-row"><span class="info-key">FPS</span><span class="info-val">'+r.fps+'</span></div>';
+    h+='<div class="info-row"><span class="info-key">FRAMES</span><span class="info-val">'+r.frame_count+'</span></div>';
+    const lr=r.latest_result;
+    if(lr){
+      h+='<div class="info-row"><span class="info-key">STATUS</span><span class="info-val"><span class="badge '+(lr.compliant?'badge-ok':'badge-err')+'">'+(lr.compliant?'COMPLIANT':'NON-COMPLIANT')+'</span></span></div>';
+      if(lr.missing&&lr.missing.length)h+='<div class="info-row"><span class="info-key">MISSING</span><span class="info-val" style="color:var(--danger)">'+lr.missing.join(', ')+'</span></div>';
+      if(lr.faces&&lr.faces.length)lr.faces.forEach(f=>{h+='<div class="info-row"><span class="info-key">PERSON</span><span class="info-val">'+f.person_name+' ('+Math.round(f.confidence*100)+'%)</span></div>'});
+    }
+    document.getElementById('stream-info').innerHTML=h;
+  }catch(e){}
+}
+async function refreshSessions(){
+  const ss=await(await fetch(API('/stream/sessions'))).json();
+  document.getElementById('stream-sessions').innerHTML=ss.length?
+    '<table><tr><th>ID</th><th>Type</th><th>FPS</th><th></th></tr>'+
+    ss.map(s=>'<tr><td style="font-family:Space Mono,monospace;font-size:11px">'+s.session_id+'</td><td>'+s.source_type+'</td><td>'+s.fps+'</td><td><button class="btn btn-danger btn-sm" onclick="stopSid(\''+s.session_id+'\')">Stop</button></td></tr>').join('')+
+    '</table>':
+    '<div class="empty-state" data-icon="◉">No active sessions</div>';
+}
+async function stopSid(sid){
+  await fetch('/api/v1/epi/stream/'+sid+'/stop?company_id='+CID,{method:'POST'});
+  if(sid===currentStreamId)currentStreamId=null;refreshSessions();toast('Session stopped');
+}
 
-document.getElementById('companySelect').value=CID;loadDashboard();
+document.getElementById('companySelect').value=CID;
+loadDashboard();
 </script>
 </body>
 </html>

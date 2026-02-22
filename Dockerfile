@@ -6,6 +6,7 @@ ENV PYTHONDONTWRITEBYTECODE=1
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3.11 python3.11-venv python3-pip \
+    build-essential gcc g++ \
     libgl1-mesa-glx libglib2.0-0 libsm6 libxext6 libxrender1 \
     ffmpeg curl && \
     rm -rf /var/lib/apt/lists/*

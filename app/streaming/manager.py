@@ -52,9 +52,19 @@ class StreamSession:
         if self.source_type == "youtube":
             try:
                 import yt_dlp
-                with yt_dlp.YoutubeDL({"format": "best[height<=720]", "quiet": True}) as ydl:
+                ydl_opts = {
+                    "format": "best[ext=mp4][height<=720]/best[ext=mp4]/best/bestvideo+bestaudio",
+                    "quiet": True,
+                }
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                     info = ydl.extract_info(self.source, download=False)
-                    return info["url"]
+                    url = info.get("url") or info.get("manifest_url")
+                    if not url and info.get("formats"):
+                        fmt = sorted(info["formats"], key=lambda f: f.get("height") or 0, reverse=True)
+                        url = fmt[0].get("url")
+                    if not url:
+                        raise RuntimeError("No playable URL found")
+                    return url
             except Exception as e:
                 raise RuntimeError(f"YouTube error: {e}")
         elif self.source_type == "webcam":
