@@ -1,0 +1,22 @@
+version: "3.8"
+
+services:
+  vision-edge:
+    build:
+      context: ..
+      dockerfile: edge/Dockerfile.edge
+    container_name: smartx-vision-edge
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    env_file: ../.env
+    volumes:
+      - ../data:/opt/vision/data
+      - ../logs:/opt/vision/logs
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

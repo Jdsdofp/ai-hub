@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+venv/
+## .env
+data/
+logs/
+*.pt
+*.onnx
+runs/
+*.jpg
+*.jpeg
+*.png
+!app/ui/static/img/
+.DS_Store

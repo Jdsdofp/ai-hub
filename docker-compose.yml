@@ -1,0 +1,46 @@
+version: "3.8"
+
+services:
+  vision-platform:
+    build: .
+    container_name: smartx-vision-v3
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    env_file: .env
+    volumes:
+      - ./data:/opt/vision/data
+      - ./logs:/opt/vision/logs
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    depends_on:
+      - mysql
+    networks:
+      - vision-net
+
+  mysql:
+    image: mysql:8.0
+    container_name: smartx-vision-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD:-smartx2024}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-ai_hub}
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+    networks:
+      - vision-net
+
+volumes:
+  mysql-data:
+
+networks:
+  vision-net:
+    driver: bridge

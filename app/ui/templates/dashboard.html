@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmartX Vision Platform v3 — EPI Check</title>
+<style>
+:root{--primary:#1a73e8;--success:#0d904f;--danger:#d93025;--warning:#f9ab00;--bg:#f8f9fa;--card:#fff;--border:#e0e0e0;--text:#202124;--muted:#5f6368}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text)}
+.header{background:#1a1a2e;color:#fff;padding:12px 24px;display:flex;align-items:center;gap:16px}
+.header h1{font-size:17px;font-weight:600}.header .logo{font-size:22px;font-weight:800;color:#4dabf7}
+.header .company-sel{margin-left:auto;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:#fff;padding:6px 12px;border-radius:6px;font-size:14px}
+.tabs{display:flex;background:#fff;border-bottom:2px solid var(--border);padding:0 8px;overflow-x:auto;flex-wrap:nowrap}
+.tab{padding:10px 14px;cursor:pointer;font-size:13px;font-weight:500;color:var(--muted);border-bottom:3px solid transparent;white-space:nowrap;transition:all .2s}
+.tab:hover{color:var(--primary);background:#f0f6ff}.tab.active{color:var(--primary);border-bottom-color:var(--primary)}
+.panel{display:none;padding:20px;max-width:1200px;margin:0 auto}.panel.active{display:block}
+.card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:20px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,0.06)}
+.card h3{font-size:15px;margin-bottom:12px}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+@media(max-width:768px){.grid-2,.grid-3{grid-template-columns:1fr}}
+label{display:block;font-size:13px;font-weight:500;color:var(--muted);margin-bottom:4px}
+input,select,textarea{width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:14px;margin-bottom:12px}
+input[type=file]{padding:6px}input[type=checkbox]{width:auto;margin-right:8px}
+.checkbox-row{display:flex;align-items:center;padding:6px 0}.checkbox-row label{margin:0;cursor:pointer}
+.btn{padding:10px 20px;border:none;border-radius:6px;font-size:14px;font-weight:500;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:6px}
+.btn-primary{background:var(--primary);color:#fff}.btn-primary:hover{background:#1557b0}
+.btn-success{background:var(--success);color:#fff}.btn-danger{background:var(--danger);color:#fff}
+.btn-warning{background:var(--warning);color:#333}.btn-sm{padding:6px 12px;font-size:12px}
+.badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600}
+.badge-ok{background:#e6f4ea;color:var(--success)}.badge-warn{background:#fff3e0;color:#e65100}
+.badge-err{background:#fce8e6;color:var(--danger)}.badge-off{background:#f1f3f4;color:var(--muted)}
+.preview-img{max-width:100%;border-radius:8px;border:1px solid var(--border)}
+.stream-container{background:#000;border-radius:8px;overflow:hidden;position:relative;min-height:300px;display:flex;align-items:center;justify-content:center}
+.stream-container img{width:100%;height:auto}.stream-placeholder{color:#888;font-size:14px}
+.result-box{padding:16px;border-radius:8px;margin:12px 0}
+.result-compliant{background:#e6f4ea;border:1px solid #a8dab5}.result-noncompliant{background:#fce8e6;border:1px solid #f5c6cb}
+.toast{position:fixed;top:20px;right:20px;padding:14px 20px;border-radius:8px;color:#fff;font-size:14px;z-index:9999;animation:slideIn .3s ease;display:none}
+.toast.success{background:var(--success)}.toast.error{background:var(--danger)}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+.progress-bar{width:100%;height:8px;background:#e0e0e0;border-radius:4px;overflow:hidden}
+.progress-fill{height:100%;background:var(--primary);transition:width .5s}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:8px 12px;text-align:left;border-bottom:1px solid var(--border)}
+th{background:#f8f9fa;font-weight:600;color:var(--muted)}
+#ann-canvas-wrap{position:relative;display:inline-block;cursor:crosshair}
+#ann-canvas-wrap canvas{position:absolute;top:0;left:0}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span class="logo">SmartX</span>
+  <h1>Vision Platform v3 — EPI Check</h1>
+  <select class="company-sel" id="companySelect" onchange="switchCompany()">
+    <option value="1">Company 1</option><option value="2">Company 2</option><option value="3">Company 3</option>
+  </select>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="showPanel('dashboard')">Dashboard</div>
+  <div class="tab" onclick="showPanel('config')">PPE Config</div>
+  <div class="tab" onclick="showPanel('upload')">Upload</div>
+  <div class="tab" onclick="showPanel('convert')">Converter</div>
+  <div class="tab" onclick="showPanel('annotate')">Annotate</div>
+  <div class="tab" onclick="showPanel('train')">Train</div>
+  <div class="tab" onclick="showPanel('detect')">Detect Image</div>
+  <div class="tab" onclick="showPanel('video')">Detect Video</div>
+  <div class="tab" onclick="showPanel('faces')">Face Register</div>
+  <div class="tab" onclick="showPanel('stream')">Live Stream</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- ===== DASHBOARD ===== -->
+<div class="panel active" id="panel-dashboard">
+  <div class="grid-3">
+    <div class="card"><h3>Active PPE Classes</h3><div id="dash-classes">Loading...</div></div>
+    <div class="card"><h3>Models / People</h3><div id="dash-models">Loading...</div></div>
+    <div class="card"><h3>Storage</h3><div id="dash-storage">Loading...</div></div>
+  </div>
+  <div class="grid-2">
+    <div class="card"><h3>Photos Summary</h3><div id="dash-photos">Loading...</div></div>
+    <div class="card"><h3>Annotations</h3><div id="dash-annotations">Loading...</div></div>
+  </div>
+  <div class="card"><h3>Training Status</h3><div id="dash-train">Loading...</div></div>
+</div>
+
+<!-- ===== PPE CONFIG ===== -->
+<div class="panel" id="panel-config">
+  <div class="card">
+    <h3>Configure Active PPE Classes</h3>
+    <p style="color:var(--muted);margin-bottom:16px;">Enable only the PPE types you have training images for.</p>
+    <div id="config-checkboxes"></div><br>
+    <button class="btn btn-primary" onclick="savePPEConfig()">Save Configuration</button>
+  </div>
+</div>
+
+<!-- ===== UPLOAD ===== -->
+<div class="panel" id="panel-upload">
+  <div class="grid-2">
+    <div class="card">
+      <h3>Upload Training Photos</h3>
+      <label>Category</label>
+      <select id="upload-category"><option value="helmet" selected>helmet</option><option value="boots">boots</option><option value="person">person</option><option value="gloves">gloves</option><option value="thermal_coat">thermal_coat</option><option value="thermal_pants">thermal_pants</option><option value="full_body">full_body</option></select>
+      <label>Images</label><input type="file" id="upload-files" multiple accept="image/*">
+      <button class="btn btn-primary" onclick="uploadPhotos()">Upload</button>
+      <div id="upload-result" style="margin-top:12px"></div>
+    </div>
+    <div class="card">
+      <h3>Bulk Upload — Images + TXT Labels</h3>
+      <label>Category</label><select id="bulk-category"><option value="mixed" selected>mixed</option><option value="helmet">helmet</option><option value="boots">boots</option><option value="person">person</option></select>
+      <label>Class ID Remap JSON (optional)</label><input type="text" id="bulk-remap" value="{}" placeholder='{"0":3,"1":4}'>
+      <label>Files (images + .txt)</label><input type="file" id="bulk-files" multiple accept="image/*,.txt">
+      <button class="btn btn-primary" onclick="bulkUpload()">Bulk Upload</button>
+      <div id="bulk-result" style="margin-top:12px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== CONVERTER ===== -->
+<div class="panel" id="panel-convert">
+  <div class="card">
+    <h3>Annotation Converter — Polygon/OBB → YOLO BBox</h3>
+    <p style="color:var(--muted);margin-bottom:16px;">If your .txt files have 9 values per line (Roboflow OBB), convert them to YOLO bbox (5 values).</p>
+    <label>Class ID Remap JSON</label><input type="text" id="conv-remap" value='{"0":3}' placeholder='{"0":3,"1":4}'>
+    <p style="font-size:12px;color:var(--muted);margin-top:-8px;margin-bottom:12px;">notebook IDs: 0=thermal_coat, 1=thermal_pants, 2=gloves, 3=helmet, 4=boots, 5=person</p>
+    <label>Upload Roboflow files (images + .txt)</label><input type="file" id="conv-files" multiple accept="image/*,.txt">
+    <button class="btn btn-warning" onclick="convertUpload()">Convert & Import</button>
+    <div id="conv-result" style="margin-top:12px"></div>
+  </div>
+</div>
+
+<!-- ===== ANNOTATE ===== -->
+<div class="panel" id="panel-annotate">
+  <div class="card">
+    <h3>Visual Annotation Tool</h3>
+    <p style="color:var(--muted);margin-bottom:12px;">Draw bounding boxes on images. Select class, click and drag.</p>
+    <div class="grid-3" style="margin-bottom:12px">
+      <div><label>Class</label><select id="ann-class"></select></div>
+      <div><label>Image</label><select id="ann-image-sel" onchange="loadAnnotationImage()"></select></div>
+      <div style="padding-top:20px">
+        <button class="btn btn-sm btn-warning" onclick="annUndo()">Undo</button>
+        <button class="btn btn-sm btn-danger" onclick="annClear()">Clear</button>
+        <button class="btn btn-sm btn-success" onclick="annSave()">Save</button>
+        <button class="btn btn-sm btn-primary" onclick="loadAnnotationImages()">Refresh</button>
+      </div>
+    </div>
+    <div id="ann-canvas-wrap">
+      <p id="ann-placeholder" style="color:var(--muted);padding:40px;">Select an image to annotate</p>
+    </div>
+    <div id="ann-log" style="font-family:monospace;font-size:12px;background:#f5f5f5;padding:8px;border-radius:4px;margin-top:8px;max-height:120px;overflow-y:auto"></div>
+  </div>
+</div>
+
+<!-- ===== TRAIN ===== -->
+<div class="panel" id="panel-train">
+  <div class="grid-2">
+    <div class="card">
+      <h3>1. Generate Dataset</h3>
+      <label>Train/Valid Split</label>
+      <input type="range" id="train-split" min="0.5" max="0.95" step="0.05" value="0.8" oninput="document.getElementById('split-val').textContent=this.value">
+      <span id="split-val">0.8</span><br><br>
+      <button class="btn btn-primary" onclick="generateDataset()">Generate Dataset</button>
+      <div id="dataset-result" style="margin-top:12px"></div>
+    </div>
+    <div class="card">
+      <h3>2. Train Model</h3>
+      <label>Base Model</label>
+      <select id="train-model"><option value="yolov8n.pt">yolov8n (Fast)</option><option value="yolov8s.pt">yolov8s (Small)</option><option value="yolov8m.pt" selected>yolov8m (Medium)</option><option value="yolov8l.pt">yolov8l (Large)</option></select>
+      <div class="grid-2">
+        <div><label>Epochs</label><input type="number" id="train-epochs" value="60" min="10" max="300"></div>
+        <div><label>Batch Size</label><input type="number" id="train-batch" value="16" min="4" max="64"></div>
+      </div>
+      <div class="grid-2">
+        <div><label>Image Size</label><input type="number" id="train-imgsz" value="640"></div>
+        <div><label>Patience</label><input type="number" id="train-patience" value="15"></div>
+      </div>
+      <button class="btn btn-success" onclick="startTraining()">Start Training</button>
+      <div id="train-status" style="margin-top:12px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== DETECT IMAGE ===== -->
+<div class="panel" id="panel-detect">
+  <div class="grid-2">
+    <div class="card">
+      <h3>Upload Image for PPE Detection</h3>
+      <label>Image</label><input type="file" id="detect-file" accept="image/*" onchange="previewDetect(this)">
+      <label>Confidence</label>
+      <input type="range" id="detect-conf" min="0.1" max="0.9" step="0.05" value="0.45" oninput="document.getElementById('conf-val').textContent=this.value">
+      <span id="conf-val">0.45</span>
+      <div class="checkbox-row"><input type="checkbox" id="detect-faces" checked><label for="detect-faces">Enable Face Recognition</label></div>
+      <label>Face Similarity Threshold</label>
+      <input type="range" id="detect-face-thr" min="0.20" max="0.80" step="0.05" value="0.45" oninput="document.getElementById('fthr-val').textContent=this.value">
+      <span id="fthr-val">0.45</span>
+      <br><br>
+      <button class="btn btn-primary" onclick="detectImage()">Detect PPE + Face</button>
+      <div id="detect-result" style="margin-top:16px"></div>
+    </div>
+    <div class="card">
+      <h3>Result</h3>
+      <div id="detect-preview" style="text-align:center"><p style="color:var(--muted);padding:40px">Upload an image and click Detect</p></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== DETECT VIDEO ===== -->
+<div class="panel" id="panel-video">
+  <div class="grid-2">
+    <div class="card">
+      <h3>Video File (MP4)</h3>
+      <label>Upload Video</label><input type="file" id="video-file" accept="video/*">
+      <label>Skip Frames</label><input type="number" id="video-skip" value="5" min="1" max="30">
+      <label>Confidence</label>
+      <input type="range" id="video-conf" min="0.1" max="0.9" step="0.05" value="0.45" oninput="document.getElementById('vconf-val').textContent=this.value">
+      <span id="vconf-val">0.45</span>
+      <div class="checkbox-row"><input type="checkbox" id="video-faces"><label for="video-faces">Face Recognition</label></div>
+      <button class="btn btn-primary" onclick="detectVideo()">Process Video</button>
+    </div>
+    <div class="card">
+      <h3>YouTube Video</h3>
+      <label>YouTube URL</label><input type="text" id="yt-url" placeholder="https://www.youtube.com/watch?v=...">
+      <label>Max Frames</label><input type="number" id="yt-max" value="100" min="10" max="1000">
+      <button class="btn btn-danger" onclick="detectYouTube()">Process YouTube</button>
+    </div>
+  </div>
+  <div class="card"><h3>Results</h3><div id="video-result"><p style="color:var(--muted)">Upload a video or paste a YouTube URL</p></div></div>
+</div>
+
+<!-- ===== FACE REGISTER ===== -->
+<div class="panel" id="panel-faces">
+  <div class="grid-2">
+    <div class="card">
+      <h3>Register Person</h3>
+      <label>Person Code (unique ID)</label><input type="text" id="face-code" placeholder="john_silva">
+      <label>Full Name</label><input type="text" id="face-name" placeholder="John Silva">
+      <label>Badge ID</label><input type="text" id="face-badge" placeholder="EMP001">
+      <label>Face Photo</label><input type="file" id="face-file" accept="image/*">
+      <button class="btn btn-success" onclick="registerFace()">Register Face</button>
+      <div id="face-result" style="margin-top:12px"></div>
+    </div>
+    <div class="card">
+      <h3>Registered People</h3>
+      <button class="btn btn-sm btn-primary" onclick="loadPeople()" style="margin-bottom:12px">Refresh</button>
+      <button class="btn btn-sm btn-warning" onclick="rebuildFaceDB()">Rebuild Face DB</button>
+      <div id="people-list" style="margin-top:12px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== LIVE STREAM ===== -->
+<div class="panel" id="panel-stream">
+  <div class="card">
+    <h3>Start Live Stream with Real-Time Detection</h3>
+    <div class="grid-3">
+      <div><label>Source Type</label><select id="stream-type"><option value="rtsp">RTSP Camera</option><option value="youtube">YouTube Live</option><option value="webcam">Webcam</option><option value="file">Video File</option></select></div>
+      <div><label>Source URL / Path</label><input type="text" id="stream-source" placeholder="rtsp://admin:pass@192.168.1.100:554/stream"></div>
+      <div><label>Confidence</label><input type="range" id="stream-conf" min="0.1" max="0.9" step="0.05" value="0.45" oninput="document.getElementById('sconf-val').textContent=this.value"><span id="sconf-val">0.45</span></div>
+    </div>
+    <div class="checkbox-row"><input type="checkbox" id="stream-faces" checked><label for="stream-faces">Face Recognition</label></div>
+    <label>Face Threshold</label>
+    <input type="range" id="stream-face-thr" min="0.20" max="0.80" step="0.05" value="0.45" oninput="document.getElementById('sfthr-val').textContent=this.value">
+    <span id="sfthr-val">0.45</span>
+    <br>
+    <button class="btn btn-success" onclick="startStream()">Start</button>
+    <button class="btn btn-danger" onclick="stopStream()">Stop</button>
+    <button class="btn btn-warning btn-sm" onclick="refreshSessions()">Refresh</button>
+  </div>
+  <div class="grid-2">
+    <div class="card"><h3>Live Feed</h3><div class="stream-container" id="stream-container"><span class="stream-placeholder">No stream active</span></div></div>
+    <div class="card"><h3>Stream Info</h3><div id="stream-info"><p style="color:var(--muted)">Start a stream</p></div><h3 style="margin-top:16px">Active Sessions</h3><div id="stream-sessions"></div></div>
+  </div>
+</div>
+
+<script>
+let CID={{company_id}};
+let currentStreamId=null;
+let streamPoll=null;
+let annAnnotations=[];
+let annDrawing=false;
+let annStartX=0,annStartY=0;
+let annImgW=0,annImgH=0;
+let annCurrentFile='';
+const classColors={0:'#FF0000',1:'#0000FF',2:'#00FF00',3:'#FFFF00',4:'#FF00FF',5:'#FFA500'};
+const classNames={0:'thermal_coat',1:'thermal_pants',2:'gloves',3:'helmet',4:'boots',5:'person'};
+
+function API(p){return'/api/v1/epi'+p+'?company_id='+CID}
+function switchCompany(){CID=parseInt(document.getElementById('companySelect').value);loadDashboard();toast('Company '+CID,'success')}
+function showPanel(n){document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));document.getElementById('panel-'+n).classList.add('active');event.target.classList.add('active');if(n==='dashboard')loadDashboard();if(n==='config')loadPPEConfig();if(n==='annotate')loadAnnotationImages();if(n==='faces')loadPeople();if(n==='train')pollTrainStatus()}
+function toast(m,t='success'){const e=document.getElementById('toast');e.textContent=m;e.className='toast '+t;e.style.display='block';setTimeout(()=>e.style.display='none',3000)}
+
+// ---- DASHBOARD ----
+async function loadDashboard(){try{
+  const s=await(await fetch(API('/stats'))).json();
+  document.getElementById('dash-classes').innerHTML=Object.entries(s.ppe_config||{}).map(([k,v])=>'<span class="badge '+(v?'badge-ok':'badge-off')+'">'+k+'</span> ').join('');
+  document.getElementById('dash-models').innerHTML='<b>'+s.models_count+'</b> models &middot; <b>'+s.people_count+'</b> people registered';
+  document.getElementById('dash-storage').innerHTML='<b>'+(s.storage?.total_mb||0)+'</b> MB &middot; '+(s.storage?.files||0)+' files';
+  const ts=s.train_status||{};document.getElementById('dash-train').innerHTML='Status: <span class="badge badge-'+(ts.status==='complete'?'ok':ts.status==='training'?'warn':'off')+'">'+(ts.status||'idle')+'</span>';
+  const p=await(await fetch(API('/photos/summary'))).json();document.getElementById('dash-photos').innerHTML='<table><tr><th>Category</th><th>Photos</th></tr>'+Object.entries(p).map(([k,v])=>'<tr><td>'+k+'</td><td>'+v+'</td></tr>').join('')+'</table>';
+  const a=await(await fetch(API('/annotations/status'))).json();document.getElementById('dash-annotations').innerHTML='<b>'+a.annotated_images+'</b> annotated / <b>'+a.total_images+'</b> images<br>'+Object.entries(a.class_counts||{}).map(([k,v])=>k+': <b>'+v+'</b>').join(' &middot; ')
+}catch(e){console.error(e)}}
+
+// ---- CONFIG ----
+async function loadPPEConfig(){const d=await(await fetch(API('/config'))).json();document.getElementById('config-checkboxes').innerHTML=Object.entries(d.config).map(([k,v])=>'<div class="checkbox-row"><input type="checkbox" id="cfg-'+k+'" '+(v?'checked':'')+'><label for="cfg-'+k+'">'+k+'</label></div>').join('')}
+async function savePPEConfig(){const c={};document.querySelectorAll('[id^="cfg-"]').forEach(e=>{c[e.id.replace('cfg-','')]=e.checked});await fetch(API('/config'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(c)});toast('PPE config saved!');loadAnnotationClasses()}
+
+// ---- UPLOAD ----
+async function uploadPhotos(){const f=document.getElementById('upload-files').files;if(!f.length)return toast('Select files','error');const fd=new FormData();fd.append('category',document.getElementById('upload-category').value);for(const x of f)fd.append('files',x);const r=await(await fetch(API('/upload/photos'),{method:'POST',body:fd})).json();document.getElementById('upload-result').innerHTML='<span class="badge badge-ok">'+r.uploaded+' uploaded</span>';toast(r.uploaded+' photos uploaded')}
+async function bulkUpload(){const f=document.getElementById('bulk-files').files;if(!f.length)return toast('Select files','error');const fd=new FormData();fd.append('category',document.getElementById('bulk-category').value);fd.append('remap_json',document.getElementById('bulk-remap').value);for(const x of f)fd.append('files',x);const r=await(await fetch(API('/upload/bulk'),{method:'POST',body:fd})).json();document.getElementById('bulk-result').innerHTML='<span class="badge badge-ok">'+r.paired+' paired</span> <span class="badge badge-warn">'+r.images_only+' image-only</span>';toast('Bulk: '+r.paired+' paired')}
+
+// ---- CONVERTER ----
+async function convertUpload(){const f=document.getElementById('conv-files').files;if(!f.length)return toast('Select files','error');const fd=new FormData();fd.append('remap_json',document.getElementById('conv-remap').value);for(const x of f)fd.append('files',x);document.getElementById('conv-result').innerHTML='Converting...';const r=await(await fetch(API('/convert/upload'),{method:'POST',body:fd})).json();document.getElementById('conv-result').innerHTML='<span class="badge badge-ok">'+r.files_converted+' files converted</span> &middot; '+r.boxes_converted+' boxes';toast(r.files_converted+' files converted')}
+
+// ---- ANNOTATE ----
+function loadAnnotationClasses(){const sel=document.getElementById('ann-class');sel.innerHTML='';for(let i=0;i<=5;i++){const o=document.createElement('option');o.value=i;o.textContent=i+' - '+classNames[i];sel.appendChild(o)}}
+async function loadAnnotationImages(){loadAnnotationClasses();const imgs=await(await fetch(API('/annotate/images'))).json();const sel=document.getElementById('ann-image-sel');sel.innerHTML='<option value="">-- Select --</option>';imgs.forEach(im=>{const o=document.createElement('option');o.value=im.name;o.textContent=im.name+(im.has_label?' [annotated]':'');sel.appendChild(o)})}
+async function loadAnnotationImage(){const name=document.getElementById('ann-image-sel').value;if(!name)return;annCurrentFile=name;annAnnotations=[];const wrap=document.getElementById('ann-canvas-wrap');const imgEl=new Image();imgEl.onload=function(){annImgW=this.width;annImgH=this.height;let dw=Math.min(900,annImgW);let scale=dw/annImgW;let dh=Math.round(annImgH*scale);wrap.innerHTML='<img id="ann-bg" src="'+this.src+'" width="'+dw+'" height="'+dh+'"><canvas id="ann-cv" width="'+dw+'" height="'+dh+'"></canvas>';annImgW=dw;annImgH=dh;setupCanvas()};imgEl.src=API('/annotate/image/'+name);
+  // Load existing labels
+  const lb=await(await fetch(API('/annotate/labels/'+name))).json();if(lb.labels&&lb.labels.length){lb.labels.forEach(l=>{const cx=l.cx*annImgW,cy=l.cy*annImgH,bw=l.w*annImgW,bh=l.h*annImgH;annAnnotations.push({class_id:l.class_id,cx:l.cx,cy:l.cy,w:l.w,h:l.h,x1:cx-bw/2,y1:cy-bh/2,x2:cx+bw/2,y2:cy+bh/2})});setTimeout(annRedraw,300)}}
+function setupCanvas(){const cv=document.getElementById('ann-cv');if(!cv)return;const ctx=cv.getContext('2d');cv.addEventListener('mousedown',e=>{const r=cv.getBoundingClientRect();annStartX=e.clientX-r.left;annStartY=e.clientY-r.top;annDrawing=true});cv.addEventListener('mousemove',e=>{if(!annDrawing)return;const r=cv.getBoundingClientRect();const x=e.clientX-r.left,y=e.clientY-r.top;annRedraw();ctx.strokeStyle='#FFFF00';ctx.lineWidth=2;ctx.setLineDash([5,5]);ctx.strokeRect(annStartX,annStartY,x-annStartX,y-annStartY);ctx.setLineDash([])});cv.addEventListener('mouseup',e=>{if(!annDrawing)return;annDrawing=false;const r=cv.getBoundingClientRect();const x=e.clientX-r.left,y=e.clientY-r.top;const x1=Math.min(annStartX,x),y1=Math.min(annStartY,y),x2=Math.max(annStartX,x),y2=Math.max(annStartY,y);if(x2-x1<5||y2-y1<5)return;const cid=parseInt(document.getElementById('ann-class').value);annAnnotations.push({class_id:cid,cx:((x1+x2)/2)/annImgW,cy:((y1+y2)/2)/annImgH,w:(x2-x1)/annImgW,h:(y2-y1)/annImgH,x1,y1,x2,y2});annRedraw();logAnn(cid,annAnnotations.length)})}
+function annRedraw(){const cv=document.getElementById('ann-cv');if(!cv)return;const ctx=cv.getContext('2d');ctx.clearRect(0,0,annImgW,annImgH);annAnnotations.forEach(a=>{const c=classColors[a.class_id]||'#FFFF00';ctx.strokeStyle=c;ctx.lineWidth=2;ctx.strokeRect(a.x1,a.y1,a.x2-a.x1,a.y2-a.y1);ctx.fillStyle=c;ctx.font='12px monospace';ctx.fillText(classNames[a.class_id]||('cls'+a.class_id),a.x1+2,a.y1-4)})}
+function logAnn(cid,n){document.getElementById('ann-log').innerHTML+='['+n+'] '+classNames[cid]+' added<br>'}
+function annUndo(){if(annAnnotations.length){annAnnotations.pop();annRedraw();document.getElementById('ann-log').innerHTML+='[UNDO]<br>'}}
+function annClear(){annAnnotations=[];annRedraw();document.getElementById('ann-log').innerHTML='Cleared.<br>'}
+async function annSave(){if(!annCurrentFile)return toast('No image selected','error');const data=annAnnotations.map(a=>({class_id:a.class_id,cx:a.cx,cy:a.cy,w:a.w,h:a.h}));const r=await(await fetch(API('/annotate/save'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({image_filename:annCurrentFile,annotations:data})})).json();toast('Saved '+r.saved+' annotations');document.getElementById('ann-log').innerHTML+='<b>Saved '+r.saved+' annotations</b><br>'}
+
+// ---- TRAIN ----
+async function generateDataset(){const fd=new FormData();fd.append('train_split',document.getElementById('train-split').value);const r=await(await fetch(API('/dataset/generate'),{method:'POST',body:fd})).json();if(r.error){toast(r.error,'error');return}document.getElementById('dataset-result').innerHTML='<span class="badge badge-ok">'+r.train+' train / '+r.valid+' valid</span><br>Classes: '+Object.values(r.classes||{}).join(', ');toast('Dataset generated!')}
+async function startTraining(){const b={base_model:document.getElementById('train-model').value,epochs:parseInt(document.getElementById('train-epochs').value),batch_size:parseInt(document.getElementById('train-batch').value),img_size:parseInt(document.getElementById('train-imgsz').value),patience:parseInt(document.getElementById('train-patience').value)};await fetch(API('/train/start'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});toast('Training started!');pollTrainStatus()}
+async function pollTrainStatus(){const r=await(await fetch(API('/train/status'))).json();const b=document.getElementById('train-status');if(r.status==='training'){b.innerHTML='<div class="progress-bar"><div class="progress-fill" style="width:'+((r.epoch/r.total_epochs*100)||5)+'%"></div></div><p style="margin-top:8px">Epoch '+(r.epoch||'?')+'/'+(r.total_epochs||'?')+'</p>';setTimeout(pollTrainStatus,5000)}else if(r.status==='complete'){b.innerHTML='<span class="badge badge-ok">Complete!</span> '+(r.model_path||'')}else if(r.status==='error'){b.innerHTML='<span class="badge badge-err">Error: '+r.error+'</span>'}else{b.innerHTML='<span class="badge badge-off">'+(r.status||'idle')+'</span>'}}
+
+// ---- DETECT IMAGE ----
+function previewDetect(i){if(i.files[0]){const r=new FileReader();r.onload=e=>document.getElementById('detect-preview').innerHTML='<img src="'+e.target.result+'" class="preview-img">';r.readAsDataURL(i.files[0])}}
+async function detectImage(){const f=document.getElementById('detect-file').files[0];if(!f)return toast('Select image','error');const fd=new FormData();fd.append('file',f);fd.append('confidence',document.getElementById('detect-conf').value);fd.append('detect_faces',document.getElementById('detect-faces').checked);fd.append('face_threshold',document.getElementById('detect-face-thr').value);const r=await(await fetch(API('/detect/upload'),{method:'POST',body:fd})).json();document.getElementById('detect-preview').innerHTML='<img src="data:image/jpeg;base64,'+r.annotated_base64+'" class="preview-img">';let html='<div class="result-box '+(r.compliant?'result-compliant':'result-noncompliant')+'"><b>'+(r.compliant?'COMPLIANT':'NON-COMPLIANT')+'</b><br>Detected: '+r.detected_count+'/'+r.required_count+' PPEs';if(r.missing&&r.missing.length)html+='<br>Missing: <b>'+r.missing.join(', ')+'</b>';if(r.faces&&r.faces.length){r.faces.forEach(fc=>{html+='<br>Person: <b>'+fc.person_name+'</b> ('+Math.round(fc.confidence*100)+'%)'})};html+='<br>Processing: '+r.processing_ms+'ms</div>';document.getElementById('detect-result').innerHTML=html}
+
+// ---- VIDEO ----
+async function detectVideo(){const f=document.getElementById('video-file').files[0];if(!f)return toast('Select video','error');document.getElementById('video-result').innerHTML='Processing...';const fd=new FormData();fd.append('file',f);fd.append('skip_frames',document.getElementById('video-skip').value);fd.append('confidence',document.getElementById('video-conf').value);fd.append('detect_faces',document.getElementById('video-faces').checked);const r=await(await fetch(API('/detect/video'),{method:'POST',body:fd})).json();showVideoResult(r)}
+async function detectYouTube(){const u=document.getElementById('yt-url').value;if(!u)return toast('Enter URL','error');document.getElementById('video-result').innerHTML='Downloading & processing...';const fd=new FormData();fd.append('url',u);fd.append('max_frames',document.getElementById('yt-max').value);const r=await(await fetch(API('/detect/youtube'),{method:'POST',body:fd})).json();showVideoResult(r)}
+function showVideoResult(r){const rate=r.compliance_rate||0;const cls=rate>=80?'badge-ok':rate>=50?'badge-warn':'badge-err';document.getElementById('video-result').innerHTML='<div class="grid-3" style="margin-bottom:16px"><div><b>Frames</b><br>'+r.frames_processed+'</div><div><b>Compliant</b><br><span class="badge badge-ok">'+r.compliant_frames+'</span></div><div><b>Non-Compliant</b><br><span class="badge badge-err">'+r.non_compliant_frames+'</span></div></div><b>Rate: <span class="badge '+cls+'">'+rate+'%</span></b>'}
+
+// ---- FACES ----
+async function registerFace(){const code=document.getElementById('face-code').value;const name=document.getElementById('face-name').value;const f=document.getElementById('face-file').files[0];if(!code||!name||!f)return toast('Fill all fields','error');const fd=new FormData();fd.append('person_code',code);fd.append('person_name',name);fd.append('badge_id',document.getElementById('face-badge').value);fd.append('file',f);const r=await(await fetch(API('/faces/register'),{method:'POST',body:fd})).json();document.getElementById('face-result').innerHTML='<span class="badge badge-ok">'+name+' registered ('+r.photos+' photos)</span>';toast(name+' registered!');loadPeople()}
+async function loadPeople(){const p=await(await fetch(API('/faces/people'))).json();document.getElementById('people-list').innerHTML=p.length?'<table><tr><th>Code</th><th>Name</th><th>Badge</th><th>Photos</th></tr>'+p.map(x=>'<tr><td>'+x.person_code+'</td><td>'+x.person_name+'</td><td>'+x.badge_id+'</td><td>'+x.photos+'</td></tr>').join('')+'</table>':'<p style="color:var(--muted)">No people registered</p>'}
+async function rebuildFaceDB(){const r=await(await fetch(API('/faces/rebuild'),{method:'POST'})).json();toast('Face DB rebuilt: '+r.people_loaded+' people')}
+
+// ---- STREAM ----
+async function startStream(){const fd=new FormData();fd.append('source',document.getElementById('stream-source').value);fd.append('source_type',document.getElementById('stream-type').value);fd.append('confidence',document.getElementById('stream-conf').value);fd.append('detect_faces',document.getElementById('stream-faces').checked);fd.append('face_threshold',document.getElementById('stream-face-thr').value);try{const r=await(await fetch(API('/stream/start'),{method:'POST',body:fd})).json();currentStreamId=r.session_id;document.getElementById('stream-container').innerHTML='<img src="/api/v1/epi/stream/'+currentStreamId+'/feed" style="width:100%">';toast('Stream started');streamPoll=setInterval(pollStreamInfo,2000);refreshSessions()}catch(e){toast('Stream error','error')}}
+async function stopStream(){if(!currentStreamId)return;await fetch('/api/v1/epi/stream/'+currentStreamId+'/stop?company_id='+CID,{method:'POST'});document.getElementById('stream-container').innerHTML='<span class="stream-placeholder">Stopped</span>';clearInterval(streamPoll);currentStreamId=null;toast('Stopped');refreshSessions()}
+async function pollStreamInfo(){if(!currentStreamId)return;try{const r=await(await fetch('/api/v1/epi/stream/'+currentStreamId+'/status?company_id='+CID)).json();let h='<b>FPS:</b> '+r.fps+'<br><b>Frames:</b> '+r.frame_count+'<br>';const lr=r.latest_result;if(lr){h+='<b>Status:</b> <span class="badge '+(lr.compliant?'badge-ok':'badge-err')+'">'+(lr.compliant?'COMPLIANT':'NON-COMPLIANT')+'</span><br>';if(lr.missing&&lr.missing.length)h+='<b>Missing:</b> '+lr.missing.join(', ')+'<br>';if(lr.faces&&lr.faces.length)lr.faces.forEach(f=>{h+='<b>Person:</b> '+f.person_name+' ('+Math.round(f.confidence*100)+'%)<br>'})}document.getElementById('stream-info').innerHTML=h}catch(e){}}
+async function refreshSessions(){const ss=await(await fetch(API('/stream/sessions'))).json();document.getElementById('stream-sessions').innerHTML=ss.length?'<table><tr><th>ID</th><th>Type</th><th>FPS</th><th></th></tr>'+ss.map(s=>'<tr><td>'+s.session_id+'</td><td>'+s.source_type+'</td><td>'+s.fps+'</td><td><button class="btn btn-danger btn-sm" onclick="stopSid(\''+s.session_id+'\')">Stop</button></td></tr>').join('')+'</table>':'<p style="color:var(--muted)">No sessions</p>'}
+async function stopSid(sid){await fetch('/api/v1/epi/stream/'+sid+'/stop?company_id='+CID,{method:'POST'});if(sid===currentStreamId)currentStreamId=null;refreshSessions();toast('Stopped')}
+
+document.getElementById('companySelect').value=CID;loadDashboard();
+</script>
+</body>
+</html>
