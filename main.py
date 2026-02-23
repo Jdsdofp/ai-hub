@@ -1,6 +1,9 @@
 """
 SmartX Vision Platform v3.0 — FastAPI Application Entry Point.
 PPE Detection + Face Recognition + Annotation Converter + Live Streaming.
+
+FIXES v3.1:
+  - BUG-11: StaticFiles mount agora loga erro em vez de silenciosamente ignorar
 """
 import uvicorn
 from pathlib import Path
@@ -134,11 +137,17 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Static files
-try:
-    app.mount("/static", StaticFiles(directory="app/ui/static"), name="static")
-except Exception:
-    pass
+# FIX BUG-11: Static files com log de erro em vez de falha silenciosa
+static_dir = Path("app/ui/static")
+if static_dir.exists():
+    app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+    logger.info(f"Static files mounted from: {static_dir.resolve()}")
+else:
+    logger.warning(
+        f"Static files directory not found: {static_dir.resolve()}. "
+        "Logo e assets da UI não serão servidos. "
+        "Crie a pasta app/ui/static/img/ e adicione o logoSmartx.jpeg."
+    )
 
 # API routes
 from app.projects.epi_check.api.routes import router as epi_router

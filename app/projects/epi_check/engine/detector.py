@@ -1,16 +1,21 @@
 """
 EPI Detection Engine v3 — YOLOv8 + Face Recognition + Converter.
 Per-company models, configurable PPE classes, polygon converter, face DB.
+
+FIXES v3.1:
+  - BUG-01: build_face_db() variável sobrescrita incorretamente (dead assignment)
+  - BUG-02: _train_worker() yaml_path e project sem .resolve() (falha em containers)
+  - BUG-04: recognize_faces() import dentro de loop interno (performance)
 """
 import time
 import json
 import threading
-import base64
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Optional, Tuple
 
 import cv2
 import numpy as np
+from numpy.linalg import norm  # FIX BUG-04: import no topo, fora do loop
 from loguru import logger
 
 from app.core.config import settings
@@ -39,7 +44,7 @@ class FaceEngine:
 
     def __init__(self):
         self._app = None
-        self._face_dbs: Dict[int, dict] = {}  # company_id -> {name: embedding}
+        self._face_dbs: Dict[int, dict] = {}
         self._lock = threading.Lock()
 
     def _ensure_loaded(self):
@@ -72,6 +77,8 @@ class FaceEngine:
         if not people_dir.exists():
             return face_db
 
+        registry = self._load_registry(company_id)  # FIX BUG-01: carregar registry uma vez fora do loop
+
         for person_folder in sorted(people_dir.iterdir()):
             if not person_folder.is_dir():
                 continue
@@ -87,23 +94,24 @@ class FaceEngine:
                 if faces:
                     embeddings.append(faces[0].embedding)
 
-            if embeddings:
-                face_db[person_folder.name] = np.mean(embeddings, axis=0)
-
-            # Load registry for display name
-            registry = self._load_registry(company_id)
+            # FIX BUG-01: não sobrescrever face_db com np.mean antes de popular com dict completo
+            # A versão anterior fazia: face_db[key] = np.mean(...) e depois imediatamente
+            # face_db[key] = {"embedding": ..., "name": ...} — o primeiro assignment era dead code
             reg_info = registry.get(person_folder.name, {})
-            if reg_info:
+            if embeddings:
+                avg_embedding = np.mean(embeddings, axis=0)
                 face_db[person_folder.name] = {
-                    "embedding": np.mean(embeddings, axis=0) if embeddings else None,
+                    "embedding": avg_embedding,
+                    "name": reg_info.get("name", person_folder.name) if reg_info else person_folder.name,
+                    "badge_id": reg_info.get("badge_id", "") if reg_info else "",
+                }
+            elif reg_info:
+                # Pessoa registrada no registry mas sem fotos válidas — logar aviso
+                logger.warning(f"[Company {company_id}] Person '{person_folder.name}' has no valid face embeddings")
+                face_db[person_folder.name] = {
+                    "embedding": None,
                     "name": reg_info.get("name", person_folder.name),
                     "badge_id": reg_info.get("badge_id", ""),
-                }
-            elif embeddings:
-                face_db[person_folder.name] = {
-                    "embedding": np.mean(embeddings, axis=0),
-                    "name": person_folder.name,
-                    "badge_id": "",
                 }
 
         self._face_dbs[company_id] = face_db
@@ -145,8 +153,8 @@ class FaceEngine:
                 if db_emb is None:
                     continue
 
-                from numpy.linalg import norm
-                score = float(np.dot(emb, db_emb) / (norm(emb) * norm(db_emb)))
+                # FIX BUG-04: norm importado no topo — sem import dentro do loop
+                score = float(np.dot(emb, db_emb) / (norm(emb) * norm(db_emb) + 1e-9))
                 if score > best_score and score > threshold:
                     best_score = score
                     best_name = db_key
@@ -175,7 +183,6 @@ class FaceEngine:
         img_path = person_dir / f"face_{n + 1:03d}.jpg"
         cv2.imwrite(str(img_path), img)
 
-        # Update registry
         registry = self._load_registry(company_id)
         registry[person_code] = {
             "name": person_name,
@@ -184,10 +191,7 @@ class FaceEngine:
             "registered_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
         }
         self._save_registry(company_id, registry)
-
-        # Rebuild face DB
         self.build_face_db(company_id)
-
         return {"person_code": person_code, "photos": n + 1}
 
     def list_people(self, company_id: int) -> list:
@@ -382,7 +386,6 @@ class EPIEngine:
         required = {n for n in config if config.get(n) and n != "person"}
         missing = sorted(required - detected_names)
 
-        # Face recognition
         faces = []
         if detect_faces:
             faces = self.face_engine.recognize_faces(company_id, img, face_threshold)
@@ -416,7 +419,6 @@ class EPIEngine:
             cv2.putText(annotated, label, (b["x"] + 3, max(b["y"] - 4, th + 4)),
                         font, 0.6, (255, 255, 255), 2)
 
-        # Draw face boxes
         for face in result.get("faces", []):
             fb = face["bbox"]
             fc = (0, 255, 0) if face["recognized"] else (0, 0, 255)
@@ -425,7 +427,6 @@ class EPIEngine:
             fl = f"{face['person_name']} ({face['confidence']:.0%})"
             cv2.putText(annotated, fl, (fb["x"], fb["y"] - 10), font, 0.7, fc, 2)
 
-        # Status banner
         person_label = ""
         if result.get("faces"):
             best_face = max(result["faces"], key=lambda f: f["confidence"])
@@ -483,22 +484,26 @@ class EPIEngine:
         return self._train_status[company_id]
 
     def _train_worker(self, company_id, base_model, epochs, batch_size, img_size, patience):
+        """FIX BUG-02: Todos os paths agora usam .resolve() para evitar falhas com caminhos relativos no YOLO/Docker."""
         try:
             from ultralytics import YOLO
-            yaml_path = str(CompanyData.epi(company_id, "dataset", "data.yaml"))
+            # FIX BUG-02: .resolve() garante path absoluto — YOLO falha com relativos dentro do container
+            yaml_path = str(CompanyData.epi(company_id, "dataset", "data.yaml").resolve())
             if not Path(yaml_path).exists():
                 self._train_status[company_id] = {"status": "error",
                                                     "error": "data.yaml not found. Generate dataset first."}
                 return
             self._train_status[company_id] = {"status": "training", "epoch": 0, "total_epochs": epochs}
             model = YOLO(base_model)
+            # FIX BUG-02: project também precisa de path absoluto
+            project_path = str(CompanyData.epi(company_id, "models").resolve())
             model.train(
                 data=yaml_path, epochs=int(epochs), imgsz=int(img_size),
                 batch=int(batch_size), patience=int(patience),
-                name="epi_detector", project=str(CompanyData.epi(company_id, "models")),
+                name="epi_detector", project=project_path,
                 exist_ok=True, plots=True,
             )
-            best_path = str(CompanyData.epi(company_id, "models", "epi_detector", "weights", "best.pt"))
+            best_path = str(CompanyData.epi(company_id, "models", "epi_detector", "weights", "best.pt").resolve())
             self._train_status[company_id] = {"status": "complete", "model_path": best_path}
             self._models.pop(self._model_key(company_id, "best"), None)
             logger.info(f"[Company {company_id}] Training complete: {best_path}")
@@ -508,46 +513,78 @@ class EPIEngine:
 
     # --- Dataset ---
     def generate_dataset(self, company_id: int, train_split: float = 0.8) -> dict:
-        import glob
         import random
-        import yaml
         import shutil
+        import yaml as pyyaml
 
         ann_dir = CompanyData.epi(company_id, "annotations")
+        logger.info(f"[Company {company_id}] Generate dataset - annotations dir: {ann_dir} (exists: {ann_dir.exists()})")
+
+        label_files = sorted(ann_dir.glob("*.txt"))
+        logger.info(f"[Company {company_id}] Found {len(label_files)} .txt files")
+
         remapped, remap_table = self.get_remapped_classes(company_id)
         active_ids = set(remap_table.keys())
-        label_files = sorted(glob.glob(str(ann_dir / "*.txt")))
+        logger.info(f"[Company {company_id}] Active classes: {remapped}, Remap table: {remap_table}")
+
+        if not label_files:
+            raw_dir = CompanyData.epi(company_id, "photos_raw")
+            raw_txts = list(raw_dir.rglob("*.txt"))
+            if raw_txts:
+                return {"error": f"No annotations in annotations/ folder, but found {len(raw_txts)} .txt files in photos_raw/. Run the Converter (PHASE 3C) first."}
+            return {"error": "No annotation .txt files found. Annotate images first (Annotate tab), then generate the dataset."}
+
         pairs = []
+        skipped_no_image = 0
+        skipped_no_active = 0
 
         for lbl_path in label_files:
-            base = Path(lbl_path).stem
+            base = lbl_path.stem
             img_found = None
-            for ext in [".jpg", ".jpeg", ".png"]:
+            for ext in [".jpg", ".jpeg", ".png", ".bmp", ".webp"]:
                 cand = ann_dir / (base + ext)
                 if cand.exists():
-                    img_found = str(cand)
+                    img_found = cand
                     break
             if not img_found:
+                skipped_no_image += 1
                 continue
-            with open(lbl_path) as f:
-                lines = f.readlines()
+
+            text = lbl_path.read_text().strip()
+            if not text:
+                continue
             filtered = []
-            for line in lines:
+            for line in text.split("\n"):
                 parts = line.strip().split()
                 if len(parts) >= 5:
-                    old_id = int(parts[0])
-                    if old_id in active_ids:
-                        parts[0] = str(remap_table[old_id])
-                        filtered.append(" ".join(parts))
+                    try:
+                        old_id = int(parts[0])
+                        if old_id in active_ids:
+                            parts[0] = str(remap_table[old_id])
+                            filtered.append(" ".join(parts[:5]))
+                    except (ValueError, IndexError):
+                        continue
             if filtered:
-                pairs.append((img_found, filtered))
+                pairs.append((str(img_found), filtered))
+            else:
+                skipped_no_active += 1
+
+        logger.info(f"[Company {company_id}] Pairs: {len(pairs)}, no_image: {skipped_no_image}, no_active: {skipped_no_active}")
 
         if not pairs:
-            return {"error": "No valid annotated images with active classes found"}
+            msg = "No valid image+label pairs found. "
+            if skipped_no_image > 0:
+                msg += f"{skipped_no_image} labels have no matching image in annotations/. "
+            if skipped_no_active > 0:
+                msg += f"{skipped_no_active} labels have no active class IDs. Check PPE Config. "
+            msg += f"Active class IDs: {sorted(active_ids)}"
+            return {"error": msg}
 
+        # Clear old dataset
         for sub in ["dataset/train/images", "dataset/train/labels",
                      "dataset/valid/images", "dataset/valid/labels"]:
             d = CompanyData.epi(company_id, sub)
+            d.mkdir(parents=True, exist_ok=True)
             for f in d.glob("*.*"):
                 f.unlink()
 
@@ -556,29 +593,61 @@ class EPIEngine:
         train_pairs = pairs[:split_idx]
         valid_pairs = pairs[split_idx:]
 
+        # FIX BUG-03: garantir ao menos 1 imagem em valid, inclusive para datasets com 1 imagem
+        if not valid_pairs:
+            if len(train_pairs) > 1:
+                valid_pairs = [train_pairs.pop()]
+            else:
+                # Dataset mínimo: duplicar a única imagem em valid
+                valid_pairs = list(train_pairs)
+                logger.warning(f"[Company {company_id}] Only 1 image — duplicating for valid set")
+
+        train_img_dir = CompanyData.epi(company_id, "dataset", "train", "images")
+        train_lbl_dir = CompanyData.epi(company_id, "dataset", "train", "labels")
+        valid_img_dir = CompanyData.epi(company_id, "dataset", "valid", "images")
+        valid_lbl_dir = CompanyData.epi(company_id, "dataset", "valid", "labels")
+
         for img_path, filtered_lines in train_pairs:
             img_name = Path(img_path).name
             lbl_name = Path(img_path).stem + ".txt"
-            shutil.copy2(img_path, str(CompanyData.epi(company_id, "dataset", "train", "images", img_name)))
-            (CompanyData.epi(company_id, "dataset", "train", "labels", lbl_name)).write_text("\n".join(filtered_lines))
+            shutil.copy2(img_path, str(train_img_dir / img_name))
+            (train_lbl_dir / lbl_name).write_text("\n".join(filtered_lines))
 
         for img_path, filtered_lines in valid_pairs:
             img_name = Path(img_path).name
             lbl_name = Path(img_path).stem + ".txt"
-            shutil.copy2(img_path, str(CompanyData.epi(company_id, "dataset", "valid", "images", img_name)))
-            (CompanyData.epi(company_id, "dataset", "valid", "labels", lbl_name)).write_text("\n".join(filtered_lines))
+            shutil.copy2(img_path, str(valid_img_dir / img_name))
+            (valid_lbl_dir / lbl_name).write_text("\n".join(filtered_lines))
+
+        actual_train = len(list(train_img_dir.glob("*.*")))
+        actual_valid = len(list(valid_img_dir.glob("*.*")))
+        logger.info(f"[Company {company_id}] Verified: {actual_train} train, {actual_valid} valid on disk")
 
         yaml_data = {
-            "train": str(CompanyData.epi(company_id, "dataset", "train", "images")),
-            "val": str(CompanyData.epi(company_id, "dataset", "valid", "images")),
-            "nc": len(remapped), "names": list(remapped.values()),
+            "train": str(train_img_dir.resolve()),
+            "val": str(valid_img_dir.resolve()),
+            "nc": len(remapped),
+            "names": list(remapped.values()),
         }
         yaml_path = CompanyData.epi(company_id, "dataset", "data.yaml")
-        import yaml as pyyaml
-        yaml_path.write_text(pyyaml.dump(yaml_data, default_flow_style=False))
+        yaml_content = pyyaml.dump(yaml_data, default_flow_style=False)
+        yaml_path.write_text(yaml_content)
 
-        return {"total_pairs": len(pairs), "train": len(train_pairs),
-                "valid": len(valid_pairs), "classes": remapped, "yaml_path": str(yaml_path)}
+        logger.info(f"[Company {company_id}] data.yaml → {yaml_path.resolve()}\n{yaml_content}")
+
+        if not yaml_path.exists():
+            logger.error(f"[Company {company_id}] CRITICAL: data.yaml NOT found after write!")
+            return {"error": f"Failed to write data.yaml to {yaml_path.resolve()}"}
+
+        return {
+            "total_pairs": len(pairs),
+            "train": len(train_pairs),
+            "valid": len(valid_pairs),
+            "classes": remapped,
+            "yaml_path": str(yaml_path.resolve()),
+            "train_dir": str(train_img_dir.resolve()),
+            "valid_dir": str(valid_img_dir.resolve()),
+        }
 
     def list_models(self, company_id: int) -> list:
         models = []
@@ -590,5 +659,5 @@ class EPIEngine:
         return models
 
 
-# Singletons
+# Singleton
 epi_engine = EPIEngine()

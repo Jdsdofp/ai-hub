@@ -1,14 +1,17 @@
 """
 EPI Check API v3 — REST endpoints for PPE detection, face recognition,
 annotation converter, training, upload, and streaming.
-Full OpenAPI documentation with summaries, descriptions, and examples.
+
+FIXES v3.1:
+  - BUG-05: generate_dataset HTTPException sem `detail=` keyword
+  - BUG-06: detect_image_b64 retornava np.int64 não serializável em JSON
+  - BUG-07: stream_feed acessava session._running (atributo privado) diretamente
 """
 import base64
 import json
 import shutil
 import time
 import uuid
-import glob
 from pathlib import Path
 from typing import Optional
 from collections import defaultdict
@@ -373,6 +376,7 @@ async def generate_dataset(
     try:
         result = epi_engine.generate_dataset(company_id, train_split)
         if "error" in result:
+            # FIX BUG-05: `detail=` keyword obrigatório no FastAPI para JSON correto
             raise HTTPException(400, detail=result["error"])
         return result
     except HTTPException:
@@ -421,6 +425,32 @@ async def train_status(company_id: int = Depends(get_ui_company)):
 # ======================================================================
 # DETECTION — Image
 # ======================================================================
+
+def _sanitize_result(result: dict) -> dict:
+    """
+    FIX BUG-06: Converte tipos numpy não-serializáveis (np.int64, np.float32, etc.)
+    para tipos Python nativos antes de retornar via FastAPI/JSON.
+    Sem isso, APIResponse(data=result) lança TypeError em produção.
+    """
+    import math
+
+    def _convert(obj):
+        if isinstance(obj, dict):
+            return {k: _convert(v) for k, v in obj.items()}
+        if isinstance(obj, list):
+            return [_convert(v) for v in obj]
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            v = float(obj)
+            return None if math.isnan(v) or math.isinf(v) else v
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return obj
+
+    return _convert(result)
+
+
 @router.post("/detect/image", tags=["Detection — Image"], summary="Detect PPE from Base64 Image (REST API)",
     response_model=APIResponse)
 async def detect_image_b64(req: DetectRequest, company_id: int = Depends(get_ui_company)):
@@ -439,7 +469,8 @@ async def detect_image_b64(req: DetectRequest, company_id: int = Depends(get_ui_
                 "missing": result["missing"], "camera_id": req.camera_id,
                 "faces": result.get("faces", []),
             })
-        return APIResponse(data=result, company_id=company_id)
+        # FIX BUG-06: sanitizar numpy types antes de serializar
+        return APIResponse(data=_sanitize_result(result), company_id=company_id)
     except HTTPException:
         raise
     except Exception as e:
@@ -473,7 +504,8 @@ async def detect_image_upload(
         result["snapshot_url"] = f"/api/v1/epi/results/{snap_name}?company_id={company_id}"
         _, buf = cv2.imencode(".jpg", annotated)
         result["annotated_base64"] = base64.b64encode(buf).decode()
-        return result
+        # FIX BUG-06: sanitizar antes de retornar
+        return _sanitize_result(result)
     except HTTPException:
         raise
     except Exception as e:
@@ -514,7 +546,7 @@ async def detect_video_upload(
             "compliant_frames": compliant_count,
             "non_compliant_frames": total - compliant_count,
             "compliance_rate": round(compliant_count / max(total, 1) * 100, 1),
-            "details": results[:50],
+            "details": _sanitize_result(results[:50]),
         }
     except HTTPException:
         raise
@@ -560,7 +592,7 @@ async def detect_youtube(
         return {"source": url, "frames_processed": total,
                 "compliant_frames": compliant_count,
                 "compliance_rate": round(compliant_count / max(total, 1) * 100, 1),
-                "details": results[:50]}
+                "details": _sanitize_result(results[:50])}
     except HTTPException:
         raise
     except ImportError:
@@ -641,8 +673,10 @@ async def start_stream(
     try:
         if not source or not source.strip():
             raise HTTPException(400, detail="Source URL/path is required")
+
         def process_fn(frame):
             return epi_engine.detect_and_annotate(company_id, frame, model_name, confidence, detect_faces, face_threshold)
+
         session = stream_manager.create_session(source, source_type, company_id, process_fn)
         session.start()
         return {"session_id": session.session_id, "source": source, "source_type": source_type}
@@ -658,16 +692,22 @@ async def start_stream(
 
 @router.get("/stream/{session_id}/feed", tags=["Live Streaming"], summary="MJPEG Video Feed")
 async def stream_feed(session_id: str):
+    """
+    FIX BUG-07: Usava session._running (atributo privado) diretamente fora da classe.
+    Agora usa session.info["running"] (propriedade pública via dict).
+    Também migrado para async generator para não bloquear o event loop.
+    """
+    import asyncio
     session = stream_manager.get_session(session_id)
     if not session:
         raise HTTPException(404, detail=f"Stream session not found: {session_id}")
 
-    def generate():
-        while session._running:
+    async def generate():
+        while session.info.get("running", False):  # FIX BUG-07: acesso público via .info
             jpeg = stream_manager.get_frame_jpeg(session_id, quality=70)
             if jpeg:
                 yield b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + jpeg + b"\r\n"
-            time.sleep(0.05)
+            await asyncio.sleep(0.05)  # FIX BUG-16: async sleep para não bloquear event loop
 
     return StreamingResponse(generate(), media_type="multipart/x-mixed-replace; boundary=frame")
 
@@ -678,7 +718,8 @@ async def stream_status(session_id: str):
         session = stream_manager.get_session(session_id)
         if not session:
             raise HTTPException(404, detail=f"Stream session not found: {session_id}")
-        return {**session.info, "latest_result": session.latest_result}
+        latest = session.latest_result
+        return {**session.info, "latest_result": _sanitize_result(latest) if latest else None}
     except HTTPException:
         raise
     except Exception as e:

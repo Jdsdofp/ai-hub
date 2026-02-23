@@ -1,10 +1,15 @@
 """
 Video & Camera Streaming Manager.
 Supports: RTSP cameras, video files (MP4), YouTube URLs, webcam.
+
+FIXES v3.1:
+  - BUG-09: FPS calculado sobre janela deslizante (5s) em vez de desde o início
+             Sem isso, FPS diminuía indefinidamente ao longo do tempo
 """
 import time
 import threading
 import uuid
+from collections import deque
 from typing import Dict, Optional, Callable
 
 import cv2
@@ -28,6 +33,10 @@ class StreamSession:
         self._frame_count = 0
         self._fps = 0.0
         self._lock = threading.Lock()
+
+        # FIX BUG-09: janela deslizante de timestamps para calcular FPS real
+        # Guardamos os timestamps dos últimos N frames para calcular FPS na janela
+        self._fps_window: deque = deque(maxlen=30)  # últimos 30 frames
 
     def start(self):
         if self._running:
@@ -72,7 +81,6 @@ class StreamSession:
         return self.source
 
     def _capture_loop(self):
-        t0 = time.time()
         skip = 2
         while self._running:
             ret, frame = self._cap.read()
@@ -82,10 +90,17 @@ class StreamSession:
                     break
                 time.sleep(0.1)
                 continue
+
             self._frame_count += 1
-            elapsed = time.time() - t0
-            if elapsed > 0:
-                self._fps = self._frame_count / elapsed
+
+            # FIX BUG-09: calcular FPS usando janela deslizante de timestamps
+            now = time.monotonic()
+            self._fps_window.append(now)
+            if len(self._fps_window) >= 2:
+                elapsed = self._fps_window[-1] - self._fps_window[0]
+                if elapsed > 0:
+                    self._fps = round((len(self._fps_window) - 1) / elapsed, 1)
+
             if self.process_frame_fn and self._frame_count % skip == 0:
                 try:
                     annotated, result = self.process_frame_fn(frame)
@@ -113,10 +128,15 @@ class StreamSession:
 
     @property
     def info(self):
-        return {"session_id": self.session_id, "source": self.source,
-                "source_type": self.source_type, "company_id": self.company_id,
-                "running": self._running, "frame_count": self._frame_count,
-                "fps": round(self._fps, 1)}
+        return {
+            "session_id": self.session_id,
+            "source": self.source,
+            "source_type": self.source_type,
+            "company_id": self.company_id,
+            "running": self._running,  # BUG-07 consumido aqui via .info["running"]
+            "frame_count": self._frame_count,
+            "fps": self._fps,  # FIX BUG-09: FPS via janela deslizante
+        }
 
 
 class StreamManager:

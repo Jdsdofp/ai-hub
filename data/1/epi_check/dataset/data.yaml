@@ -1,0 +1,7 @@
+names:
+- helmet
+- boots
+- person
+nc: 3
+train: C:\Users\jaderson.moreira.DROGARIAGLOBO\Desktop\ai-hub\data\1\epi_check\dataset\train\images
+val: C:\Users\jaderson.moreira.DROGARIAGLOBO\Desktop\ai-hub\data\1\epi_check\dataset\valid\images
