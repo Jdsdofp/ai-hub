@@ -3,6 +3,7 @@ SmartX Vision Platform v3.0 — FastAPI Application Entry Point.
 PPE Detection + Face Recognition + Annotation Converter + Live Streaming.
 """
 import uvicorn
+from pathlib import Path
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
@@ -76,6 +77,7 @@ OPENAPI_TAGS = [
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")
+    logger.info(f"Working directory: {Path.cwd()}")
     CompanyData.init_base()
     try:
         await db.connect()
@@ -147,9 +149,7 @@ from app.ui.routes import router as ui_router
 app.include_router(ui_router, tags=["UI"])
 
 
-@app.get("/health", tags=["System"], summary="Health Check",
-         description="Returns platform health status, version, MQTT connectivity, and edge mode state. "
-                     "No authentication required.")
+@app.get("/health", tags=["System"], summary="Health Check")
 async def health():
     return {
         "status": "ok",
@@ -168,5 +168,3 @@ if __name__ == "__main__":
         reload=settings.APP_DEBUG,
         log_level=settings.APP_LOG_LEVEL.lower(),
     )
-
-    
