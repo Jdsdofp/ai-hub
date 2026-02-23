@@ -11,7 +11,15 @@ logs/
 *.onnx
 runs/
 *.jpg
-*.jpeg
+
+
 *.png
 !app/ui/static/img/
 .DS_Store
+
+
+*.jpg
+*.jpeg
+!app/ui/static/img/*.jpg
+!app/ui/static/img/*.jpeg
+!app/ui/static/img/*.png
