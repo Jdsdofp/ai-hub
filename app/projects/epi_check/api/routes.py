@@ -16,7 +16,6 @@ from collections import defaultdict
 import cv2
 import numpy as np
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query
-from fastapi import Path
 from fastapi.responses import StreamingResponse, JSONResponse
 from loguru import logger
 
@@ -255,21 +254,27 @@ async def convert_existing(
     response_description="List of images with annotation status",
 )
 async def list_annotation_images(company_id: int = Depends(get_ui_company)):
-    ann_dir = CompanyData.epi(company_id, "annotations")
-    raw_dir = CompanyData.epi(company_id, "photos_raw")
-    images = []
-    for d in [ann_dir, raw_dir]:
-        for ext in ["*.jpg", "*.jpeg", "*.png"]:
-            for f in d.rglob(ext):
-                images.append({"name": f.name, "path": str(f),
-                               "has_label": (ann_dir / (f.stem + ".txt")).exists()})
-    seen = set()
-    unique = []
-    for img in images:
-        if img["name"] not in seen:
-            seen.add(img["name"])
-            unique.append(img)
-    return unique
+    try:
+        ann_dir = CompanyData.epi(company_id, "annotations")
+        raw_dir = CompanyData.epi(company_id, "photos_raw")
+        images = []
+        for d in [ann_dir, raw_dir]:
+            if not d.exists():
+                continue
+            for ext in ["*.jpg", "*.jpeg", "*.png"]:
+                for f in d.rglob(ext):
+                    images.append({"name": f.name, "path": str(f),
+                                   "has_label": (ann_dir / (f.stem + ".txt")).exists()})
+        seen = set()
+        unique = []
+        for img in images:
+            if img["name"] not in seen:
+                seen.add(img["name"])
+                unique.append(img)
+        return unique
+    except Exception as e:
+        logger.error(f"Error listing annotation images: {e}")
+        raise HTTPException(500, detail=f"Error listing images: {str(e)}")
 
 
 @router.get("/annotate/image/{filename}",
@@ -280,16 +285,31 @@ async def list_annotation_images(company_id: int = Depends(get_ui_company)):
     response_description="JPEG image binary",
 )
 async def get_annotation_image(
-    filename: str = Path(..., description="Image filename, e.g. photo_001.jpg"),
+    filename: str,
     company_id: int = Depends(get_ui_company),
 ):
-    for d in [CompanyData.epi(company_id, "annotations"),
-              CompanyData.epi(company_id, "photos_raw")]:
-        for ext_d in [d] + list(d.iterdir()) if d.is_dir() else [d]:
-            fp = ext_d / filename if ext_d.is_dir() else ext_d
-            if fp.exists() and fp.name == filename:
+    try:
+        # Search in annotations/ first, then photos_raw/ and its subdirs
+        search_dirs = [CompanyData.epi(company_id, "annotations")]
+        raw_dir = CompanyData.epi(company_id, "photos_raw")
+        search_dirs.append(raw_dir)
+        if raw_dir.is_dir():
+            for sub in raw_dir.iterdir():
+                if sub.is_dir():
+                    search_dirs.append(sub)
+
+        for d in search_dirs:
+            if not d.is_dir():
+                continue
+            fp = d / filename
+            if fp.exists() and fp.is_file():
                 return StreamingResponse(open(fp, "rb"), media_type="image/jpeg")
-    raise HTTPException(404, "Image not found")
+        raise HTTPException(404, detail=f"Image not found: {filename}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error serving image {filename}: {e}")
+        raise HTTPException(500, detail=f"Error loading image: {str(e)}")
 
 
 @router.get("/annotate/labels/{filename}",
@@ -301,23 +321,30 @@ async def get_annotation_image(
     response_description="List of YOLO labels",
 )
 async def get_labels(
-    filename: str = Path(..., description="Image filename"),
+    filename: str,
     company_id: int = Depends(get_ui_company),
 ):
-    stem = Path(filename).stem
-    lbl_path = CompanyData.epi(company_id, "annotations", stem + ".txt")
-    if not lbl_path.exists():
-        return {"labels": []}
-    labels = []
-    for line in lbl_path.read_text().strip().split("\n"):
-        parts = line.strip().split()
-        if len(parts) == 5:
-            labels.append({
-                "class_id": int(parts[0]),
-                "cx": float(parts[1]), "cy": float(parts[2]),
-                "w": float(parts[3]), "h": float(parts[4]),
-            })
-    return {"labels": labels}
+    try:
+        stem = Path(filename).stem
+        lbl_path = CompanyData.epi(company_id, "annotations", stem + ".txt")
+        if not lbl_path.exists():
+            return {"labels": []}
+        text = lbl_path.read_text().strip()
+        if not text:
+            return {"labels": []}
+        labels = []
+        for line in text.split("\n"):
+            parts = line.strip().split()
+            if len(parts) >= 5:
+                labels.append({
+                    "class_id": int(parts[0]),
+                    "cx": float(parts[1]), "cy": float(parts[2]),
+                    "w": float(parts[3]), "h": float(parts[4]),
+                })
+        return {"labels": labels}
+    except Exception as e:
+        logger.error(f"Error reading labels for {filename}: {e}")
+        raise HTTPException(500, detail=f"Error reading labels: {str(e)}")
 
 
 @router.post("/annotate/save",
@@ -331,23 +358,39 @@ async def get_labels(
     response_description="Number of annotations saved",
 )
 async def save_annotations(data: AnnotationSave, company_id: int = Depends(get_ui_company)):
-    ann_dir = CompanyData.epi(company_id, "annotations")
-    stem = Path(data.image_filename).stem
-    lbl_path = ann_dir / (stem + ".txt")
+    try:
+        ann_dir = CompanyData.epi(company_id, "annotations")
+        stem = Path(data.image_filename).stem
+        lbl_path = ann_dir / (stem + ".txt")
 
-    img_dest = ann_dir / data.image_filename
-    if not img_dest.exists():
-        for d in [CompanyData.epi(company_id, "photos_raw")]:
-            for src in d.rglob(data.image_filename):
+        # Copy image to annotations/ if not already there
+        img_dest = ann_dir / data.image_filename
+        if not img_dest.exists():
+            raw_dir = CompanyData.epi(company_id, "photos_raw")
+            found = False
+            for src in raw_dir.rglob(data.image_filename):
                 shutil.copy2(str(src), str(img_dest))
+                found = True
+                logger.info(f"Copied {data.image_filename} from {src} to annotations/")
                 break
+            if not found:
+                logger.warning(f"Image {data.image_filename} not found in photos_raw/")
 
-    lines = []
-    for ann in data.annotations:
-        line = f"{ann['class_id']} {ann['cx']:.6f} {ann['cy']:.6f} {ann['w']:.6f} {ann['h']:.6f}"
-        lines.append(line)
-    lbl_path.write_text("\n".join(lines))
-    return {"saved": len(lines), "file": str(lbl_path)}
+        lines = []
+        for ann in data.annotations:
+            cid = int(ann.get('class_id', ann.get('classId', 0)))
+            cx = float(ann.get('cx', 0))
+            cy = float(ann.get('cy', 0))
+            w = float(ann.get('w', 0))
+            h = float(ann.get('h', 0))
+            line = f"{cid} {cx:.6f} {cy:.6f} {w:.6f} {h:.6f}"
+            lines.append(line)
+        lbl_path.write_text("\n".join(lines))
+        logger.info(f"Saved {len(lines)} annotations for {data.image_filename}")
+        return {"saved": len(lines), "file": str(lbl_path)}
+    except Exception as e:
+        logger.error(f"Error saving annotations for {data.image_filename}: {e}")
+        raise HTTPException(500, detail=f"Error saving annotations: {str(e)}")
 
 
 # ======================================================================
@@ -360,18 +403,25 @@ async def save_annotations(data: AnnotationSave, company_id: int = Depends(get_u
     response_description="Annotation counts and class distribution",
 )
 async def annotation_status(company_id: int = Depends(get_ui_company)):
-    ann_dir = CompanyData.epi(company_id, "annotations")
-    labels = list(ann_dir.glob("*.txt"))
-    images = list(ann_dir.glob("*.jpg")) + list(ann_dir.glob("*.jpeg")) + list(ann_dir.glob("*.png"))
-    class_counts = defaultdict(int)
-    for lbl in labels:
-        for line in lbl.read_text().strip().split("\n"):
-            parts = line.strip().split()
-            if len(parts) >= 5:
-                cid = int(parts[0])
-                name = ALL_PPE_CLASSES.get(cid, f"class_{cid}")
-                class_counts[name] += 1
-    return {"annotated_images": len(labels), "total_images": len(images), "class_counts": dict(class_counts)}
+    try:
+        ann_dir = CompanyData.epi(company_id, "annotations")
+        labels = list(ann_dir.glob("*.txt"))
+        images = list(ann_dir.glob("*.jpg")) + list(ann_dir.glob("*.jpeg")) + list(ann_dir.glob("*.png"))
+        class_counts = defaultdict(int)
+        for lbl in labels:
+            text = lbl.read_text().strip()
+            if not text:
+                continue
+            for line in text.split("\n"):
+                parts = line.strip().split()
+                if len(parts) >= 5:
+                    cid = int(parts[0])
+                    name = ALL_PPE_CLASSES.get(cid, f"class_{cid}")
+                    class_counts[name] += 1
+        return {"annotated_images": len(labels), "total_images": len(images), "class_counts": dict(class_counts)}
+    except Exception as e:
+        logger.error(f"Error getting annotation status: {e}")
+        raise HTTPException(500, detail=f"Error reading annotations: {str(e)}")
 
 
 @router.get("/photos/summary",
@@ -410,10 +460,16 @@ async def generate_dataset(
     train_split: float = Form(0.8, description="Train/valid split ratio (0.5–0.95)", examples=[0.8]),
     company_id: int = Depends(get_ui_company),
 ):
-    result = epi_engine.generate_dataset(company_id, train_split)
-    if "error" in result:
-        raise HTTPException(400, result["error"])
-    return result
+    try:
+        result = epi_engine.generate_dataset(company_id, train_split)
+        if "error" in result:
+            raise HTTPException(400, detail=result["error"])
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[Company {company_id}] Dataset generation error: {e}")
+        raise HTTPException(500, detail=f"Dataset generation failed: {str(e)}")
 
 
 @router.get("/dataset/stats",
@@ -566,17 +622,44 @@ async def detect_video_upload(
     detect_faces: bool = Form(False, description="Enable face recognition"),
     company_id: int = Depends(get_ui_company),
 ):
-    temp_dir = CompanyData.epi(company_id, "temp")
-    temp_path = temp_dir / f"video_{uuid.uuid4().hex[:8]}{Path(file.filename).suffix}"
-    temp_path.write_bytes(await file.read())
-    results = epi_engine.process_video(company_id, str(temp_path), model_name,
-                                        confidence, skip_frames, detect_faces=detect_faces)
-    compliant_count = sum(1 for r in results if r["compliant"])
-    total = len(results)
-    return {"frames_processed": total, "compliant_frames": compliant_count,
+    temp_path = None
+    try:
+        temp_dir = CompanyData.epi(company_id, "temp")
+        suffix = Path(file.filename).suffix if file.filename else ".mp4"
+        temp_path = temp_dir / f"video_{uuid.uuid4().hex[:8]}{suffix}"
+        content = await file.read()
+        if not content:
+            raise HTTPException(400, detail="Empty video file")
+        temp_path.write_bytes(content)
+        logger.info(f"[Company {company_id}] Processing video: {file.filename} ({len(content)} bytes)")
+
+        results = epi_engine.process_video(company_id, str(temp_path), model_name,
+                                            confidence, skip_frames, detect_faces=detect_faces)
+        compliant_count = sum(1 for r in results if r["compliant"])
+        total = len(results)
+
+        if total == 0:
+            raise HTTPException(400, detail="No frames could be processed from the video. "
+                                            "Check that the file is a valid video (MP4, AVI, MOV).")
+
+        return {
+            "frames_processed": total,
+            "compliant_frames": compliant_count,
             "non_compliant_frames": total - compliant_count,
             "compliance_rate": round(compliant_count / max(total, 1) * 100, 1),
-            "details": results[:50]}
+            "details": results[:50],
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[Company {company_id}] Video processing error: {e}")
+        raise HTTPException(500, detail=f"Video processing failed: {str(e)}")
+    finally:
+        if temp_path and temp_path.exists():
+            try:
+                temp_path.unlink()
+            except Exception:
+                pass
 
 
 @router.post("/detect/youtube",
@@ -596,22 +679,36 @@ async def detect_youtube(
     detect_faces: bool = Form(False, description="Enable face recognition"),
     company_id: int = Depends(get_ui_company),
 ):
-    import yt_dlp
-    temp_dir = CompanyData.epi(company_id, "temp")
-    temp_path = temp_dir / f"yt_{uuid.uuid4().hex[:8]}.mp4"
-    ydl_opts = {"format": "best[height<=720]", "outtmpl": str(temp_path), "quiet": True}
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        ydl.download([url])
-    results = epi_engine.process_video(company_id, str(temp_path), model_name,
-                                        confidence, skip_frames=10, max_frames=max_frames,
-                                        detect_faces=detect_faces)
-    compliant_count = sum(1 for r in results if r["compliant"])
-    total = len(results)
-    temp_path.unlink(missing_ok=True)
-    return {"source": url, "frames_processed": total,
-            "compliant_frames": compliant_count,
-            "compliance_rate": round(compliant_count / max(total, 1) * 100, 1),
-            "details": results[:50]}
+    temp_path = None
+    try:
+        import yt_dlp
+        temp_dir = CompanyData.epi(company_id, "temp")
+        temp_path = temp_dir / f"yt_{uuid.uuid4().hex[:8]}.mp4"
+        ydl_opts = {"format": "best[height<=720]", "outtmpl": str(temp_path), "quiet": True}
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([url])
+        results = epi_engine.process_video(company_id, str(temp_path), model_name,
+                                            confidence, skip_frames=10, max_frames=max_frames,
+                                            detect_faces=detect_faces)
+        compliant_count = sum(1 for r in results if r["compliant"])
+        total = len(results)
+        return {"source": url, "frames_processed": total,
+                "compliant_frames": compliant_count,
+                "compliance_rate": round(compliant_count / max(total, 1) * 100, 1),
+                "details": results[:50]}
+    except HTTPException:
+        raise
+    except ImportError:
+        raise HTTPException(500, detail="yt-dlp not installed. Run: pip install yt-dlp")
+    except Exception as e:
+        logger.error(f"[Company {company_id}] YouTube processing error: {e}")
+        raise HTTPException(500, detail=f"YouTube processing failed: {str(e)}")
+    finally:
+        if temp_path and temp_path.exists():
+            try:
+                temp_path.unlink()
+            except Exception:
+                pass
 
 
 # ======================================================================
