@@ -40,7 +40,6 @@ body {
   overflow-x: hidden;
 }
 
-/* Subtle background */
 body::before {
   content: '';
   position: fixed;
@@ -149,7 +148,7 @@ body::before {
 /* TABS */
 .tabs-wrapper {
   position: sticky;
-  top: 56px;
+  top: 125px; /* FIX BUG-12: was 56px, header is 125px */
   z-index: 99;
   background: rgba(255,255,255,0.97);
   backdrop-filter: blur(20px);
@@ -778,6 +777,110 @@ tr:hover td { background: var(--surface2); }
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
 }
+
+/* ===================== TRAIN SPINNER + DOWNLOAD (NEW) ===================== */
+.train-spinner {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  border: 2px solid rgba(255,255,255,0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Pulsing progress bar when training */
+.progress-fill.training-pulse {
+  background: linear-gradient(90deg, var(--primary), #63b3ed, var(--primary));
+  background-size: 200% 100%;
+  animation: progress-pulse 2s linear infinite;
+}
+
+@keyframes progress-pulse {
+  0%   { background-position: 0% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* Download button area */
+.train-download-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: rgba(30,140,69,0.06);
+  border: 1px solid rgba(30,140,69,0.2);
+  border-radius: 10px;
+  margin-top: 10px;
+}
+
+.train-download-box .dl-icon {
+  font-size: 22px;
+  flex-shrink: 0;
+}
+
+.train-download-box .dl-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.train-download-box .dl-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--success);
+  font-family: 'Space Mono', monospace;
+  margin-bottom: 2px;
+}
+
+.train-download-box .dl-path {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: 'Space Mono', monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Train status area container */
+.train-status-area {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.train-epoch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.train-epoch-label {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.train-epoch-pct {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  color: var(--primary);
+  font-weight: 700;
+}
+
+.train-meta {
+  font-size: 11px;
+  color: var(--text-dim);
+  font-family: 'Space Mono', monospace;
+  margin-top: 4px;
+}
+/* ========================================================================= */
 </style>
 </head>
 <body>
@@ -1014,6 +1117,8 @@ tr:hover td { background: var(--surface2); }
       <button class="btn btn-primary" onclick="generateDataset()">⬡ Generate Dataset</button>
       <div id="dataset-result" style="margin-top:14px"></div>
     </div>
+
+    <!-- ===================== TRAIN CARD (UPDATED) ===================== -->
     <div class="card">
       <div class="card-header">
         <div class="card-icon">⚙</div>
@@ -1046,9 +1151,22 @@ tr:hover td { background: var(--surface2); }
           <input type="number" id="train-patience" value="15">
         </div>
       </div>
-      <button class="btn btn-success" onclick="startTraining()">⚙ Start Training</button>
-      <div id="train-status" style="margin-top:14px"></div>
+
+      <!-- START BUTTON with loading state -->
+      <button class="btn btn-success" id="btn-start-train" onclick="startTraining()">
+        <span id="btn-train-icon">⚙</span>
+        <span id="btn-train-text">Start Training</span>
+      </button>
+
+      <!-- STATUS AREA -->
+      <div class="train-status-area" id="train-status-area" style="display:none">
+        <!-- filled dynamically -->
+      </div>
+
+      <!-- DOWNLOAD AREA (shown when complete) -->
+      <div id="train-download" style="display:none"></div>
     </div>
+    <!-- ============================================================== -->
   </div>
 </div>
 
@@ -1277,8 +1395,24 @@ const classColors={0:'#FC8181',1:'#63B3ED',2:'#68D391',3:'#F6E05E',4:'#B794F4',5
 const classNames={0:'thermal_coat',1:'thermal_pants',2:'gloves',3:'helmet',4:'boots',5:'person'};
 
 function API(p){return'/api/v1/epi'+p+'?company_id='+CID}
-function switchCompany(){CID=parseInt(document.getElementById('companySelect').value);loadDashboard();toast('Switched to Company '+CID)}
+function switchCompany(){
+  CID=parseInt(document.getElementById('companySelect').value);
+  const panelMap={
+    dashboard:loadDashboard,
+    config:loadPPEConfig,
+    annotate:loadAnnotationImages,
+    faces:loadPeople,
+    train:pollTrainStatus
+  };
+  const activePanel=document.querySelector('.panel.active');
+  if(activePanel){
+    const id=activePanel.id.replace('panel-','');
+    if(panelMap[id])panelMap[id]();
+  }
+  toast('Switched to Company '+CID);
+}
 function showPanel(n,el){
+  stopTrainPoll();
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('panel-'+n).classList.add('active');
@@ -1310,7 +1444,7 @@ async function loadDashboard(){
     const statusMap={'complete':'ok','training':'warn','error':'err','idle':'off'};
     document.getElementById('dash-train').innerHTML=
       '<div class="info-row"><span class="info-key">STATUS</span><span class="info-val"><span class="badge badge-'+(statusMap[ts.status]||'off')+'">'+(ts.status||'idle')+'</span></span></div>'+
-      (ts.status==='training'?'<div class="progress-bar" style="margin-top:10px"><div class="progress-fill" style="width:'+((ts.epoch/ts.total_epochs*100)||5)+'%"></div></div>':'');
+      (ts.status==='training'?'<div class="progress-bar" style="margin-top:10px"><div class="progress-fill training-pulse" style="width:'+((ts.epoch/ts.total_epochs*100)||5)+'%"></div></div>':'');
     const p=await(await fetch(API('/photos/summary'))).json();
     const photoRows=Object.entries(p).map(([k,v])=>'<tr><td>'+k+'</td><td><span class="badge badge-blue">'+v+'</span></td></tr>').join('');
     document.getElementById('dash-photos').innerHTML='<table><tr><th>Category</th><th>Photos</th></tr>'+photoRows+'</table>';
@@ -1432,12 +1566,35 @@ function annUndo(){if(annAnnotations.length){annAnnotations.pop();annRedraw();do
 function annClear(){annAnnotations=[];annRedraw();document.getElementById('ann-log').innerHTML='✕ cleared<br>'}
 async function annSave(){
   if(!annCurrentFile)return toast('No image selected','error');
+  const cv=document.getElementById('ann-cv');
+  if(!cv)return toast('No canvas found','error');
+  if(!annAnnotations.length)return toast('No annotations to save','error');
   const data=annAnnotations.map(a=>({class_id:a.class_id,cx:a.cx,cy:a.cy,w:a.w,h:a.h}));
   const r=await(await fetch(API('/annotate/save'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({image_filename:annCurrentFile,annotations:data})})).json();
   toast('Saved '+r.saved+' annotations');document.getElementById('ann-log').innerHTML+='✓ saved '+r.saved+'<br>';
 }
 
-// ---- TRAIN ----
+// ======================== TRAIN (UPDATED) ========================
+
+function setTrainLoading(loading) {
+  const btn = document.getElementById('btn-start-train');
+  const icon = document.getElementById('btn-train-icon');
+  const txt = document.getElementById('btn-train-text');
+  if (loading) {
+    btn.disabled = true;
+    btn.style.opacity = '0.75';
+    btn.style.cursor = 'not-allowed';
+    icon.innerHTML = '<span class="train-spinner"></span>';
+    txt.textContent = 'Training...';
+  } else {
+    btn.disabled = false;
+    btn.style.opacity = '';
+    btn.style.cursor = '';
+    icon.textContent = '⚙';
+    txt.textContent = 'Start Training';
+  }
+}
+
 async function generateDataset(){
   const el=document.getElementById('dataset-result');
   el.innerHTML='<span class="badge badge-warn">Generating dataset...</span>';
@@ -1451,25 +1608,102 @@ async function generateDataset(){
     toast('Dataset generated successfully');
   }catch(e){el.innerHTML='<span class="badge badge-err">'+e.message+'</span>';toast('Dataset failed','error');}
 }
+
 async function startTraining(){
-  const b={base_model:document.getElementById('train-model').value,epochs:parseInt(document.getElementById('train-epochs').value),batch_size:parseInt(document.getElementById('train-batch').value),img_size:parseInt(document.getElementById('train-imgsz').value),patience:parseInt(document.getElementById('train-patience').value)};
-  await fetch(API('/train/start'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});
-  toast('Training started');pollTrainStatus();
+  const b={
+    base_model: document.getElementById('train-model').value,
+    epochs: parseInt(document.getElementById('train-epochs').value),
+    batch_size: parseInt(document.getElementById('train-batch').value),
+    img_size: parseInt(document.getElementById('train-imgsz').value),
+    patience: parseInt(document.getElementById('train-patience').value)
+  };
+  const resp = await fetch(API('/train/start'), {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(b)});
+  const r = await resp.json().catch(()=>({}));
+  if (!resp.ok) { toast(r.detail||'Failed to start training','error'); return; }
+  toast('Training started ⚙');
+  setTrainLoading(true);
+  document.getElementById('train-download').style.display = 'none';
+  const sa = document.getElementById('train-status-area');
+  sa.style.display = 'flex';
+  sa.innerHTML = '<span class="badge badge-warn" style="font-size:12px">⚙ Initializing...</span>';
+  pollTrainStatus();
 }
+
+let _trainPollTimer = null;
+function stopTrainPoll(){ if(_trainPollTimer){clearTimeout(_trainPollTimer);_trainPollTimer=null;} }
+
 async function pollTrainStatus(){
-  const r=await(await fetch(API('/train/status'))).json();
-  const b=document.getElementById('train-status');
-  if(r.status==='training'){
-    b.innerHTML='<div class="progress-bar"><div class="progress-fill" style="width:'+((r.epoch/r.total_epochs*100)||5)+'%"></div></div><div style="margin-top:8px;font-size:12px;color:var(--text-muted);font-family:Space Mono,monospace">Epoch '+(r.epoch||'?')+'/'+(r.total_epochs||'?')+'</div>';
-    setTimeout(pollTrainStatus,5000);
-  }else if(r.status==='complete'){
-    b.innerHTML='<span class="badge badge-ok">✓ Complete</span><div style="margin-top:8px;font-size:12px;color:var(--text-muted)">'+(r.model_path||'')+'</div>';
-  }else if(r.status==='error'){
-    b.innerHTML='<span class="badge badge-err">'+r.error+'</span>';
-  }else{
-    b.innerHTML='<span class="badge badge-off">'+(r.status||'idle')+'</span>';
+  stopTrainPoll();
+  let r;
+  try { r = await (await fetch(API('/train/status'))).json(); }
+  catch(e) { _trainPollTimer = setTimeout(pollTrainStatus, 5000); return; }
+
+  const sa = document.getElementById('train-status-area');
+  const dl = document.getElementById('train-download');
+
+  if (r.status === 'training') {
+    setTrainLoading(true);
+    sa.style.display = 'flex';
+    const pct = r.total_epochs ? Math.round((r.epoch / r.total_epochs) * 100) : 5;
+    const elapsed = r.elapsed_seconds ? formatDuration(r.elapsed_seconds) : '';
+    sa.innerHTML =
+      '<div style="width:100%">' +
+        '<div class="train-epoch-row">' +
+          '<span class="train-epoch-label">EPOCH ' + (r.epoch||'?') + ' / ' + (r.total_epochs||'?') + '</span>' +
+          '<span class="train-epoch-pct">' + pct + '%</span>' +
+        '</div>' +
+        '<div class="progress-bar"><div class="progress-fill training-pulse" style="width:' + pct + '%"></div></div>' +
+        (elapsed ? '<div class="train-meta">⏱ ' + elapsed + ' elapsed</div>' : '') +
+        (r.box_loss ? '<div class="train-meta" style="margin-top:2px">loss → box: ' + r.box_loss + ' · cls: ' + r.cls_loss + '</div>' : '') +
+      '</div>';
+    dl.style.display = 'none';
+    _trainPollTimer = setTimeout(pollTrainStatus, 4000);
+
+  } else if (r.status === 'complete') {
+    setTrainLoading(false);
+    stopTrainPoll();
+    const mp = r.model_path || '';
+    const fname = mp.split(/[/\\]/).pop() || 'best.pt';
+    sa.style.display = 'flex';
+    sa.innerHTML =
+      '<span class="badge badge-ok" style="font-size:12px;padding:5px 14px">✓ Training Complete</span>' +
+      (mp ? '<div class="train-meta" style="margin-top:4px;word-break:break-all">' + mp + '</div>' : '');
+    dl.style.display = 'block';
+    dl.innerHTML =
+      '<div class="train-download-box">' +
+        '<span class="dl-icon">⬇</span>' +
+        '<div class="dl-info">' +
+          '<div class="dl-label">Model ready for download</div>' +
+          '<div class="dl-path">' + fname + '</div>' +
+        '</div>' +
+        '<a class="btn btn-primary btn-sm" href="' + API('/train/download') + '" download="' + fname + '" style="text-decoration:none;flex-shrink:0">' +
+          'Download .pt' +
+        '</a>' +
+      '</div>';
+    toast('✓ Training complete! Model ready to download.');
+
+  } else if (r.status === 'error') {
+    setTrainLoading(false);
+    stopTrainPoll();
+    sa.style.display = 'flex';
+    sa.innerHTML = '<span class="badge badge-err" style="font-size:12px">✗ Error: ' + (r.error||'unknown') + '</span>';
+    toast('Training error: ' + (r.error||'unknown'), 'error');
+
+  } else {
+    setTrainLoading(false);
+    sa.style.display = 'flex';
+    sa.innerHTML = '<span class="badge badge-off">' + (r.status||'idle') + '</span>';
+    dl.style.display = 'none';
   }
 }
+
+function formatDuration(s){
+  const h=Math.floor(s/3600), m=Math.floor((s%3600)/60), sec=s%60;
+  if(h>0) return h+'h '+m+'m';
+  if(m>0) return m+'m '+sec+'s';
+  return sec+'s';
+}
+// =================================================================
 
 // ---- DETECT IMAGE ----
 function previewDetect(i){if(i.files[0]){const r=new FileReader();r.onload=e=>document.getElementById('detect-preview').innerHTML='<img src="'+e.target.result+'" class="preview-img">';r.readAsDataURL(i.files[0])}}
