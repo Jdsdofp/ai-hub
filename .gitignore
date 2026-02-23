@@ -6,6 +6,7 @@ build/
 venv/
 ## .env
 # data/
+*.zip
 logs/
 *.pt
 *.onnx
