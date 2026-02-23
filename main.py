@@ -146,6 +146,18 @@ app.include_router(epi_router, prefix="/api/v1/epi")
 from app.ui.routes import router as ui_router
 app.include_router(ui_router, tags=["UI"])
 
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Unhandled error on {request.url}: {traceback.format_exc()}")
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": type(exc).__name__,
+            "detail": str(exc),
+            "path": str(request.url),
+        }
+    )
+
 
 @app.get("/health", tags=["System"], summary="Health Check",
          description="Returns platform health status, version, MQTT connectivity, and edge mode state. "
