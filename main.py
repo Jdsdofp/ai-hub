@@ -19,6 +19,8 @@ from app.mqtt.client import mqtt_client
 from app.streaming.manager import stream_manager
 
 
+
+
 OPENAPI_TAGS = [
     {
         "name": "PPE Configuration",
@@ -156,6 +158,10 @@ app.include_router(epi_router, prefix="/api/v1/epi")
 # UI routes
 from app.ui.routes import router as ui_router
 app.include_router(ui_router, tags=["UI"])
+
+# FILE routes
+from app.projects.epi_check.api.filebrowser import router as fb_router
+app.include_router(fb_router)
 
 
 @app.get("/health", tags=["System"], summary="Health Check")

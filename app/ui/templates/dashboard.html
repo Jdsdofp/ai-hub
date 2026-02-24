@@ -59,11 +59,11 @@ body::before {
   background: rgba(255,255,255,0.95);
   backdrop-filter: blur(20px);
   border-bottom: 1px solid var(--border);
-  padding: 0 10px;
+  padding: 0 24px;
   display: flex;
   align-items: center;
   gap: 16px;
-  height: 69px;
+  height: 125px;
   box-shadow: 0 1px 8px rgba(26,115,232,0.08);
 }
 
@@ -75,7 +75,7 @@ body::before {
 }
 
 .logo-img {
-  height: 50px;
+  height: 120px;
   width: auto;
   object-fit: contain;
 }
@@ -148,7 +148,7 @@ body::before {
 /* TABS */
 .tabs-wrapper {
   position: sticky;
-  top: 5px; /* FIX BUG-12: was 56px, header is 125px */
+  top: 125px; /* FIX BUG-12: was 56px, header is 125px */
   z-index: 99;
   background: rgba(255,255,255,0.97);
   backdrop-filter: blur(20px);
@@ -191,7 +191,7 @@ body::before {
 
 /* PANELS */
 .panels {
-  padding: 10px;
+  padding: 24px;
   position: relative;
   z-index: 1;
   max-width: 1280px;
@@ -881,6 +881,141 @@ tr:hover td { background: var(--surface2); }
   margin-top: 4px;
 }
 /* ========================================================================= */
+
+/* ==================== FILE BROWSER CSS ==================== */
+.fb-list { display:flex; flex-direction:column; gap:2px; }
+
+.fb-row {
+  display:grid;
+  grid-template-columns: 32px 1fr 90px 140px 120px;
+  align-items:center;
+  gap:10px;
+  padding:8px 10px;
+  border-radius:7px;
+  cursor:pointer;
+  transition:background 0.15s;
+  font-size:13px;
+  border:1px solid transparent;
+}
+.fb-row:hover { background:var(--surface2); border-color:var(--border); }
+.fb-row.fb-dir  { font-weight:600; color:var(--primary); }
+.fb-row .fb-icon { font-size:18px; text-align:center; }
+.fb-row .fb-name { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.fb-row .fb-size { color:var(--text-muted); font-family:Space Mono,monospace; font-size:11px; text-align:right; }
+.fb-row .fb-date { color:var(--text-dim); font-family:Space Mono,monospace; font-size:11px; }
+.fb-row .fb-actions { display:flex; gap:6px; justify-content:flex-end; opacity:0; transition:opacity 0.15s; }
+.fb-row:hover .fb-actions { opacity:1; }
+
+.fb-thead {
+  display:grid;
+  grid-template-columns: 32px 1fr 90px 140px 120px;
+  gap:10px;
+  padding:6px 10px;
+  font-family:Space Mono,monospace;
+  font-size:10px;
+  color:var(--text-dim);
+  text-transform:uppercase;
+  letter-spacing:0.08em;
+  border-bottom:1px solid var(--border);
+  margin-bottom:4px;
+}
+
+/* GRID VIEW */
+.fb-grid {
+  display:grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap:12px;
+}
+
+.fb-card {
+  border:1px solid var(--border);
+  border-radius:10px;
+  overflow:hidden;
+  cursor:pointer;
+  transition:all 0.2s;
+  background:var(--surface);
+  position:relative;
+}
+.fb-card:hover { border-color:var(--border-bright); box-shadow:var(--glow-strong); transform:translateY(-2px); }
+
+.fb-card-thumb {
+  width:100%;
+  aspect-ratio:1;
+  object-fit:cover;
+  background:var(--surface2);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:32px;
+}
+.fb-card-thumb img { width:100%; height:100%; object-fit:cover; }
+
+.fb-card-info {
+  padding:7px 8px;
+  border-top:1px solid var(--border);
+}
+.fb-card-name {
+  font-size:11px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  color:var(--text);
+  font-family:Space Mono,monospace;
+}
+.fb-card-size {
+  font-size:10px;
+  color:var(--text-dim);
+  font-family:Space Mono,monospace;
+  margin-top:2px;
+}
+
+.fb-card-actions {
+  position:absolute;
+  top:4px;
+  right:4px;
+  display:flex;
+  gap:3px;
+  opacity:0;
+  transition:opacity 0.15s;
+}
+.fb-card:hover .fb-card-actions { opacity:1; }
+
+.fb-action-btn {
+  width:24px;
+  height:24px;
+  border:none;
+  border-radius:6px;
+  cursor:pointer;
+  font-size:12px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:rgba(0,0,0,0.55);
+  color:#fff;
+  transition:background 0.15s;
+}
+.fb-action-btn:hover { background:rgba(0,0,0,0.8); }
+.fb-action-btn.del { background:rgba(217,48,37,0.7); }
+.fb-action-btn.del:hover { background:var(--danger); }
+
+.fb-crumb {
+  font-family:Space Mono,monospace;
+  font-size:11px;
+  color:var(--text-muted);
+  cursor:pointer;
+  padding:3px 6px;
+  border-radius:4px;
+  white-space:nowrap;
+  transition:all 0.15s;
+}
+.fb-crumb:hover { color:var(--primary); background:var(--primary-dim); }
+.fb-crumb.active { color:var(--text); cursor:default; font-weight:700; }
+.fb-crumb.active:hover { background:transparent; color:var(--text); }
+.fb-sep { color:var(--text-dim); font-size:10px; }
+
+.fb-empty { text-align:center; padding:40px 20px; color:var(--text-muted); font-size:13px; font-family:Space Mono,monospace; }
+/* =========================================================== */
+
 </style>
 </head>
 <body>
@@ -888,7 +1023,7 @@ tr:hover td { background: var(--surface2); }
 <!-- HEADER -->
 <header class="header">
   <div class="logo-mark">
-    <img class="logo-img" src="/static/img/logoSmartx.png" alt="SmartX">
+    <img class="logo-img" src="/static/img/logoSmartx.jpeg" alt="SmartX">
     <span class="logo-version">v3.0 </span>
   </div>
   <div class="header-divider"></div>
@@ -915,6 +1050,7 @@ tr:hover td { background: var(--surface2); }
   <div class="tab" onclick="showPanel('detect', this)"><span class="tab-icon">◎</span> Detect Image</div>
   <div class="tab" onclick="showPanel('video', this)"><span class="tab-icon">▶</span> Detect Video</div>
   <div class="tab" onclick="showPanel('faces', this)"><span class="tab-icon">◉</span> Faces</div>
+  <div class="tab" onclick="showPanel('files', this)"><span class="tab-icon">🗂</span> Files</div>
   <div class="tab" onclick="showPanel('stream', this)"><span class="tab-icon">◈</span> Live Stream</div>
 </nav>
 
@@ -1380,6 +1516,55 @@ tr:hover td { background: var(--surface2); }
   </div>
 </div>
 
+
+<!-- ===== FILE BROWSER ===== -->
+<div class="panel" id="panel-files">
+  <div class="section-header">
+    <div class="section-title">File Browser</div>
+    <div class="section-sub">Visualize, baixe e gerencie arquivos do servidor</div>
+  </div>
+
+  <!-- STATS BAR -->
+  <div class="grid-4" style="margin-bottom:16px" id="fb-stats-row">
+    <div class="stat-card"><div class="stat-label">Total</div><div class="stat-value" id="fb-stat-size">—</div><div class="stat-sub">em disco</div></div>
+    <div class="stat-card"><div class="stat-label">Arquivos</div><div class="stat-value" id="fb-stat-files">—</div><div class="stat-sub">no servidor</div></div>
+    <div class="stat-card"><div class="stat-label">Imagens</div><div class="stat-value" id="fb-stat-imgs">—</div><div class="stat-sub">fotos e frames</div></div>
+    <div class="stat-card"><div class="stat-label">Modelos</div><div class="stat-value" id="fb-stat-models">—</div><div class="stat-sub">arquivos .pt</div></div>
+  </div>
+
+  <div class="card" style="padding:16px 20px">
+    <!-- TOOLBAR -->
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+      <!-- BREADCRUMB -->
+      <div id="fb-breadcrumb" style="display:flex;align-items:center;gap:4px;flex:1;min-width:0;overflow-x:auto;scrollbar-width:none;padding:6px 0"></div>
+      <!-- ACTIONS -->
+      <div style="display:flex;gap:8px;flex-shrink:0">
+        <button class="btn btn-ghost btn-sm" onclick="fbRefresh()">↻ Atualizar</button>
+        <button class="btn btn-ghost btn-sm" onclick="fbToggleView()" id="fb-view-btn">⊞ Grid</button>
+      </div>
+    </div>
+
+    <!-- SEARCH -->
+    <div style="position:relative;margin-bottom:14px">
+      <input type="text" id="fb-search" placeholder="🔍  Filtrar arquivos..." oninput="fbFilter(this.value)"
+        style="margin:0;padding-left:16px;font-size:13px">
+    </div>
+
+    <!-- FILE LIST / GRID -->
+    <div id="fb-container">
+      <div class="empty-state" data-icon="🗂">Carregando...</div>
+    </div>
+  </div>
+
+  <!-- IMAGE LIGHTBOX -->
+  <div id="fb-lightbox" onclick="fbCloseLightbox()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:10000;cursor:zoom-out;align-items:center;justify-content:center;flex-direction:column;gap:16px">
+    <img id="fb-lightbox-img" src="" style="max-width:90vw;max-height:80vh;border-radius:8px;box-shadow:0 8px 40px rgba(0,0,0,0.6);object-fit:contain">
+    <div style="display:flex;align-items:center;gap:12px">
+      <span id="fb-lightbox-name" style="color:#fff;font-family:Space Mono,monospace;font-size:12px"></span>
+      <a id="fb-lightbox-dl" href="#" download style="color:#63b3ed;font-size:12px;font-family:Space Mono,monospace" onclick="event.stopPropagation()">⬇ Download</a>
+    </div>
+  </div>
+</div>
 </div><!-- end panels -->
 
 <script>
@@ -1422,6 +1607,7 @@ function showPanel(n,el){
   if(n==='annotate')loadAnnotationImages();
   if(n==='faces')loadPeople();
   if(n==='train')pollTrainStatus();
+  if(n==='files')fbInit();
 }
 function toast(m,t='success'){
   const e=document.getElementById('toast');
@@ -1810,6 +1996,206 @@ async function stopSid(sid){
 
 document.getElementById('companySelect').value=CID;
 loadDashboard();
+
+// ==================== FILE BROWSER JS ====================
+let fbCurrentPath = '';
+let fbViewMode = 'list'; // 'list' | 'grid'
+let fbAllItems = [];
+
+function fbAPI(ep){ return '/api/v1/files' + ep + '?company_id=' + CID; }
+
+function fbInit(){
+  fbCurrentPath = '';
+  fbLoadStats();
+  fbLoadDir('');
+}
+
+async function fbLoadStats(){
+  try {
+    const r = await (await fetch(fbAPI('/stats'))).json();
+    document.getElementById('fb-stat-size').textContent   = r.total_size_fmt;
+    document.getElementById('fb-stat-files').textContent  = r.file_count;
+    document.getElementById('fb-stat-imgs').textContent   = r.image_count;
+    document.getElementById('fb-stat-models').textContent = r.model_count;
+  } catch(e) {}
+}
+
+async function fbLoadDir(path){
+  fbCurrentPath = path;
+  const container = document.getElementById('fb-container');
+  container.innerHTML = '<div class="fb-empty">Carregando...</div>';
+  document.getElementById('fb-search').value = '';
+
+  try {
+    const r = await (await fetch(fbAPI('/list') + '&path=' + encodeURIComponent(path))).json();
+    fbAllItems = r.items || [];
+    fbRenderBreadcrumb(r.breadcrumb || []);
+    fbRender(fbAllItems);
+  } catch(e) {
+    container.innerHTML = '<div class="fb-empty">Erro ao carregar pasta</div>';
+  }
+}
+
+function fbRefresh(){
+  fbLoadStats();
+  fbLoadDir(fbCurrentPath);
+}
+
+function fbFilter(q){
+  if(!q) { fbRender(fbAllItems); return; }
+  const filtered = fbAllItems.filter(i => i.name.toLowerCase().includes(q.toLowerCase()));
+  fbRender(filtered);
+}
+
+function fbToggleView(){
+  fbViewMode = fbViewMode === 'list' ? 'grid' : 'list';
+  document.getElementById('fb-view-btn').textContent = fbViewMode === 'list' ? '⊞ Grid' : '☰ Lista';
+  fbRender(fbAllItems);
+}
+
+function fbRenderBreadcrumb(crumbs){
+  const el = document.getElementById('fb-breadcrumb');
+  el.innerHTML = crumbs.map((c, i) => {
+    const isLast = i === crumbs.length - 1;
+    return (i > 0 ? '<span class="fb-sep">/</span>' : '') +
+      '<span class="fb-crumb' + (isLast ? ' active' : '') + '" ' +
+      (isLast ? '' : 'onclick="fbLoadDir(\''+c.path+'\')"') + '>' +
+      c.label + '</span>';
+  }).join('');
+}
+
+function fbFileIcon(item){
+  if(item.is_dir)    return '📁';
+  if(item.is_image)  return '🖼';
+  if(item.is_model)  return '🤖';
+  const e = item.ext;
+  if(e==='.pt')      return '🤖';
+  if(e==='.yaml'||e==='.json') return '⚙';
+  if(e==='.txt'||e==='.log')   return '📄';
+  if(e==='.mp4'||e==='.avi')   return '🎬';
+  if(e==='.csv')               return '📊';
+  return '📎';
+}
+
+function fbRender(items){
+  const container = document.getElementById('fb-container');
+  if(!items.length){
+    container.innerHTML = '<div class="fb-empty">Pasta vazia</div>';
+    return;
+  }
+
+  if(fbViewMode === 'grid'){
+    fbRenderGrid(items, container);
+  } else {
+    fbRenderList(items, container);
+  }
+}
+
+function fbRenderList(items, container){
+  const dlBtn = (item) =>
+    !item.is_dir
+    ? '<a class="btn btn-ghost btn-sm" style="padding:3px 8px;font-size:11px;text-decoration:none" href="' +
+      fbAPI('/download') + '&path=' + encodeURIComponent(item.path) +
+      '" download="' + item.name + '">⬇</a>'
+    : '';
+
+  const delBtn = (item) =>
+    '<button class="btn btn-danger btn-sm" style="padding:3px 8px;font-size:11px" ' +
+    'onclick="fbConfirmDelete(event,\''+item.path+'\',\''+item.name+'\')">✕</button>';
+
+  container.innerHTML =
+    '<div class="fb-thead">' +
+      '<span></span><span>Nome</span><span style="text-align:right">Tamanho</span><span>Modificado</span><span></span>' +
+    '</div>' +
+    '<div class="fb-list">' +
+    items.map(item =>
+      '<div class="fb-row' + (item.is_dir?' fb-dir':'') + '" onclick="fbClickItem(event,\''+item.path+'\','+item.is_dir+','+item.is_image+')">' +
+        '<span class="fb-icon">' + fbFileIcon(item) + '</span>' +
+        '<span class="fb-name" title="' + item.name + '">' + item.name + '</span>' +
+        '<span class="fb-size">' + (item.is_dir ? '—' : item.size_fmt) + '</span>' +
+        '<span class="fb-date">' + item.modified + '</span>' +
+        '<span class="fb-actions" onclick="event.stopPropagation()">' + dlBtn(item) + delBtn(item) + '</span>' +
+      '</div>'
+    ).join('') +
+    '</div>';
+}
+
+function fbRenderGrid(items, container){
+  container.innerHTML =
+    '<div class="fb-grid">' +
+    items.map(item => {
+      const thumbSrc = item.is_image
+        ? fbAPI('/thumb') + '&path=' + encodeURIComponent(item.path)
+        : null;
+
+      const thumbHTML = thumbSrc
+        ? '<div class="fb-card-thumb"><img src="'+thumbSrc+'" loading="lazy" onerror="this.parentElement.innerHTML=\'🖼\'"></div>'
+        : '<div class="fb-card-thumb" style="font-size:36px;display:flex;align-items:center;justify-content:center">' + fbFileIcon(item) + '</div>';
+
+      return '<div class="fb-card" onclick="fbClickItem(event,\''+item.path+'\','+item.is_dir+','+item.is_image+')">' +
+        thumbHTML +
+        '<div class="fb-card-info">' +
+          '<div class="fb-card-name" title="' + item.name + '">' + item.name + '</div>' +
+          '<div class="fb-card-size">' + (item.is_dir ? 'Pasta' : item.size_fmt) + '</div>' +
+        '</div>' +
+        '<div class="fb-card-actions" onclick="event.stopPropagation()">' +
+          (!item.is_dir ? '<a class="fb-action-btn" href="' + fbAPI('/download') + '&path=' + encodeURIComponent(item.path) + '" download="' + item.name + '" onclick="event.stopPropagation()" title="Download">⬇</a>' : '') +
+          '<button class="fb-action-btn del" onclick="fbConfirmDelete(event,\''+item.path+'\',\''+item.name+'\')">✕</button>' +
+        '</div>' +
+      '</div>';
+    }).join('') +
+    '</div>';
+}
+
+function fbClickItem(ev, path, isDir, isImage){
+  if(isDir){
+    fbLoadDir(path);
+  } else if(isImage){
+    fbOpenLightbox(path);
+  } else {
+    window.location.href = fbAPI('/download') + '&path=' + encodeURIComponent(path);
+  }
+}
+
+function fbOpenLightbox(path){
+  const lb    = document.getElementById('fb-lightbox');
+  const img   = document.getElementById('fb-lightbox-img');
+  const name  = document.getElementById('fb-lightbox-name');
+  const dl    = document.getElementById('fb-lightbox-dl');
+  const src   = fbAPI('/download') + '&path=' + encodeURIComponent(path) + '&inline=true';
+  img.src     = src;
+  name.textContent = path.split('/').pop();
+  dl.href     = fbAPI('/download') + '&path=' + encodeURIComponent(path);
+  dl.download = path.split('/').pop();
+  lb.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+function fbCloseLightbox(){
+  document.getElementById('fb-lightbox').style.display = 'none';
+  document.getElementById('fb-lightbox-img').src = '';
+  document.body.style.overflow = '';
+}
+
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape') fbCloseLightbox();
+});
+
+async function fbConfirmDelete(ev, path, name){
+  ev.stopPropagation();
+  if(!confirm('Deletar "' + name + '"?\nEssa ação não pode ser desfeita.')) return;
+  try {
+    // const r = await (await fetch(fbAPI('/delete') + '&path=' + encodeURIComponent(path), {method:'DELETE'})).json();
+    // if(r.deleted){
+    //   toast('Deletado: ' + name);
+    //   fbRefresh();
+    // }
+  } catch(e) {
+    toast('Erro ao deletar', 'error');
+  }
+}
+// =========================================================
+
 </script>
 </body>
 </html>
