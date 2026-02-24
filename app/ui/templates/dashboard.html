@@ -1649,7 +1649,7 @@ async function pollTrainStatus(){
     sa.innerHTML =
       '<div style="width:100%">' +
         '<div class="train-epoch-row">' +
-          '<span class="train-epoch-label">EPOCH ' + (r.epoch||'?') + ' / ' + (r.total_epochs||'?') + '</span>' +
+          '<span class="train-epoch-label">EPOCH ' + (r.epoch ?? '?') + ' / ' + (r.total_epochs ?? '?') + '</span>' +
           '<span class="train-epoch-pct">' + pct + '%</span>' +
         '</div>' +
         '<div class="progress-bar"><div class="progress-fill training-pulse" style="width:' + pct + '%"></div></div>' +
