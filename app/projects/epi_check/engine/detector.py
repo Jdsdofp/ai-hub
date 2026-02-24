@@ -9,6 +9,7 @@ FIXES v3.1:
 """
 import time
 import json
+import torch
 import threading
 from pathlib import Path
 from typing import Dict, Optional, Tuple
@@ -292,10 +293,15 @@ class EPIEngine:
 
     def __init__(self):
         self._models: Dict[str, object] = {}
+        # adicione logo abaixo:
+        self._models.clear()  # garante sem cache antigo
         self._lock = threading.Lock()
         self._train_status: Dict[int, dict] = {}
         self.face_engine = FaceEngine()
         self.converter = AnnotationConverter()
+
+        self._device = str(settings.GPU_DEVICE) if settings.GPU_ENABLED and torch.cuda.is_available() else "cpu"
+        logger.info(f"EPIEngine using device: {self._device}")
 
     # --- PPE Config ---
     def get_ppe_config(self, company_id: int) -> dict:
@@ -364,9 +370,9 @@ class EPIEngine:
         results = model.predict(
             source=img, conf=confidence,
             imgsz=settings.EPI_INPUT_SIZE, verbose=False,
-            device=settings.GPU_DEVICE if settings.GPU_ENABLED else "cpu",
+            # device=settings.GPU_DEVICE if settings.GPU_ENABLED else "cpu",
         )
-
+        
         detections = []
         detected_names = set()
         model_names = model.names or {}
