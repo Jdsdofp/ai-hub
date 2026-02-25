@@ -6,6 +6,9 @@
 <title>SmartX Vision Platform v3 — EPI Check</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<!-- Adicione no <head> do seu HTML -->
+<meta http-equiv="Permissions-Policy" content="camera=*, microphone=()">
+<meta http-equiv="Feature-Policy" content="camera *; microphone 'none'">
 <style>
 :root {
   --bg: #f0f4f8;
@@ -2325,34 +2328,162 @@ let _camFrameCount=0;
 let _camFpsTs=performance.now();
 let _camFps=0;
 
+// async function camStart(){
+//   try{
+//     // const constraints={video:{width:{ideal:1280},height:{ideal:720},facingMode:'environment'},audio:false};
+//     let stream;
+//     try{stream=await navigator.mediaDevices.getUserMedia({video:true,audio:false});}
+//     catch(_){stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:false});}
+//     _camStream=stream;
+//     await camPopulateDevices();
+//     const video=document.getElementById('cam-video');
+//     video.srcObject=stream;video.style.display='block';
+//     document.getElementById('cam-placeholder').style.display='none';
+//     document.getElementById('cam-result-img').style.display='none';
+//     document.getElementById('cam-status-bar').style.display='flex';
+//     document.getElementById('cam-start-btn').style.display='none';
+//     document.getElementById('cam-stop-btn').style.display='inline-flex';
+//     document.getElementById('cam-badge').className='badge badge-warn';
+//     document.getElementById('cam-badge').textContent='ATIVO';
+//     document.getElementById('cam-mirror-btn').classList.add('visible');
+//     camApplyMirror();
+//     document.getElementById('cam-container').classList.add('cam-scanning');
+//     const interval=parseInt(document.getElementById('cam-interval').value);
+//     _camTimer=setInterval(camSendFrame,interval);
+//     toast('📷 Câmera iniciada');
+//   }catch(e){
+//     if(e.name==='NotAllowedError')toast('Permissão de câmera negada. Verifique as configurações do browser.','error');
+//     else if(e.name==='NotFoundError')toast('Nenhuma câmera encontrada neste dispositivo.','error');
+//     else toast('Erro ao acessar câmera: '+e.message,'error');
+//     console.error('Camera error:',e);
+//   }
+// }
+
 async function camStart(){
-  try{
-    // const constraints={video:{width:{ideal:1280},height:{ideal:720},facingMode:'environment'},audio:false};
-    let stream;
-    try{stream=await navigator.mediaDevices.getUserMedia({video:true,audio:false});}
-    catch(_){stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'},audio:false});}
-    _camStream=stream;
+  console.log("Tentando iniciar a câmera...");
+  
+  try {
+    // PRIMEIRO: Verificar se existem câmeras disponíveis
+    console.log("Verificando dispositivos de vídeo disponíveis...");
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const videoDevices = devices.filter(device => device.kind === 'videoinput');
+    
+    console.log("Dispositivos de vídeo encontrados:", videoDevices.length);
+    
+    if (videoDevices.length === 0) {
+      console.warn("Nenhum dispositivo de câmera encontrado!");
+      toast('❌ Nenhuma câmera encontrada neste computador.', 'error');
+      
+      // Atualiza a UI para mostrar mensagem amigável
+      document.getElementById('cam-placeholder').innerHTML = 
+        '<div style="text-align:center; padding:20px">' +
+        '📷 <strong>Nenhuma câmera detectada</strong><br>' +
+        '<span style="font-size:12px; color:#666; margin-top:10px; display:block">' +
+        'Este computador não possui câmera ou ela está desabilitada.</span>' +
+        '</div>';
+      return;
+    }
+    
+    console.log("Câmeras disponíveis:", videoDevices.map(d => d.label || 'Sem nome'));
+    
+    // Tenta acessar qualquer câmera com configurações padrão
+    const constraints = {
+      video: {
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+        deviceId: videoDevices[0].deviceId ? { exact: videoDevices[0].deviceId } : undefined
+      },
+      audio: false
+    };
+
+    console.log("Solicitando permissão com constraints:", constraints);
+    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    console.log("Permissão concedida. Stream obtida:", stream);
+
+    _camStream = stream;
     await camPopulateDevices();
-    const video=document.getElementById('cam-video');
-    video.srcObject=stream;video.style.display='block';
-    document.getElementById('cam-placeholder').style.display='none';
-    document.getElementById('cam-result-img').style.display='none';
-    document.getElementById('cam-status-bar').style.display='flex';
-    document.getElementById('cam-start-btn').style.display='none';
-    document.getElementById('cam-stop-btn').style.display='inline-flex';
-    document.getElementById('cam-badge').className='badge badge-warn';
-    document.getElementById('cam-badge').textContent='ATIVO';
+
+    const video = document.getElementById('cam-video');
+    video.srcObject = stream;
+    video.style.display = 'block';
+
+    // Toca o vídeo quando os metadados estiverem carregados
+    video.onloadedmetadata = () => {
+      console.log("Metadados carregados, tentando dar play...");
+      video.play().catch(err => {
+        console.error("Erro no play após loadedmetadata:", err);
+        toast('Erro ao iniciar o vídeo.', 'error');
+        camStop();
+      });
+    };
+
+    // Se os metadados já estiverem carregados
+    if (video.readyState >= 1) {
+      video.onloadedmetadata = null;
+      video.play().catch(err => {
+        console.error("Erro no play imediato:", err);
+        toast('Erro ao iniciar o vídeo.', 'error');
+        camStop();
+      });
+    }
+
+    // Atualiza a interface
+    document.getElementById('cam-placeholder').style.display = 'none';
+    document.getElementById('cam-result-img').style.display = 'none';
+    document.getElementById('cam-status-bar').style.display = 'flex';
+    document.getElementById('cam-start-btn').style.display = 'none';
+    document.getElementById('cam-stop-btn').style.display = 'inline-flex';
+    document.getElementById('cam-badge').className = 'badge badge-warn';
+    document.getElementById('cam-badge').textContent = 'ATIVO';
     document.getElementById('cam-mirror-btn').classList.add('visible');
+
     camApplyMirror();
     document.getElementById('cam-container').classList.add('cam-scanning');
-    const interval=parseInt(document.getElementById('cam-interval').value);
-    _camTimer=setInterval(camSendFrame,interval);
+
+    const interval = parseInt(document.getElementById('cam-interval').value);
+    if(_camTimer) clearInterval(_camTimer);
+    _camTimer = setInterval(camSendFrame, interval);
     toast('📷 Câmera iniciada');
-  }catch(e){
-    if(e.name==='NotAllowedError')toast('Permissão de câmera negada. Verifique as configurações do browser.','error');
-    else if(e.name==='NotFoundError')toast('Nenhuma câmera encontrada neste dispositivo.','error');
-    else toast('Erro ao acessar câmera: '+e.message,'error');
-    console.error('Camera error:',e);
+
+  } catch(e) {
+    console.error("Erro detalhado ao acessar a câmera:", e);
+
+    // Tratamento específico para erros do Cloudflare/Chrome
+    if (error.name === 'NotAllowedError') {
+      if (error.message.includes('Permissions-Policy')) {
+        toast('O Cloudflare ou o Chrome está bloqueando o acesso à câmera. Atualize a página e tente novamente.', 'error');
+      } else {
+        toast('Permissão de câmera negada. Clique no ícone da câmera na barra de endereços e permita o acesso.', 'error');
+      }
+    } else if (error.name === 'NotFoundError') {
+      toast('Nenhuma câmera encontrada. Verifique se o Cloudflare não está bloqueando o dispositivo.', 'error');
+    } else if (error.name === 'NotReadableError') {
+      toast('Câmera está sendo usada por outro aplicativo ou bloqueada pelo Cloudflare.', 'error');
+    } else {
+      toast('Erro ao acessar câmera: ' + (error.message || 'Erro desconhecido'), 'error');
+    }
+    
+    // Tratamento específico para "Failed to allocate videosource"
+    if (e.message && e.message.includes('Failed to allocate videosource')) {
+      toast('❌ Nenhuma câmera disponível neste computador.', 'error');
+      document.getElementById('cam-placeholder').innerHTML = 
+        '<div style="text-align:center; padding:20px">' +
+        '📷 <strong>Câmera não encontrada</strong><br>' +
+        '<span style="font-size:12px; color:#666; margin-top:10px; display:block">' +
+        'Este computador não possui câmera ou o driver não está instalado.</span>' +
+        '</div>';
+    }
+    else if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') {
+      toast('❌ Permissão de câmera negada.', 'error');
+    } else if (e.name === 'NotFoundError' || e.name === 'DevicesNotFoundError') {
+      toast('❌ Nenhuma câmera encontrada.', 'error');
+    } else if (e.name === 'NotReadableError' || e.name === 'TrackStartError') {
+      toast('❌ Câmera está sendo usada por outro aplicativo.', 'error');
+    } else {
+      toast('❌ Erro ao acessar câmera: ' + (e.message || 'Erro desconhecido'), 'error');
+    }
+    
+    camStop();
   }
 }
 

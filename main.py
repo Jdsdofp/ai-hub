@@ -175,14 +175,45 @@ async def health():
     }
 
 
-class PermissionsPolicyMiddleware(BaseHTTPMiddleware):
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
         response = await call_next(request)
-        response.headers["Permissions-Policy"] = "camera=*, microphone=()"
-        response.headers["Feature-Policy"] = "camera *"
+        
+        # Permissões para câmera e microfone
+        response.headers["Permissions-Policy"] = (
+            "camera=(self \"https://*.cloudflare.com\" \"https://*.google.com\" \"https://*.yourdomain.com\" *), "
+            "microphone=(), "
+            "geolocation=(), "
+            "interest-cohort=()"
+        )
+        
+        # Feature-Policy (legado, mas ainda usado por alguns browsers)
+        response.headers["Feature-Policy"] = (
+            "camera 'self' https://*.cloudflare.com https://*.google.com https://*.yourdomain.com *; "
+            "microphone 'none'"
+        )
+        
+        # CSP (Content-Security-Policy) - Importante para permitir media devices
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.cloudflare.com; "
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+            "font-src 'self' https://fonts.gstatic.com; "
+            "img-src 'self' data: blob:; "
+            "media-src 'self' blob:; "
+            "connect-src 'self' https://*.cloudflare.com wss://*.cloudflare.com; "
+            "frame-ancestors 'none';"
+        )
+        
+        # Headers adicionais para Cloudflare
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        
         return response
 
-app.add_middleware(PermissionsPolicyMiddleware)
+# Substitua o middleware anterior por este
+app.add_middleware(SecurityHeadersMiddleware)
 
 if __name__ == "__main__":
     uvicorn.run(
