@@ -15,3 +15,5 @@ async def dashboard(request: Request, company_id: int = Depends(get_ui_company))
     return templates.TemplateResponse("dashboard.html", {
         "request": request, "company_id": company_id,
     })
+
+
