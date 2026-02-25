@@ -298,6 +298,7 @@ class EPIEngine:
         self._lock = threading.Lock()
         self._train_status: Dict[int, dict] = {}
         self.face_engine = FaceEngine()
+        
         self.converter = AnnotationConverter()
 
         self._device = str(settings.GPU_DEVICE) if settings.GPU_ENABLED and torch.cuda.is_available() else "cpu"
