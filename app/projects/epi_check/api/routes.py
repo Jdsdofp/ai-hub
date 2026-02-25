@@ -786,3 +786,82 @@ async def epi_stats(company_id: int = Depends(get_ui_company)):
     except Exception as e:
         logger.error(f"[Company {company_id}] epi_stats error: {e}")
         raise HTTPException(500, detail=f"Error getting stats: {str(e)}")
+
+
+
+
+# ======================================================================
+# DETECTION — Single Frame (Browser Camera)
+# ======================================================================
+@router.post("/detect/frame", tags=["Detection — Image"],
+    summary="Detect PPE from raw JPEG bytes (browser camera frames)")
+async def detect_frame(
+    file: UploadFile = File(...),
+    model_name: str = Form("best"),
+    confidence: float = Form(0.4),
+    detect_faces: bool = Form(False),
+    face_threshold: float = Form(0.45),
+    annotate: bool = Form(True),
+    company_id: int = Depends(get_ui_company),
+):
+    """
+    Endpoint otimizado para receber frames de câmera do browser.
+    Retorna JSON com resultado + imagem anotada em base64 (opcional).
+    Menor overhead que /detect/upload pois não salva snapshot em disco.
+    """
+    try:
+        data = await file.read()
+        if not data:
+            raise HTTPException(400, detail="Empty frame")
+        arr = np.frombuffer(data, dtype=np.uint8)
+        img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+        if img is None:
+            raise HTTPException(400, detail="Invalid frame — could not decode")
+
+        if annotate:
+            annotated, result = epi_engine.detect_and_annotate(
+                company_id, img, model_name, confidence, detect_faces, face_threshold,
+            )
+            _, buf = cv2.imencode(".jpg", annotated, [cv2.IMWRITE_JPEG_QUALITY, 75])
+            result["annotated_base64"] = base64.b64encode(buf).decode()
+        else:
+            result = epi_engine.detect_image(
+                company_id, img, model_name, confidence, detect_faces, face_threshold,
+            )
+
+        if not result["compliant"]:
+            await mqtt_client.publish_alert(company_id, "EPI_NON_COMPLIANT", {
+                "missing": result["missing"],
+                "source": "browser_camera",
+                "faces": result.get("faces", []),
+            })
+
+        return _sanitize_result(result)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[Company {company_id}] detect_frame error: {e}")
+        raise HTTPException(500, detail=f"Frame detection failed: {str(e)}")
+
+def patch_routes():
+    print("\n[1/2] Patching routes.py ...")
+    backup(ROUTES_PATH)
+    content = ROUTES_PATH.read_text()
+
+    if "/detect/frame" in content:
+        print("  [SKIP] /detect/frame já existe")
+        return
+
+    # Inserir antes do bloco de Face Recognition
+    marker = "# ======================================================================\n# FACE RECOGNITION"
+    if marker in content:
+        content = content.replace(marker, FRAME_ENDPOINT + "\n" + marker)
+        print("  [OK] Endpoint /detect/frame adicionado")
+    else:
+        # fallback: append antes do último bloco
+        content += FRAME_ENDPOINT
+        print("  [OK] Endpoint /detect/frame adicionado (fallback)")
+
+    ROUTES_PATH.write_text(content)
+    print("  [DONE] routes.py salvo")

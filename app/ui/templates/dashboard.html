@@ -148,7 +148,7 @@ body::before {
 /* TABS */
 .tabs-wrapper {
   position: sticky;
-  top: 10px; /* FIX BUG-12: was 56px, header is 125px */
+  top: 10px;
   z-index: 99;
   background: rgba(255,255,255,0.97);
   backdrop-filter: blur(20px);
@@ -778,7 +778,7 @@ tr:hover td { background: var(--surface2); }
   100% { background-position: 200% 0; }
 }
 
-/* ===================== TRAIN SPINNER + DOWNLOAD (NEW) ===================== */
+/* ===================== TRAIN SPINNER + DOWNLOAD ===================== */
 .train-spinner {
   display: inline-block;
   width: 13px;
@@ -795,7 +795,6 @@ tr:hover td { background: var(--surface2); }
   to { transform: rotate(360deg); }
 }
 
-/* Pulsing progress bar when training */
 .progress-fill.training-pulse {
   background: linear-gradient(90deg, var(--primary), #63b3ed, var(--primary));
   background-size: 200% 100%;
@@ -807,7 +806,6 @@ tr:hover td { background: var(--surface2); }
   100% { background-position: 200% 0; }
 }
 
-/* Download button area */
 .train-download-box {
   display: flex;
   align-items: center;
@@ -819,34 +817,11 @@ tr:hover td { background: var(--surface2); }
   margin-top: 10px;
 }
 
-.train-download-box .dl-icon {
-  font-size: 22px;
-  flex-shrink: 0;
-}
+.train-download-box .dl-icon { font-size: 22px; flex-shrink: 0; }
+.train-download-box .dl-info { flex: 1; min-width: 0; }
+.train-download-box .dl-label { font-size: 12px; font-weight: 600; color: var(--success); font-family: 'Space Mono', monospace; margin-bottom: 2px; }
+.train-download-box .dl-path { font-size: 11px; color: var(--text-muted); font-family: 'Space Mono', monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-.train-download-box .dl-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.train-download-box .dl-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--success);
-  font-family: 'Space Mono', monospace;
-  margin-bottom: 2px;
-}
-
-.train-download-box .dl-path {
-  font-size: 11px;
-  color: var(--text-muted);
-  font-family: 'Space Mono', monospace;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* Train status area container */
 .train-status-area {
   margin-top: 14px;
   display: flex;
@@ -861,26 +836,10 @@ tr:hover td { background: var(--surface2); }
   margin-bottom: 6px;
 }
 
-.train-epoch-label {
-  font-family: 'Space Mono', monospace;
-  font-size: 11px;
-  color: var(--text-muted);
-}
-
-.train-epoch-pct {
-  font-family: 'Space Mono', monospace;
-  font-size: 11px;
-  color: var(--primary);
-  font-weight: 700;
-}
-
-.train-meta {
-  font-size: 11px;
-  color: var(--text-dim);
-  font-family: 'Space Mono', monospace;
-  margin-top: 4px;
-}
-/* ========================================================================= */
+.train-epoch-label { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--text-muted); }
+.train-epoch-pct { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--primary); font-weight: 700; }
+.train-meta { font-size: 11px; color: var(--text-dim); font-family: 'Space Mono', monospace; margin-top: 4px; }
+/* ================================================================== */
 
 /* ==================== FILE BROWSER CSS ==================== */
 .fb-list { display:flex; flex-direction:column; gap:2px; }
@@ -920,7 +879,6 @@ tr:hover td { background: var(--surface2); }
   margin-bottom:4px;
 }
 
-/* GRID VIEW */
 .fb-grid {
   display:grid;
   grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
@@ -950,72 +908,30 @@ tr:hover td { background: var(--surface2); }
 }
 .fb-card-thumb img { width:100%; height:100%; object-fit:cover; }
 
-.fb-card-info {
-  padding:7px 8px;
-  border-top:1px solid var(--border);
-}
-.fb-card-name {
-  font-size:11px;
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  color:var(--text);
-  font-family:Space Mono,monospace;
-}
-.fb-card-size {
-  font-size:10px;
-  color:var(--text-dim);
-  font-family:Space Mono,monospace;
-  margin-top:2px;
-}
+.fb-card-info { padding:7px 8px; border-top:1px solid var(--border); }
+.fb-card-name { font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--text); font-family:Space Mono,monospace; }
+.fb-card-size { font-size:10px; color:var(--text-dim); font-family:Space Mono,monospace; margin-top:2px; }
 
-.fb-card-actions {
-  position:absolute;
-  top:4px;
-  right:4px;
-  display:flex;
-  gap:3px;
-  opacity:0;
-  transition:opacity 0.15s;
-}
+.fb-card-actions { position:absolute; top:4px; right:4px; display:flex; gap:3px; opacity:0; transition:opacity 0.15s; }
 .fb-card:hover .fb-card-actions { opacity:1; }
 
 .fb-action-btn {
-  width:24px;
-  height:24px;
-  border:none;
-  border-radius:6px;
-  cursor:pointer;
-  font-size:12px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  background:rgba(0,0,0,0.55);
-  color:#fff;
-  transition:background 0.15s;
+  width:24px; height:24px; border:none; border-radius:6px; cursor:pointer; font-size:12px;
+  display:flex; align-items:center; justify-content:center;
+  background:rgba(0,0,0,0.55); color:#fff; transition:background 0.15s;
 }
 .fb-action-btn:hover { background:rgba(0,0,0,0.8); }
 .fb-action-btn.del { background:rgba(217,48,37,0.7); }
 .fb-action-btn.del:hover { background:var(--danger); }
 
-.fb-crumb {
-  font-family:Space Mono,monospace;
-  font-size:11px;
-  color:var(--text-muted);
-  cursor:pointer;
-  padding:3px 6px;
-  border-radius:4px;
-  white-space:nowrap;
-  transition:all 0.15s;
-}
+.fb-crumb { font-family:Space Mono,monospace; font-size:11px; color:var(--text-muted); cursor:pointer; padding:3px 6px; border-radius:4px; white-space:nowrap; transition:all 0.15s; }
 .fb-crumb:hover { color:var(--primary); background:var(--primary-dim); }
 .fb-crumb.active { color:var(--text); cursor:default; font-weight:700; }
 .fb-crumb.active:hover { background:transparent; color:var(--text); }
 .fb-sep { color:var(--text-dim); font-size:10px; }
 
 .fb-empty { text-align:center; padding:40px 20px; color:var(--text-muted); font-size:13px; font-family:Space Mono,monospace; }
-/* =========================================================== */
-
+/* ========================================================== */
 
 /* ==================== FILE BROWSER MODALS ==================== */
 .fb-modal-backdrop {
@@ -1036,51 +952,151 @@ tr:hover td { background: var(--surface2); }
   from { transform:scale(0.88) translateY(12px); opacity:0 }
   to   { transform:scale(1)    translateY(0);    opacity:1 }
 }
-.fb-modal-title {
-  font-family:'Space Mono',monospace; font-size:13px; font-weight:700;
-  color:var(--text); text-transform:uppercase; letter-spacing:0.08em;
-  margin-bottom:18px; display:flex; align-items:center; gap:8px;
-}
-.fb-modal-close {
-  position:absolute; top:14px; right:16px; background:none; border:none;
-  cursor:pointer; font-size:18px; color:var(--text-muted); line-height:1;
-  padding:4px 6px; border-radius:6px; transition:background 0.15s,color 0.15s;
-}
+.fb-modal-title { font-family:'Space Mono',monospace; font-size:13px; font-weight:700; color:var(--text); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:18px; display:flex; align-items:center; gap:8px; }
+.fb-modal-close { position:absolute; top:14px; right:16px; background:none; border:none; cursor:pointer; font-size:18px; color:var(--text-muted); line-height:1; padding:4px 6px; border-radius:6px; transition:background 0.15s,color 0.15s; }
 .fb-modal-close:hover { background:var(--danger-dim); color:var(--danger); }
-.fb-dropzone {
-  border:2px dashed var(--border-bright); border-radius:10px;
-  padding:32px 20px; text-align:center; cursor:pointer;
-  transition:all 0.2s; background:var(--surface2); margin-bottom:14px;
-}
-.fb-dropzone:hover, .fb-dropzone.drag-over {
-  border-color:var(--primary); background:var(--primary-dim);
-}
+.fb-dropzone { border:2px dashed var(--border-bright); border-radius:10px; padding:32px 20px; text-align:center; cursor:pointer; transition:all 0.2s; background:var(--surface2); margin-bottom:14px; }
+.fb-dropzone:hover, .fb-dropzone.drag-over { border-color:var(--primary); background:var(--primary-dim); }
 .fb-dropzone-icon  { font-size:32px; margin-bottom:8px; }
 .fb-dropzone-text  { font-size:13px; color:var(--text-muted); }
 .fb-dropzone-sub   { font-size:11px; color:var(--text-dim); font-family:'Space Mono',monospace; margin-top:4px; }
-.fb-queue {
-  max-height:150px; overflow-y:auto; margin-bottom:14px;
-  display:flex; flex-direction:column; gap:4px;
-}
-.fb-queue-item {
-  display:flex; align-items:center; gap:8px; padding:7px 10px;
-  background:var(--surface2); border:1px solid var(--border);
-  border-radius:7px; font-size:12px;
-}
+.fb-queue { max-height:150px; overflow-y:auto; margin-bottom:14px; display:flex; flex-direction:column; gap:4px; }
+.fb-queue-item { display:flex; align-items:center; gap:8px; padding:7px 10px; background:var(--surface2); border:1px solid var(--border); border-radius:7px; font-size:12px; }
 .fb-queue-item .fq-icon { font-size:14px; }
 .fb-queue-item .fq-name { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text); }
 .fb-queue-item .fq-size { color:var(--text-dim); font-family:'Space Mono',monospace; font-size:10px; }
 .fb-queue-item .fq-rm   { background:none; border:none; cursor:pointer; color:var(--text-dim); font-size:14px; padding:0 2px; transition:color 0.15s; }
 .fb-queue-item .fq-rm:hover { color:var(--danger); }
 .fb-upload-progress { margin-bottom:12px; display:none; }
-.fb-upload-progress-label {
-  display:flex; justify-content:space-between;
-  font-family:'Space Mono',monospace; font-size:11px;
-  color:var(--text-muted); margin-bottom:6px;
-}
+.fb-upload-progress-label { display:flex; justify-content:space-between; font-family:'Space Mono',monospace; font-size:11px; color:var(--text-muted); margin-bottom:6px; }
 /* ============================================================= */
 
+/* ==================== BROWSER CAMERA CSS ==================== */
+.cam-container {
+  position: relative;
+  background: #0a0a0f;
+  border-radius: 12px;
+  overflow: hidden;
+  min-height: 300px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+}
 
+.cam-container video,
+.cam-container canvas,
+.cam-container img.cam-result {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 0;
+}
+
+.cam-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.cam-status-bar {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.cam-fps-badge {
+  background: rgba(0,0,0,0.65);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  color: #a0aec0;
+  backdrop-filter: blur(4px);
+}
+
+.cam-fps-badge.compliant    { color: #68d391; border-color: rgba(104,211,145,0.3); }
+.cam-fps-badge.noncompliant { color: #fc8181; border-color: rgba(252,129,129,0.3); }
+
+.cam-placeholder {
+  color: #4a5568;
+  font-size: 13px;
+  font-family: 'Space Mono', monospace;
+  text-align: center;
+  padding: 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.cam-placeholder::before {
+  content: '📷';
+  font-size: 36px;
+  opacity: 0.35;
+}
+
+.cam-selector {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  pointer-events: all;
+  background: rgba(0,0,0,0.6);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 6px;
+  padding: 4px 8px;
+  color: #e2e8f0;
+  font-size: 12px;
+  font-family: 'Space Mono', monospace;
+  backdrop-filter: blur(4px);
+  cursor: pointer;
+  max-width: 180px;
+  display: none;
+}
+
+.cam-selector.visible { display: block; }
+
+.cam-mirror-btn {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  pointer-events: all;
+  background: rgba(0,0,0,0.6);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 6px;
+  padding: 5px 9px;
+  color: #a0aec0;
+  font-size: 12px;
+  cursor: pointer;
+  display: none;
+  backdrop-filter: blur(4px);
+  transition: color 0.2s;
+}
+.cam-mirror-btn:hover { color: #fff; }
+.cam-mirror-btn.visible { display: block; }
+
+.cam-scanline {
+  position: absolute;
+  left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(26,115,232,0.6), transparent);
+  animation: cam-scan 3s linear infinite;
+  pointer-events: none;
+  display: none;
+}
+.cam-scanning .cam-scanline { display: block; }
+
+@keyframes cam-scan {
+  0%   { top: 0%; }
+  100% { top: 100%; }
+}
+/* ============================================================ */
 </style>
 </head>
 <body>
@@ -1089,7 +1105,7 @@ tr:hover td { background: var(--surface2); }
 <header class="header">
   <div class="logo-mark">
     <img class="logo-img" src="/static/img/logoSmartx.png" alt="SmartX">
-    <span class="logo-version">v3.0 </span>
+    <span class="logo-version">v3.0</span>
   </div>
   <div class="header-divider"></div>
   <div class="status-dot"></div>
@@ -1153,33 +1169,21 @@ tr:hover td { background: var(--surface2); }
   </div>
   <div class="grid-2">
     <div class="card">
-      <div class="card-header">
-        <div class="card-icon">◈</div>
-        <div class="card-title">PPE Classes Status</div>
-      </div>
+      <div class="card-header"><div class="card-icon">◈</div><div class="card-title">PPE Classes Status</div></div>
       <div id="dash-classes"><div class="shimmer" style="width:80%"></div></div>
     </div>
     <div class="card">
-      <div class="card-header">
-        <div class="card-icon">⚙</div>
-        <div class="card-title">Training Status</div>
-      </div>
+      <div class="card-header"><div class="card-icon">⚙</div><div class="card-title">Training Status</div></div>
       <div id="dash-train"><div class="shimmer" style="width:60%"></div></div>
     </div>
   </div>
   <div class="grid-2">
     <div class="card">
-      <div class="card-header">
-        <div class="card-icon">↑</div>
-        <div class="card-title">Photos by Category</div>
-      </div>
+      <div class="card-header"><div class="card-icon">↑</div><div class="card-title">Photos by Category</div></div>
       <div id="dash-photos"><div class="shimmer"></div></div>
     </div>
     <div class="card">
-      <div class="card-header">
-        <div class="card-icon">◻</div>
-        <div class="card-title">Annotation Stats</div>
-      </div>
+      <div class="card-header"><div class="card-icon">◻</div><div class="card-title">Annotation Stats</div></div>
       <div id="dash-annotations"><div class="shimmer"></div></div>
     </div>
   </div>
@@ -1193,10 +1197,7 @@ tr:hover td { background: var(--surface2); }
   </div>
   <div class="grid-2">
     <div class="card">
-      <div class="card-header">
-        <div class="card-icon">◉</div>
-        <div class="card-title">Register Person</div>
-      </div>
+      <div class="card-header"><div class="card-icon">◉</div><div class="card-title">Register Person</div></div>
       <label>Person Code</label>
       <input type="text" id="face-code" placeholder="john_silva">
       <label>Full Name</label>
@@ -1209,10 +1210,7 @@ tr:hover td { background: var(--surface2); }
       <div id="face-result" style="margin-top:12px"></div>
     </div>
     <div class="card">
-      <div class="card-header">
-        <div class="card-icon">⬡</div>
-        <div class="card-title">Registered People</div>
-      </div>
+      <div class="card-header"><div class="card-icon">⬡</div><div class="card-title">Registered People</div></div>
       <div class="btn-group" style="margin-bottom:16px">
         <button class="btn btn-sm btn-ghost" onclick="loadPeople()">↻ Refresh</button>
         <button class="btn btn-sm btn-warning" onclick="rebuildFaceDB()">⚙ Rebuild DB</button>
@@ -1243,10 +1241,7 @@ tr:hover td { background: var(--surface2); }
   </div>
   <div class="grid-2">
     <div class="card">
-      <div class="card-header">
-        <div class="card-icon">↑</div>
-        <div class="card-title">Training Photos</div>
-      </div>
+      <div class="card-header"><div class="card-icon">↑</div><div class="card-title">Training Photos</div></div>
       <label>Category</label>
       <select id="upload-category">
         <option value="helmet">helmet</option>
@@ -1263,10 +1258,7 @@ tr:hover td { background: var(--surface2); }
       <div id="upload-result" style="margin-top:12px"></div>
     </div>
     <div class="card">
-      <div class="card-header">
-        <div class="card-icon">⬡</div>
-        <div class="card-title">Bulk Upload — Images + Labels</div>
-      </div>
+      <div class="card-header"><div class="card-icon">⬡</div><div class="card-title">Bulk Upload — Images + Labels</div></div>
       <label>Category</label>
       <select id="bulk-category">
         <option value="mixed">mixed</option>
@@ -1341,10 +1333,7 @@ tr:hover td { background: var(--surface2); }
   </div>
   <div class="grid-2">
     <div class="card">
-      <div class="card-header">
-        <div class="card-icon">⬡</div>
-        <div class="card-title">1 — Generate Dataset</div>
-      </div>
+      <div class="card-header"><div class="card-icon">⬡</div><div class="card-title">1 — Generate Dataset</div></div>
       <label>Train / Valid Split</label>
       <div class="range-row">
         <input type="range" id="train-split" min="0.5" max="0.95" step="0.05" value="0.8"
@@ -1356,12 +1345,8 @@ tr:hover td { background: var(--surface2); }
       <div id="dataset-result" style="margin-top:14px"></div>
     </div>
 
-    <!-- ===================== TRAIN CARD (UPDATED) ===================== -->
     <div class="card">
-      <div class="card-header">
-        <div class="card-icon">⚙</div>
-        <div class="card-title">2 — Train Model</div>
-      </div>
+      <div class="card-header"><div class="card-icon">⚙</div><div class="card-title">2 — Train Model</div></div>
       <label>Base Model</label>
       <select id="train-model">
         <option value="yolov8n.pt">yolov8n — Fast</option>
@@ -1389,22 +1374,13 @@ tr:hover td { background: var(--surface2); }
           <input type="number" id="train-patience" value="15">
         </div>
       </div>
-
-      <!-- START BUTTON with loading state -->
       <button class="btn btn-success" id="btn-start-train" onclick="startTraining()">
         <span id="btn-train-icon">⚙</span>
         <span id="btn-train-text">Start Training</span>
       </button>
-
-      <!-- STATUS AREA -->
-      <div class="train-status-area" id="train-status-area" style="display:none">
-        <!-- filled dynamically -->
-      </div>
-
-      <!-- DOWNLOAD AREA (shown when complete) -->
+      <div class="train-status-area" id="train-status-area" style="display:none"></div>
       <div id="train-download" style="display:none"></div>
     </div>
-    <!-- ============================================================== -->
   </div>
 </div>
 
@@ -1416,10 +1392,7 @@ tr:hover td { background: var(--surface2); }
   </div>
   <div class="grid-2">
     <div class="card">
-      <div class="card-header">
-        <div class="card-icon">◎</div>
-        <div class="card-title">Detection Settings</div>
-      </div>
+      <div class="card-header"><div class="card-icon">◎</div><div class="card-title">Detection Settings</div></div>
       <label>Image</label>
       <input type="file" id="detect-file" accept="image/*" onchange="previewDetect(this)">
       <label>Confidence Threshold</label>
@@ -1442,10 +1415,7 @@ tr:hover td { background: var(--surface2); }
       <div id="detect-result" style="margin-top:16px"></div>
     </div>
     <div class="card">
-      <div class="card-header">
-        <div class="card-icon">▦</div>
-        <div class="card-title">Result</div>
-      </div>
+      <div class="card-header"><div class="card-icon">▦</div><div class="card-title">Result</div></div>
       <div id="detect-preview" class="empty-state" data-icon="◎">Upload image and run detection</div>
     </div>
   </div>
@@ -1459,10 +1429,7 @@ tr:hover td { background: var(--surface2); }
   </div>
   <div class="grid-2">
     <div class="card">
-      <div class="card-header">
-        <div class="card-icon">▶</div>
-        <div class="card-title">Video File</div>
-      </div>
+      <div class="card-header"><div class="card-icon">▶</div><div class="card-title">Video File</div></div>
       <label>Upload Video (MP4)</label>
       <input type="file" id="video-file" accept="video/*">
       <label>Skip Frames</label>
@@ -1480,10 +1447,7 @@ tr:hover td { background: var(--surface2); }
       <button class="btn btn-primary" onclick="detectVideo()">▶ Process Video</button>
     </div>
     <div class="card">
-      <div class="card-header">
-        <div class="card-icon">▶</div>
-        <div class="card-title">YouTube Video</div>
-      </div>
+      <div class="card-header"><div class="card-icon">▶</div><div class="card-title">YouTube Video</div></div>
       <label>YouTube URL</label>
       <input type="text" id="yt-url" placeholder="https://www.youtube.com/watch?v=...">
       <label>Max Frames</label>
@@ -1492,10 +1456,7 @@ tr:hover td { background: var(--surface2); }
     </div>
   </div>
   <div class="card">
-    <div class="card-header">
-      <div class="card-icon">⬡</div>
-      <div class="card-title">Results</div>
-    </div>
+    <div class="card-header"><div class="card-icon">⬡</div><div class="card-title">Results</div></div>
     <div id="video-result" class="empty-state" data-icon="▶">Upload a video or paste a YouTube URL</div>
   </div>
 </div>
@@ -1506,6 +1467,8 @@ tr:hover td { background: var(--surface2); }
     <div class="section-title">Live Stream</div>
     <div class="section-sub">Real-time PPE detection on camera feeds</div>
   </div>
+
+  <!-- RTSP / STREAM CONFIG -->
   <div class="card">
     <div class="grid-3">
       <div>
@@ -1552,34 +1515,104 @@ tr:hover td { background: var(--surface2); }
       </div>
     </div>
   </div>
+
+  <!-- LIVE FEED + INFO -->
   <div class="grid-2">
     <div class="card">
-      <div class="card-header">
-        <div class="card-icon">◈</div>
-        <div class="card-title">Live Feed</div>
-      </div>
+      <div class="card-header"><div class="card-icon">◈</div><div class="card-title">Live Feed</div></div>
       <div class="stream-container" id="stream-container">
         <div class="stream-placeholder">No stream active</div>
       </div>
     </div>
     <div>
       <div class="card">
-        <div class="card-header">
-          <div class="card-icon">⬡</div>
-          <div class="card-title">Stream Info</div>
-        </div>
+        <div class="card-header"><div class="card-icon">⬡</div><div class="card-title">Stream Info</div></div>
         <div id="stream-info" class="empty-state" data-icon="◈">Start a stream</div>
       </div>
       <div class="card">
-        <div class="card-header">
-          <div class="card-icon">◉</div>
-          <div class="card-title">Active Sessions</div>
-        </div>
+        <div class="card-header"><div class="card-icon">◉</div><div class="card-title">Active Sessions</div></div>
         <div id="stream-sessions" class="empty-state" data-icon="◉">No active sessions</div>
       </div>
     </div>
   </div>
-</div>
+
+  <!-- ===== BROWSER CAMERA (dentro do panel-stream) ===== -->
+  <div class="card" style="margin-top:16px">
+    <div class="card-header">
+      <div class="card-icon">📷</div>
+      <div class="card-title">Browser Camera — Detecção em Tempo Real</div>
+      <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+        <span class="badge badge-off" id="cam-badge">INATIVO</span>
+      </div>
+    </div>
+
+    <!-- CONTROLS ROW -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:12px;margin-bottom:14px;align-items:end">
+      <div>
+        <label>Confidence</label>
+        <div class="range-row">
+          <input type="range" id="cam-conf" min="0.1" max="0.9" step="0.05" value="0.4"
+            oninput="document.getElementById('cam-conf-val').textContent=this.value">
+          <span class="range-val" id="cam-conf-val">0.4</span>
+        </div>
+      </div>
+      <div>
+        <label>Intervalo (ms)</label>
+        <select id="cam-interval" style="margin-bottom:0">
+          <option value="100">100ms — ~10fps</option>
+          <option value="200" selected>200ms — ~5fps</option>
+          <option value="500">500ms — ~2fps</option>
+          <option value="1000">1000ms — ~1fps</option>
+        </select>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <div class="checkbox-row" style="margin:0">
+          <input type="checkbox" id="cam-faces" checked>
+          <label for="cam-faces" style="font-size:12px">Face Recognition</label>
+        </div>
+        <div class="checkbox-row" style="margin:0">
+          <input type="checkbox" id="cam-mirror" checked onchange="camToggleMirror()">
+          <label for="cam-mirror" style="font-size:12px">Espelhar imagem</label>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button class="btn btn-success" id="cam-start-btn" onclick="camStart()">📷 Iniciar Câmera</button>
+        <button class="btn btn-danger" id="cam-stop-btn" onclick="camStop()" style="display:none">◼ Parar</button>
+      </div>
+    </div>
+
+    <!-- CAMERA VIEW -->
+    <div class="grid-2" style="gap:16px">
+      <div class="cam-container" id="cam-container">
+        <div class="cam-placeholder" id="cam-placeholder">Clique em "Iniciar Câmera" para<br>usar a câmera do seu dispositivo</div>
+        <video id="cam-video" autoplay playsinline muted style="display:none"></video>
+        <canvas id="cam-canvas" style="display:none"></canvas>
+        <img id="cam-result-img" class="cam-result" style="display:none" alt="resultado">
+        <div class="cam-overlay cam-scanline" id="cam-scanline"></div>
+        <div class="cam-status-bar" id="cam-status-bar" style="display:none">
+          <span class="cam-fps-badge" id="cam-fps-badge">0 FPS</span>
+          <span class="cam-fps-badge" id="cam-compliance-badge">—</span>
+          <span class="cam-fps-badge" id="cam-ms-badge">— ms</span>
+        </div>
+        <select class="cam-selector" id="cam-device-sel" onchange="camSwitchDevice()"></select>
+        <button class="cam-mirror-btn" id="cam-mirror-btn" onclick="document.getElementById('cam-mirror').click()">⟺ Espelhar</button>
+      </div>
+
+      <!-- RESULT SIDEBAR -->
+      <div>
+        <div class="card" style="margin-bottom:0;height:100%">
+          <div class="card-header" style="padding-bottom:10px;margin-bottom:12px">
+            <div class="card-icon">◎</div>
+            <div class="card-title">Último Resultado</div>
+          </div>
+          <div id="cam-result-detail" class="empty-state" data-icon="📷">Aguardando detecção...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- ===== FIM BROWSER CAMERA ===== -->
+
+</div><!-- fim panel-stream -->
 
 
 <!-- ===== FILE BROWSER ===== -->
@@ -1589,7 +1622,6 @@ tr:hover td { background: var(--surface2); }
     <div class="section-sub">Visualize, baixe e gerencie arquivos do servidor</div>
   </div>
 
-  <!-- STATS BAR -->
   <div class="grid-4" style="margin-bottom:16px" id="fb-stats-row">
     <div class="stat-card"><div class="stat-label">Total</div><div class="stat-value" id="fb-stat-size">—</div><div class="stat-sub">em disco</div></div>
     <div class="stat-card"><div class="stat-label">Arquivos</div><div class="stat-value" id="fb-stat-files">—</div><div class="stat-sub">no servidor</div></div>
@@ -1598,11 +1630,8 @@ tr:hover td { background: var(--surface2); }
   </div>
 
   <div class="card" style="padding:16px 20px">
-    <!-- TOOLBAR -->
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px">
-      <!-- BREADCRUMB -->
       <div id="fb-breadcrumb" style="display:flex;align-items:center;gap:4px;flex:1;min-width:0;overflow-x:auto;scrollbar-width:none;padding:6px 0"></div>
-      <!-- ACTIONS -->
       <div style="display:flex;gap:8px;flex-shrink:0;flex-wrap:wrap">
         <button class="btn btn-ghost btn-sm" onclick="fbRefresh()">↻ Atualizar</button>
         <button class="btn btn-ghost btn-sm" onclick="fbToggleView()" id="fb-view-btn">⊞ Grid</button>
@@ -1610,14 +1639,10 @@ tr:hover td { background: var(--surface2); }
         <button class="btn btn-ghost btn-sm" onclick="fbShowMkdirModal()">📁 Nova Pasta</button>
       </div>
     </div>
-
-    <!-- SEARCH -->
     <div style="position:relative;margin-bottom:14px">
       <input type="text" id="fb-search" placeholder="🔍  Filtrar arquivos..." oninput="fbFilter(this.value)"
         style="margin:0;padding-left:16px;font-size:13px">
     </div>
-
-    <!-- FILE LIST / GRID -->
     <div id="fb-container">
       <div class="empty-state" data-icon="🗂">Carregando...</div>
     </div>
@@ -1632,42 +1657,31 @@ tr:hover td { background: var(--surface2); }
     </div>
   </div>
 </div>
+
 <!-- ===== FILE BROWSER: UPLOAD MODAL ===== -->
 <div class="fb-modal-backdrop" id="fb-upload-modal" onclick="fbHideUploadModal(event)">
   <div class="fb-modal" onclick="event.stopPropagation()">
     <button class="fb-modal-close" onclick="fbHideUploadModal()">✕</button>
     <div class="fb-modal-title">⬆ Upload de Arquivos</div>
-
     <label style="margin-bottom:4px">Pasta destino</label>
-    <input type="text" id="fb-upload-dest" readonly
-      style="margin-bottom:14px;background:var(--surface3);cursor:default;font-family:Space Mono,monospace;font-size:12px">
-
+    <input type="text" id="fb-upload-dest" readonly style="margin-bottom:14px;background:var(--surface3);cursor:default;font-family:Space Mono,monospace;font-size:12px">
     <div class="fb-dropzone" id="fb-dropzone"
       onclick="document.getElementById('fb-upload-input').click()"
-      ondragover="fbDragOver(event)"
-      ondragleave="fbDragLeave(event)"
-      ondrop="fbDrop(event)">
+      ondragover="fbDragOver(event)" ondragleave="fbDragLeave(event)" ondrop="fbDrop(event)">
       <div class="fb-dropzone-icon">⬆</div>
       <div class="fb-dropzone-text">Clique ou arraste arquivos aqui</div>
       <div class="fb-dropzone-sub">Qualquer arquivo suportado · max 500 MB cada</div>
     </div>
-    <input type="file" id="fb-upload-input" multiple style="display:none"
-      onchange="fbAddFiles(this.files)">
-
+    <input type="file" id="fb-upload-input" multiple style="display:none" onchange="fbAddFiles(this.files)">
     <div class="fb-queue" id="fb-queue"></div>
-
     <div class="fb-upload-progress" id="fb-upload-progress">
       <div class="fb-upload-progress-label">
         <span id="fb-prog-label">Enviando...</span>
         <span id="fb-prog-pct">0%</span>
       </div>
-      <div class="progress-bar">
-        <div class="progress-fill" id="fb-prog-fill" style="width:0%"></div>
-      </div>
+      <div class="progress-bar"><div class="progress-fill" id="fb-prog-fill" style="width:0%"></div></div>
     </div>
-
     <div id="fb-upload-msg" style="min-height:20px;margin-bottom:10px"></div>
-
     <div class="btn-group">
       <button class="btn btn-primary" id="fb-upload-btn" onclick="fbDoUpload()">⬆ Enviar Arquivos</button>
       <button class="btn btn-ghost" onclick="fbHideUploadModal()">Cancelar</button>
@@ -1683,10 +1697,8 @@ tr:hover td { background: var(--surface2); }
     <div class="fb-modal-title">📁 Nova Pasta</div>
     <label>Nome da pasta</label>
     <input type="text" id="fb-mkdir-name" placeholder="ex: fotos_capacete"
-      onkeydown="if(event.key==='Enter')fbDoMkdir()"
-      style="margin-bottom:6px">
-    <div id="fb-mkdir-path"
-      style="font-family:Space Mono,monospace;font-size:11px;color:var(--text-muted);margin-bottom:14px"></div>
+      onkeydown="if(event.key==='Enter')fbDoMkdir()" style="margin-bottom:6px">
+    <div id="fb-mkdir-path" style="font-family:Space Mono,monospace;font-size:11px;color:var(--text-muted);margin-bottom:14px"></div>
     <div id="fb-mkdir-msg" style="min-height:18px;margin-bottom:10px"></div>
     <div class="btn-group">
       <button class="btn btn-primary" onclick="fbDoMkdir()">📁 Criar Pasta</button>
@@ -1694,7 +1706,8 @@ tr:hover td { background: var(--surface2); }
     </div>
   </div>
 </div>
-</div><!-- end panels -->
+
+</div><!-- fim .panels -->
 
 <script>
 let CID={{company_id}};
@@ -1711,22 +1724,15 @@ const classNames={0:'thermal_coat',1:'thermal_pants',2:'gloves',3:'helmet',4:'bo
 function API(p){return'/api/v1/epi'+p+'?company_id='+CID}
 function switchCompany(){
   CID=parseInt(document.getElementById('companySelect').value);
-  const panelMap={
-    dashboard:loadDashboard,
-    config:loadPPEConfig,
-    annotate:loadAnnotationImages,
-    faces:loadPeople,
-    train:pollTrainStatus
-  };
+  const panelMap={dashboard:loadDashboard,config:loadPPEConfig,annotate:loadAnnotationImages,faces:loadPeople,train:pollTrainStatus};
   const activePanel=document.querySelector('.panel.active');
-  if(activePanel){
-    const id=activePanel.id.replace('panel-','');
-    if(panelMap[id])panelMap[id]();
-  }
+  if(activePanel){const id=activePanel.id.replace('panel-','');if(panelMap[id])panelMap[id]();}
   toast('Switched to Company '+CID);
 }
+
 function showPanel(n,el){
   stopTrainPoll();
+  if(n!=='stream'&&_camStream)camStop();
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('panel-'+n).classList.add('active');
@@ -1738,10 +1744,11 @@ function showPanel(n,el){
   if(n==='train')pollTrainStatus();
   if(n==='files')fbInit();
 }
+
 function toast(m,t='success'){
   const e=document.getElementById('toast');
   e.textContent=m;e.className='toast '+t;e.style.display='block';
-  setTimeout(()=>e.style.display='none',3500)
+  setTimeout(()=>e.style.display='none',3500);
 }
 
 // ---- DASHBOARD ----
@@ -1889,25 +1896,13 @@ async function annSave(){
   toast('Saved '+r.saved+' annotations');document.getElementById('ann-log').innerHTML+='✓ saved '+r.saved+'<br>';
 }
 
-// ======================== TRAIN (UPDATED) ========================
-
-function setTrainLoading(loading) {
-  const btn = document.getElementById('btn-start-train');
-  const icon = document.getElementById('btn-train-icon');
-  const txt = document.getElementById('btn-train-text');
-  if (loading) {
-    btn.disabled = true;
-    btn.style.opacity = '0.75';
-    btn.style.cursor = 'not-allowed';
-    icon.innerHTML = '<span class="train-spinner"></span>';
-    txt.textContent = 'Training...';
-  } else {
-    btn.disabled = false;
-    btn.style.opacity = '';
-    btn.style.cursor = '';
-    icon.textContent = '⚙';
-    txt.textContent = 'Start Training';
-  }
+// ======================== TRAIN ========================
+function setTrainLoading(loading){
+  const btn=document.getElementById('btn-start-train');
+  const icon=document.getElementById('btn-train-icon');
+  const txt=document.getElementById('btn-train-text');
+  if(loading){btn.disabled=true;btn.style.opacity='0.75';btn.style.cursor='not-allowed';icon.innerHTML='<span class="train-spinner"></span>';txt.textContent='Training...';}
+  else{btn.disabled=false;btn.style.opacity='';btn.style.cursor='';icon.textContent='⚙';txt.textContent='Start Training';}
 }
 
 async function generateDataset(){
@@ -1925,100 +1920,54 @@ async function generateDataset(){
 }
 
 async function startTraining(){
-  const b={
-    base_model: document.getElementById('train-model').value,
-    epochs: parseInt(document.getElementById('train-epochs').value),
-    batch_size: parseInt(document.getElementById('train-batch').value),
-    img_size: parseInt(document.getElementById('train-imgsz').value),
-    patience: parseInt(document.getElementById('train-patience').value)
-  };
-  const resp = await fetch(API('/train/start'), {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(b)});
-  const r = await resp.json().catch(()=>({}));
-  if (!resp.ok) { toast(r.detail||'Failed to start training','error'); return; }
+  const b={base_model:document.getElementById('train-model').value,epochs:parseInt(document.getElementById('train-epochs').value),batch_size:parseInt(document.getElementById('train-batch').value),img_size:parseInt(document.getElementById('train-imgsz').value),patience:parseInt(document.getElementById('train-patience').value)};
+  const resp=await fetch(API('/train/start'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});
+  const r=await resp.json().catch(()=>({}));
+  if(!resp.ok){toast(r.detail||'Failed to start training','error');return;}
   toast('Training started ⚙');
   setTrainLoading(true);
-  document.getElementById('train-download').style.display = 'none';
-  const sa = document.getElementById('train-status-area');
-  sa.style.display = 'flex';
-  sa.innerHTML = '<span class="badge badge-warn" style="font-size:12px">⚙ Initializing...</span>';
+  document.getElementById('train-download').style.display='none';
+  const sa=document.getElementById('train-status-area');
+  sa.style.display='flex';
+  sa.innerHTML='<span class="badge badge-warn" style="font-size:12px">⚙ Initializing...</span>';
   pollTrainStatus();
 }
 
-let _trainPollTimer = null;
-function stopTrainPoll(){ if(_trainPollTimer){clearTimeout(_trainPollTimer);_trainPollTimer=null;} }
+let _trainPollTimer=null;
+function stopTrainPoll(){if(_trainPollTimer){clearTimeout(_trainPollTimer);_trainPollTimer=null;}}
 
 async function pollTrainStatus(){
   stopTrainPoll();
   let r;
-  try { r = await (await fetch(API('/train/status'))).json(); }
-  catch(e) { _trainPollTimer = setTimeout(pollTrainStatus, 5000); return; }
-
-  const sa = document.getElementById('train-status-area');
-  const dl = document.getElementById('train-download');
-
-  if (r.status === 'training') {
-    setTrainLoading(true);
-    sa.style.display = 'flex';
-    const pct = r.total_epochs ? Math.round((r.epoch / r.total_epochs) * 100) : 5;
-    const elapsed = r.elapsed_seconds ? formatDuration(r.elapsed_seconds) : '';
-    sa.innerHTML =
-      '<div style="width:100%">' +
-        '<div class="train-epoch-row">' +
-          '<span class="train-epoch-label">EPOCH ' + (r.epoch ?? '?') + ' / ' + (r.total_epochs ?? '?') + '</span>' +
-          '<span class="train-epoch-pct">' + pct + '%</span>' +
-        '</div>' +
-        '<div class="progress-bar"><div class="progress-fill training-pulse" style="width:' + pct + '%"></div></div>' +
-        (elapsed ? '<div class="train-meta">⏱ ' + elapsed + ' elapsed</div>' : '') +
-        (r.box_loss ? '<div class="train-meta" style="margin-top:2px">loss → box: ' + r.box_loss + ' · cls: ' + r.cls_loss + '</div>' : '') +
-      '</div>';
-    dl.style.display = 'none';
-    _trainPollTimer = setTimeout(pollTrainStatus, 4000);
-
-  } else if (r.status === 'complete') {
-    setTrainLoading(false);
-    stopTrainPoll();
-    const mp = r.model_path || '';
-    const fname = mp.split(/[/\\]/).pop() || 'best.pt';
-    sa.style.display = 'flex';
-    sa.innerHTML =
-      '<span class="badge badge-ok" style="font-size:12px;padding:5px 14px">✓ Training Complete</span>' +
-      (mp ? '<div class="train-meta" style="margin-top:4px;word-break:break-all">' + mp + '</div>' : '');
-    dl.style.display = 'block';
-    dl.innerHTML =
-      '<div class="train-download-box">' +
-        '<span class="dl-icon">⬇</span>' +
-        '<div class="dl-info">' +
-          '<div class="dl-label">Model ready for download</div>' +
-          '<div class="dl-path">' + fname + '</div>' +
-        '</div>' +
-        '<a class="btn btn-primary btn-sm" href="' + API('/train/download') + '" download="' + fname + '" style="text-decoration:none;flex-shrink:0">' +
-          'Download .pt' +
-        '</a>' +
-      '</div>';
+  try{r=await(await fetch(API('/train/status'))).json();}
+  catch(e){_trainPollTimer=setTimeout(pollTrainStatus,5000);return;}
+  const sa=document.getElementById('train-status-area');
+  const dl=document.getElementById('train-download');
+  if(r.status==='training'){
+    setTrainLoading(true);sa.style.display='flex';
+    const pct=r.total_epochs?Math.round((r.epoch/r.total_epochs)*100):5;
+    const elapsed=r.elapsed_seconds?formatDuration(r.elapsed_seconds):'';
+    sa.innerHTML='<div style="width:100%"><div class="train-epoch-row"><span class="train-epoch-label">EPOCH '+(r.epoch??'?')+' / '+(r.total_epochs??'?')+'</span><span class="train-epoch-pct">'+pct+'%</span></div><div class="progress-bar"><div class="progress-fill training-pulse" style="width:'+pct+'%"></div></div>'+(elapsed?'<div class="train-meta">⏱ '+elapsed+' elapsed</div>':'')+(r.box_loss?'<div class="train-meta" style="margin-top:2px">loss → box: '+r.box_loss+' · cls: '+r.cls_loss+'</div>':'')+'</div>';
+    dl.style.display='none';_trainPollTimer=setTimeout(pollTrainStatus,4000);
+  }else if(r.status==='complete'){
+    setTrainLoading(false);stopTrainPoll();
+    const mp=r.model_path||'';const fname=mp.split(/[/\\]/).pop()||'best.pt';
+    sa.style.display='flex';
+    sa.innerHTML='<span class="badge badge-ok" style="font-size:12px;padding:5px 14px">✓ Training Complete</span>'+(mp?'<div class="train-meta" style="margin-top:4px;word-break:break-all">'+mp+'</div>':'');
+    dl.style.display='block';
+    dl.innerHTML='<div class="train-download-box"><span class="dl-icon">⬇</span><div class="dl-info"><div class="dl-label">Model ready for download</div><div class="dl-path">'+fname+'</div></div><a class="btn btn-primary btn-sm" href="'+API('/train/download')+'" download="'+fname+'" style="text-decoration:none;flex-shrink:0">Download .pt</a></div>';
     toast('✓ Training complete! Model ready to download.');
-
-  } else if (r.status === 'error') {
-    setTrainLoading(false);
-    stopTrainPoll();
-    sa.style.display = 'flex';
-    sa.innerHTML = '<span class="badge badge-err" style="font-size:12px">✗ Error: ' + (r.error||'unknown') + '</span>';
-    toast('Training error: ' + (r.error||'unknown'), 'error');
-
-  } else {
-    setTrainLoading(false);
-    sa.style.display = 'flex';
-    sa.innerHTML = '<span class="badge badge-off">' + (r.status||'idle') + '</span>';
-    dl.style.display = 'none';
+  }else if(r.status==='error'){
+    setTrainLoading(false);stopTrainPoll();
+    sa.style.display='flex';sa.innerHTML='<span class="badge badge-err" style="font-size:12px">✗ Error: '+(r.error||'unknown')+'</span>';
+    toast('Training error: '+(r.error||'unknown'),'error');
+  }else{
+    setTrainLoading(false);sa.style.display='flex';
+    sa.innerHTML='<span class="badge badge-off">'+(r.status||'idle')+'</span>';dl.style.display='none';
   }
 }
 
-function formatDuration(s){
-  const h=Math.floor(s/3600), m=Math.floor((s%3600)/60), sec=s%60;
-  if(h>0) return h+'h '+m+'m';
-  if(m>0) return m+'m '+sec+'s';
-  return sec+'s';
-}
-// =================================================================
+function formatDuration(s){const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sec=s%60;if(h>0)return h+'h '+m+'m';if(m>0)return m+'m '+sec+'s';return sec+'s';}
 
 // ---- DETECT IMAGE ----
 function previewDetect(i){if(i.files[0]){const r=new FileReader();r.onload=e=>document.getElementById('detect-preview').innerHTML='<img src="'+e.target.result+'" class="preview-img">';r.readAsDataURL(i.files[0])}}
@@ -2127,381 +2076,401 @@ document.getElementById('companySelect').value=CID;
 loadDashboard();
 
 // ==================== FILE BROWSER JS ====================
-let fbCurrentPath = '';
-let fbViewMode = 'list'; // 'list' | 'grid'
-let fbAllItems = [];
+let fbCurrentPath='';
+let fbViewMode='list';
+let fbAllItems=[];
 
-function fbAPI(ep){ return '/api/v1/files' + ep + '?company_id=' + CID; }
+function fbAPI(ep){return'/api/v1/files'+ep+'?company_id='+CID}
 
-function fbInit(){
-  fbCurrentPath = '';
-  fbLoadStats();
-  fbLoadDir('');
-}
+function fbInit(){fbCurrentPath='';fbLoadStats();fbLoadDir('');}
 
 async function fbLoadStats(){
-  try {
-    const r = await (await fetch(fbAPI('/stats'))).json();
-    document.getElementById('fb-stat-size').textContent   = r.total_size_fmt;
-    document.getElementById('fb-stat-files').textContent  = r.file_count;
-    document.getElementById('fb-stat-imgs').textContent   = r.image_count;
-    document.getElementById('fb-stat-models').textContent = r.model_count;
-  } catch(e) {}
+  try{
+    const r=await(await fetch(fbAPI('/stats'))).json();
+    document.getElementById('fb-stat-size').textContent=r.total_size_fmt;
+    document.getElementById('fb-stat-files').textContent=r.file_count;
+    document.getElementById('fb-stat-imgs').textContent=r.image_count;
+    document.getElementById('fb-stat-models').textContent=r.model_count;
+  }catch(e){}
 }
 
 async function fbLoadDir(path){
-  fbCurrentPath = path;
-  const container = document.getElementById('fb-container');
-  container.innerHTML = '<div class="fb-empty">Carregando...</div>';
-  document.getElementById('fb-search').value = '';
-
-  try {
-    const r = await (await fetch(fbAPI('/list') + '&path=' + encodeURIComponent(path))).json();
-    fbAllItems = r.items || [];
-    fbRenderBreadcrumb(r.breadcrumb || []);
+  fbCurrentPath=path;
+  const container=document.getElementById('fb-container');
+  container.innerHTML='<div class="fb-empty">Carregando...</div>';
+  document.getElementById('fb-search').value='';
+  try{
+    const r=await(await fetch(fbAPI('/list')+'&path='+encodeURIComponent(path))).json();
+    fbAllItems=r.items||[];
+    fbRenderBreadcrumb(r.breadcrumb||[]);
     fbRender(fbAllItems);
-  } catch(e) {
-    container.innerHTML = '<div class="fb-empty">Erro ao carregar pasta</div>';
-  }
+  }catch(e){container.innerHTML='<div class="fb-empty">Erro ao carregar pasta</div>';}
 }
 
-function fbRefresh(){
-  fbLoadStats();
-  fbLoadDir(fbCurrentPath);
-}
+function fbRefresh(){fbLoadStats();fbLoadDir(fbCurrentPath);}
 
 function fbFilter(q){
-  if(!q) { fbRender(fbAllItems); return; }
-  const filtered = fbAllItems.filter(i => i.name.toLowerCase().includes(q.toLowerCase()));
+  if(!q){fbRender(fbAllItems);return;}
+  const filtered=fbAllItems.filter(i=>i.name.toLowerCase().includes(q.toLowerCase()));
   fbRender(filtered);
 }
 
 function fbToggleView(){
-  fbViewMode = fbViewMode === 'list' ? 'grid' : 'list';
-  document.getElementById('fb-view-btn').textContent = fbViewMode === 'list' ? '⊞ Grid' : '☰ Lista';
+  fbViewMode=fbViewMode==='list'?'grid':'list';
+  document.getElementById('fb-view-btn').textContent=fbViewMode==='list'?'⊞ Grid':'☰ Lista';
   fbRender(fbAllItems);
 }
 
 function fbRenderBreadcrumb(crumbs){
-  const el = document.getElementById('fb-breadcrumb');
-  el.innerHTML = crumbs.map((c, i) => {
-    const isLast = i === crumbs.length - 1;
-    return (i > 0 ? '<span class="fb-sep">/</span>' : '') +
-      '<span class="fb-crumb' + (isLast ? ' active' : '') + '" ' +
-      (isLast ? '' : 'onclick="fbLoadDir(\''+c.path+'\')"') + '>' +
-      c.label + '</span>';
+  const el=document.getElementById('fb-breadcrumb');
+  el.innerHTML=crumbs.map((c,i)=>{
+    const isLast=i===crumbs.length-1;
+    return(i>0?'<span class="fb-sep">/</span>':'')+'<span class="fb-crumb'+(isLast?' active':'')+'" '+(isLast?'':'onclick="fbLoadDir(\''+c.path+'\')"')+'>'+c.label+'</span>';
   }).join('');
 }
 
 function fbFileIcon(item){
-  if(item.is_dir)    return '📁';
-  if(item.is_image)  return '🖼';
-  if(item.is_model)  return '🤖';
-  const e = item.ext;
-  if(e==='.pt')      return '🤖';
-  if(e==='.yaml'||e==='.json') return '⚙';
-  if(e==='.txt'||e==='.log')   return '📄';
-  if(e==='.mp4'||e==='.avi')   return '🎬';
-  if(e==='.csv')               return '📊';
-  return '📎';
+  if(item.is_dir)return'📁';if(item.is_image)return'🖼';if(item.is_model)return'🤖';
+  const e=item.ext;
+  if(e==='.pt')return'🤖';if(e==='.yaml'||e==='.json')return'⚙';
+  if(e==='.txt'||e==='.log')return'📄';if(e==='.mp4'||e==='.avi')return'🎬';
+  if(e==='.csv')return'📊';return'📎';
 }
 
 function fbRender(items){
-  const container = document.getElementById('fb-container');
-  if(!items.length){
-    container.innerHTML = '<div class="fb-empty">Pasta vazia</div>';
-    return;
-  }
-
-  if(fbViewMode === 'grid'){
-    fbRenderGrid(items, container);
-  } else {
-    fbRenderList(items, container);
-  }
+  const container=document.getElementById('fb-container');
+  if(!items.length){container.innerHTML='<div class="fb-empty">Pasta vazia</div>';return;}
+  if(fbViewMode==='grid')fbRenderGrid(items,container);
+  else fbRenderList(items,container);
 }
 
-function fbRenderList(items, container){
-  const dlBtn = (item) =>
-    !item.is_dir
-    ? '<a class="btn btn-ghost btn-sm" style="padding:3px 8px;font-size:11px;text-decoration:none" href="' +
-      fbAPI('/download') + '&path=' + encodeURIComponent(item.path) +
-      '" download="' + item.name + '">⬇</a>'
-    : '';
-
-  const delBtn = (item) =>
-    '<button class="btn btn-danger btn-sm" style="padding:3px 8px;font-size:11px" ' +
-    'onclick="fbConfirmDelete(event,\''+item.path+'\',\''+item.name+'\')">✕</button>';
-
-  container.innerHTML =
-    '<div class="fb-thead">' +
-      '<span></span><span>Nome</span><span style="text-align:right">Tamanho</span><span>Modificado</span><span></span>' +
-    '</div>' +
-    '<div class="fb-list">' +
-    items.map(item =>
-      '<div class="fb-row' + (item.is_dir?' fb-dir':'') + '" onclick="fbClickItem(event,\''+item.path+'\','+item.is_dir+','+item.is_image+')">' +
-        '<span class="fb-icon">' + fbFileIcon(item) + '</span>' +
-        '<span class="fb-name" title="' + item.name + '">' + item.name + '</span>' +
-        '<span class="fb-size">' + (item.is_dir ? '—' : item.size_fmt) + '</span>' +
-        '<span class="fb-date">' + item.modified + '</span>' +
-        '<span class="fb-actions" onclick="event.stopPropagation()">' + dlBtn(item) + delBtn(item) + '</span>' +
+function fbRenderList(items,container){
+  const dlBtn=(item)=>!item.is_dir?'<a class="btn btn-ghost btn-sm" style="padding:3px 8px;font-size:11px;text-decoration:none" href="'+fbAPI('/download')+'&path='+encodeURIComponent(item.path)+'" download="'+item.name+'">⬇</a>':'';
+  const delBtn=(item)=>'<button class="btn btn-danger btn-sm" style="padding:3px 8px;font-size:11px" onclick="fbConfirmDelete(event,\''+item.path+'\',\''+item.name+'\')">✕</button>';
+  container.innerHTML=
+    '<div class="fb-thead"><span></span><span>Nome</span><span style="text-align:right">Tamanho</span><span>Modificado</span><span></span></div>'+
+    '<div class="fb-list">'+
+    items.map(item=>
+      '<div class="fb-row'+(item.is_dir?' fb-dir':'')+'" onclick="fbClickItem(event,\''+item.path+'\','+item.is_dir+','+item.is_image+')">'+
+      '<span class="fb-icon">'+fbFileIcon(item)+'</span>'+
+      '<span class="fb-name" title="'+item.name+'">'+item.name+'</span>'+
+      '<span class="fb-size">'+(item.is_dir?'—':item.size_fmt)+'</span>'+
+      '<span class="fb-date">'+item.modified+'</span>'+
+      '<span class="fb-actions" onclick="event.stopPropagation()">'+dlBtn(item)+delBtn(item)+'</span>'+
       '</div>'
-    ).join('') +
+    ).join('')+
     '</div>';
 }
 
-function fbRenderGrid(items, container){
-  container.innerHTML =
-    '<div class="fb-grid">' +
-    items.map(item => {
-      const thumbSrc = item.is_image
-        ? fbAPI('/thumb') + '&path=' + encodeURIComponent(item.path)
-        : null;
-
-      const thumbHTML = thumbSrc
-        ? '<div class="fb-card-thumb"><img src="'+thumbSrc+'" loading="lazy" onerror="this.parentElement.innerHTML=\'🖼\'"></div>'
-        : '<div class="fb-card-thumb" style="font-size:36px;display:flex;align-items:center;justify-content:center">' + fbFileIcon(item) + '</div>';
-
-      return '<div class="fb-card" onclick="fbClickItem(event,\''+item.path+'\','+item.is_dir+','+item.is_image+')">' +
-        thumbHTML +
-        '<div class="fb-card-info">' +
-          '<div class="fb-card-name" title="' + item.name + '">' + item.name + '</div>' +
-          '<div class="fb-card-size">' + (item.is_dir ? 'Pasta' : item.size_fmt) + '</div>' +
-        '</div>' +
-        '<div class="fb-card-actions" onclick="event.stopPropagation()">' +
-          (!item.is_dir ? '<a class="fb-action-btn" href="' + fbAPI('/download') + '&path=' + encodeURIComponent(item.path) + '" download="' + item.name + '" onclick="event.stopPropagation()" title="Download">⬇</a>' : '') +
-          '<button class="fb-action-btn del" onclick="fbConfirmDelete(event,\''+item.path+'\',\''+item.name+'\')">✕</button>' +
-        '</div>' +
-      '</div>';
-    }).join('') +
+function fbRenderGrid(items,container){
+  container.innerHTML=
+    '<div class="fb-grid">'+
+    items.map(item=>{
+      const thumbSrc=item.is_image?fbAPI('/thumb')+'&path='+encodeURIComponent(item.path):null;
+      const thumbHTML=thumbSrc
+        ?'<div class="fb-card-thumb"><img src="'+thumbSrc+'" loading="lazy" onerror="this.parentElement.innerHTML=\'🖼\'"></div>'
+        :'<div class="fb-card-thumb" style="font-size:36px;display:flex;align-items:center;justify-content:center">'+fbFileIcon(item)+'</div>';
+      return'<div class="fb-card" onclick="fbClickItem(event,\''+item.path+'\','+item.is_dir+','+item.is_image+')">'+
+        thumbHTML+
+        '<div class="fb-card-info"><div class="fb-card-name" title="'+item.name+'">'+item.name+'</div><div class="fb-card-size">'+(item.is_dir?'Pasta':item.size_fmt)+'</div></div>'+
+        '<div class="fb-card-actions" onclick="event.stopPropagation()">'+
+        (!item.is_dir?'<a class="fb-action-btn" href="'+fbAPI('/download')+'&path='+encodeURIComponent(item.path)+'" download="'+item.name+'" onclick="event.stopPropagation()" title="Download">⬇</a>':'')+
+        '<button class="fb-action-btn del" onclick="fbConfirmDelete(event,\''+item.path+'\',\''+item.name+'\')">✕</button>'+
+        '</div>'+
+        '</div>';
+    }).join('')+
     '</div>';
 }
 
-function fbClickItem(ev, path, isDir, isImage){
-  if(isDir){
-    fbLoadDir(path);
-  } else if(isImage){
-    fbOpenLightbox(path);
-  } else {
-    window.location.href = fbAPI('/download') + '&path=' + encodeURIComponent(path);
-  }
+function fbClickItem(ev,path,isDir,isImage){
+  if(isDir)fbLoadDir(path);
+  else if(isImage)fbOpenLightbox(path);
+  else window.location.href=fbAPI('/download')+'&path='+encodeURIComponent(path);
 }
 
 function fbOpenLightbox(path){
-  const lb    = document.getElementById('fb-lightbox');
-  const img   = document.getElementById('fb-lightbox-img');
-  const name  = document.getElementById('fb-lightbox-name');
-  const dl    = document.getElementById('fb-lightbox-dl');
-  const src   = fbAPI('/download') + '&path=' + encodeURIComponent(path) + '&inline=true';
-  img.src     = src;
-  name.textContent = path.split('/').pop();
-  dl.href     = fbAPI('/download') + '&path=' + encodeURIComponent(path);
-  dl.download = path.split('/').pop();
-  lb.style.display = 'flex';
-  document.body.style.overflow = 'hidden';
+  const lb=document.getElementById('fb-lightbox');
+  const img=document.getElementById('fb-lightbox-img');
+  const name=document.getElementById('fb-lightbox-name');
+  const dl=document.getElementById('fb-lightbox-dl');
+  const src=fbAPI('/download')+'&path='+encodeURIComponent(path)+'&inline=true';
+  img.src=src;name.textContent=path.split('/').pop();
+  dl.href=fbAPI('/download')+'&path='+encodeURIComponent(path);
+  dl.download=path.split('/').pop();
+  lb.style.display='flex';document.body.style.overflow='hidden';
 }
 
 function fbCloseLightbox(){
-  document.getElementById('fb-lightbox').style.display = 'none';
-  document.getElementById('fb-lightbox-img').src = '';
-  document.body.style.overflow = '';
+  document.getElementById('fb-lightbox').style.display='none';
+  document.getElementById('fb-lightbox-img').src='';
+  document.body.style.overflow='';
 }
 
-document.addEventListener('keydown', e => {
-  if(e.key === 'Escape') fbCloseLightbox();
-});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')fbCloseLightbox();});
 
-async function fbConfirmDelete(ev, path, name){
+async function fbConfirmDelete(ev,path,name){
   ev.stopPropagation();
-  if(!confirm('Deletar "' + name + '"?\nEssa ação não pode ser desfeita.')) return;
-  try {
-    const r = await (await fetch(fbAPI('/delete') + '&path=' + encodeURIComponent(path), {method:'DELETE'})).json();
-    if(r.deleted){
-      toast('Deletado: ' + name);
-      fbRefresh();
-    }
-  } catch(e) {
-    toast('Erro ao deletar', 'error');
-  }
+  if(!confirm('Deletar "'+name+'"?\nEssa ação não pode ser desfeita.'))return;
+  try{
+    const r=await(await fetch(fbAPI('/delete')+'&path='+encodeURIComponent(path),{method:'DELETE'})).json();
+    if(r.deleted){toast('Deletado: '+name);fbRefresh();}
+  }catch(e){toast('Erro ao deletar','error');}
 }
-// =========================================================
 
 // ==================== FILE BROWSER: UPLOAD + MKDIR ====================
+let fbUploadFiles=[];
+let fbUploadIdCounter=0;
 
-let fbUploadFiles = [];
-let fbUploadIdCounter = 0;
-
-function fbShowUploadModal() {
-  const dest = document.getElementById('fb-upload-dest');
-  dest.value = fbCurrentPath
-    ? 'Company ' + CID + ' / ' + fbCurrentPath.replace(/\//g, ' / ')
-    : 'Company ' + CID + ' (raiz)';
-  document.getElementById('fb-upload-msg').innerHTML = '';
-  document.getElementById('fb-upload-progress').style.display = 'none';
-  const btn = document.getElementById('fb-upload-btn');
-  btn.disabled = false; btn.textContent = '⬆ Enviar Arquivos';
+function fbShowUploadModal(){
+  const dest=document.getElementById('fb-upload-dest');
+  dest.value=fbCurrentPath?'Company '+CID+' / '+fbCurrentPath.replace(/\//g,' / '):'Company '+CID+' (raiz)';
+  document.getElementById('fb-upload-msg').innerHTML='';
+  document.getElementById('fb-upload-progress').style.display='none';
+  const btn=document.getElementById('fb-upload-btn');
+  btn.disabled=false;btn.textContent='⬆ Enviar Arquivos';
   fbRenderQueue();
   document.getElementById('fb-upload-modal').classList.add('open');
 }
 
-function fbHideUploadModal(ev) {
-  if (ev && ev.target !== document.getElementById('fb-upload-modal')) return;
+function fbHideUploadModal(ev){
+  if(ev&&ev.target!==document.getElementById('fb-upload-modal'))return;
   document.getElementById('fb-upload-modal').classList.remove('open');
 }
 
-function fbDragOver(ev) {
-  ev.preventDefault();
-  document.getElementById('fb-dropzone').classList.add('drag-over');
-}
-function fbDragLeave() {
-  document.getElementById('fb-dropzone').classList.remove('drag-over');
-}
-function fbDrop(ev) {
-  ev.preventDefault();
-  document.getElementById('fb-dropzone').classList.remove('drag-over');
-  fbAddFiles(ev.dataTransfer.files);
-}
-function fbAddFiles(fileList) {
-  for (const f of fileList) {
-    fbUploadFiles.push({ file: f, id: ++fbUploadIdCounter });
-  }
-  fbRenderQueue();
-}
-function fbRemoveFromQueue(id) {
-  fbUploadFiles = fbUploadFiles.filter(x => x.id !== id);
-  fbRenderQueue();
-}
-function fbClearQueue() {
-  fbUploadFiles = [];
-  fbRenderQueue();
-  document.getElementById('fb-upload-msg').innerHTML = '';
-}
+function fbDragOver(ev){ev.preventDefault();document.getElementById('fb-dropzone').classList.add('drag-over');}
+function fbDragLeave(){document.getElementById('fb-dropzone').classList.remove('drag-over');}
+function fbDrop(ev){ev.preventDefault();document.getElementById('fb-dropzone').classList.remove('drag-over');fbAddFiles(ev.dataTransfer.files);}
 
-function fbRenderQueue() {
-  const q = document.getElementById('fb-queue');
-  if (!fbUploadFiles.length) { q.innerHTML = ''; return; }
-  q.innerHTML = fbUploadFiles.map(function({ file: f, id }) {
-    const icon = f.type.startsWith('image/') ? '🖼' : f.name.endsWith('.pt') ? '🤖' : '📎';
-    return '<div class="fb-queue-item">' +
-      '<span class="fq-icon">' + icon + '</span>' +
-      '<span class="fq-name" title="' + f.name + '">' + f.name + '</span>' +
-      '<span class="fq-size">' + fbFmtSize(f.size) + '</span>' +
-      '<button class="fq-rm" onclick="fbRemoveFromQueue(' + id + ')">✕</button>' +
-    '</div>';
+function fbAddFiles(fileList){for(const f of fileList)fbUploadFiles.push({file:f,id:++fbUploadIdCounter});fbRenderQueue();}
+function fbRemoveFromQueue(id){fbUploadFiles=fbUploadFiles.filter(x=>x.id!==id);fbRenderQueue();}
+function fbClearQueue(){fbUploadFiles=[];fbRenderQueue();document.getElementById('fb-upload-msg').innerHTML='';}
+
+function fbRenderQueue(){
+  const q=document.getElementById('fb-queue');
+  if(!fbUploadFiles.length){q.innerHTML='';return;}
+  q.innerHTML=fbUploadFiles.map(function({file:f,id}){
+    const icon=f.type.startsWith('image/')?'🖼':f.name.endsWith('.pt')?'🤖':'📎';
+    return'<div class="fb-queue-item"><span class="fq-icon">'+icon+'</span><span class="fq-name" title="'+f.name+'">'+f.name+'</span><span class="fq-size">'+fbFmtSize(f.size)+'</span><button class="fq-rm" onclick="fbRemoveFromQueue('+id+')">✕</button></div>';
   }).join('');
 }
 
-function fbFmtSize(b) {
-  const units = ['B','KB','MB','GB'];
-  let i = 0;
-  while (b >= 1024 && i < units.length - 1) { b /= 1024; i++; }
-  return b.toFixed(1) + ' ' + units[i];
-}
+function fbFmtSize(b){const units=['B','KB','MB','GB'];let i=0;while(b>=1024&&i<units.length-1){b/=1024;i++;}return b.toFixed(1)+' '+units[i];}
 
-async function fbDoUpload() {
-  if (!fbUploadFiles.length) { toast('Selecione arquivos primeiro', 'error'); return; }
-
-  const btn    = document.getElementById('fb-upload-btn');
-  const msg    = document.getElementById('fb-upload-msg');
-  const prog   = document.getElementById('fb-upload-progress');
-  const fill   = document.getElementById('fb-prog-fill');
-  const pctEl  = document.getElementById('fb-prog-pct');
-  const lblEl  = document.getElementById('fb-prog-label');
-
-  btn.disabled = true; btn.textContent = 'Enviando...';
-  prog.style.display = 'block';
-  fill.style.width = '5%'; pctEl.textContent = '0%';
-  msg.innerHTML = '';
-
-  const fd = new FormData();
-  fbUploadFiles.forEach(({ file }) => fd.append('files', file));
-
-  try {
-    await new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      xhr.open('POST',
-        '/api/v1/files/upload?company_id=' + CID +
-        '&path=' + encodeURIComponent(fbCurrentPath));
-
-      xhr.upload.onprogress = (e) => {
-        if (e.lengthComputable) {
-          const pct = Math.round((e.loaded / e.total) * 100);
-          fill.style.width = pct + '%';
-          pctEl.textContent = pct + '%';
-          lblEl.textContent = 'Enviando ' + fbFmtSize(e.loaded) + ' / ' + fbFmtSize(e.total);
-        }
+async function fbDoUpload(){
+  if(!fbUploadFiles.length){toast('Selecione arquivos primeiro','error');return;}
+  const btn=document.getElementById('fb-upload-btn');
+  const msg=document.getElementById('fb-upload-msg');
+  const prog=document.getElementById('fb-upload-progress');
+  const fill=document.getElementById('fb-prog-fill');
+  const pctEl=document.getElementById('fb-prog-pct');
+  const lblEl=document.getElementById('fb-prog-label');
+  btn.disabled=true;btn.textContent='Enviando...';
+  prog.style.display='block';fill.style.width='5%';pctEl.textContent='0%';msg.innerHTML='';
+  const fd=new FormData();
+  fbUploadFiles.forEach(({file})=>fd.append('files',file));
+  try{
+    await new Promise((resolve,reject)=>{
+      const xhr=new XMLHttpRequest();
+      xhr.open('POST','/api/v1/files/upload?company_id='+CID+'&path='+encodeURIComponent(fbCurrentPath));
+      xhr.upload.onprogress=(e)=>{if(e.lengthComputable){const pct=Math.round((e.loaded/e.total)*100);fill.style.width=pct+'%';pctEl.textContent=pct+'%';lblEl.textContent='Enviando '+fbFmtSize(e.loaded)+' / '+fbFmtSize(e.total);}};
+      xhr.onload=()=>{
+        if(xhr.status>=200&&xhr.status<300){
+          const r=JSON.parse(xhr.responseText);const ok=r.uploaded||0;const err=r.errors||0;
+          fill.style.width='100%';pctEl.textContent='100%';
+          msg.innerHTML='<span class="badge badge-ok">'+ok+' arquivo(s) enviado(s)</span>'+(err?' <span class="badge badge-err">'+err+' erro(s)</span>':'');
+          toast('✓ '+ok+' arquivo(s) enviado(s)');
+          fbUploadFiles=[];fbRenderQueue();btn.disabled=false;btn.textContent='⬆ Enviar Arquivos';
+          setTimeout(()=>fbRefresh(),800);resolve();
+        }else reject(new Error(xhr.responseText||'Upload falhou'));
       };
-
-      xhr.onload = () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          const r   = JSON.parse(xhr.responseText);
-          const ok  = r.uploaded || 0;
-          const err = r.errors   || 0;
-          fill.style.width = '100%'; pctEl.textContent = '100%';
-          msg.innerHTML =
-            '<span class="badge badge-ok">' + ok + ' arquivo(s) enviado(s)</span>' +
-            (err ? ' <span class="badge badge-err">' + err + ' erro(s)</span>' : '');
-          toast('✓ ' + ok + ' arquivo(s) enviado(s)');
-          fbUploadFiles = []; fbRenderQueue();
-          btn.disabled = false; btn.textContent = '⬆ Enviar Arquivos';
-          setTimeout(() => fbRefresh(), 800);
-          resolve();
-        } else {
-          reject(new Error(xhr.responseText || 'Upload falhou'));
-        }
-      };
-      xhr.onerror = () => reject(new Error('Erro de rede'));
+      xhr.onerror=()=>reject(new Error('Erro de rede'));
       xhr.send(fd);
     });
-  } catch(e) {
-    msg.innerHTML = '<span class="badge badge-err">' + e.message + '</span>';
-    toast('Erro no upload', 'error');
-    btn.disabled = false; btn.textContent = '⬆ Enviar Arquivos';
-  }
+  }catch(e){msg.innerHTML='<span class="badge badge-err">'+e.message+'</span>';toast('Erro no upload','error');btn.disabled=false;btn.textContent='⬆ Enviar Arquivos';}
 }
 
-// ── MKDIR ──────────────────────────────────────────────────────────────────
-function fbShowMkdirModal() {
-  document.getElementById('fb-mkdir-name').value = '';
-  document.getElementById('fb-mkdir-msg').innerHTML = '';
-  const pathLabel = fbCurrentPath
-    ? 'Company ' + CID + ' / ' + fbCurrentPath.replace(/\//g, ' / ') + ' / <nova pasta>'
-    : 'Company ' + CID + ' / <nova pasta>';
-  document.getElementById('fb-mkdir-path').textContent = '📍 ' + pathLabel;
+function fbShowMkdirModal(){
+  document.getElementById('fb-mkdir-name').value='';document.getElementById('fb-mkdir-msg').innerHTML='';
+  const pathLabel=fbCurrentPath?'Company '+CID+' / '+fbCurrentPath.replace(/\//g,' / ')+' / <nova pasta>':'Company '+CID+' / <nova pasta>';
+  document.getElementById('fb-mkdir-path').textContent='📍 '+pathLabel;
   document.getElementById('fb-mkdir-modal').classList.add('open');
-  setTimeout(() => document.getElementById('fb-mkdir-name').focus(), 80);
+  setTimeout(()=>document.getElementById('fb-mkdir-name').focus(),80);
 }
 
-function fbHideMkdirModal(ev) {
-  if (ev && ev.target !== document.getElementById('fb-mkdir-modal')) return;
+function fbHideMkdirModal(ev){
+  if(ev&&ev.target!==document.getElementById('fb-mkdir-modal'))return;
   document.getElementById('fb-mkdir-modal').classList.remove('open');
 }
 
-async function fbDoMkdir() {
-  const name = document.getElementById('fb-mkdir-name').value.trim();
-  const msg  = document.getElementById('fb-mkdir-msg');
-  if (!name) { msg.innerHTML = '<span class="badge badge-err">Informe um nome</span>'; return; }
-  if (/[\\/:*?"<>|]/.test(name)) { msg.innerHTML = '<span class="badge badge-err">Nome inválido</span>'; return; }
-  const fullPath = fbCurrentPath ? fbCurrentPath + '/' + name : name;
-  try {
-    const resp = await fetch(
-      '/api/v1/files/mkdir?company_id=' + CID + '&path=' + encodeURIComponent(fullPath),
-      { method: 'POST' }
-    );
-    const r = await resp.json();
-    if (!resp.ok) {
-      msg.innerHTML = '<span class="badge badge-err">' + (r.detail || 'Erro') + '</span>';
-      return;
-    }
-    toast('📁 Pasta "' + name + '" criada');
-    document.getElementById('fb-mkdir-modal').classList.remove('open');
-    fbRefresh();
-  } catch(e) {
-    msg.innerHTML = '<span class="badge badge-err">' + e.message + '</span>';
+async function fbDoMkdir(){
+  const name=document.getElementById('fb-mkdir-name').value.trim();
+  const msg=document.getElementById('fb-mkdir-msg');
+  if(!name){msg.innerHTML='<span class="badge badge-err">Informe um nome</span>';return;}
+  if(/[\\/:*?"<>|]/.test(name)){msg.innerHTML='<span class="badge badge-err">Nome inválido</span>';return;}
+  const fullPath=fbCurrentPath?fbCurrentPath+'/'+name:name;
+  try{
+    const resp=await fetch('/api/v1/files/mkdir?company_id='+CID+'&path='+encodeURIComponent(fullPath),{method:'POST'});
+    const r=await resp.json();
+    if(!resp.ok){msg.innerHTML='<span class="badge badge-err">'+(r.detail||'Erro')+'</span>';return;}
+    toast('📁 Pasta "'+name+'" criada');document.getElementById('fb-mkdir-modal').classList.remove('open');fbRefresh();
+  }catch(e){msg.innerHTML='<span class="badge badge-err">'+e.message+'</span>';}
+}
+
+// ===================== BROWSER CAMERA JS =====================
+let _camStream=null;
+let _camTimer=null;
+let _camMirror=true;
+let _camSending=false;
+let _camFrameCount=0;
+let _camFpsTs=performance.now();
+let _camFps=0;
+
+async function camStart(){
+  try{
+    const constraints={video:{width:{ideal:1280},height:{ideal:720},facingMode:'environment'},audio:false};
+    let stream;
+    try{stream=await navigator.mediaDevices.getUserMedia(constraints);}
+    catch(_){stream=await navigator.mediaDevices.getUserMedia({video:true,audio:false});}
+    _camStream=stream;
+    await camPopulateDevices();
+    const video=document.getElementById('cam-video');
+    video.srcObject=stream;video.style.display='block';
+    document.getElementById('cam-placeholder').style.display='none';
+    document.getElementById('cam-result-img').style.display='none';
+    document.getElementById('cam-status-bar').style.display='flex';
+    document.getElementById('cam-start-btn').style.display='none';
+    document.getElementById('cam-stop-btn').style.display='inline-flex';
+    document.getElementById('cam-badge').className='badge badge-warn';
+    document.getElementById('cam-badge').textContent='ATIVO';
+    document.getElementById('cam-mirror-btn').classList.add('visible');
+    camApplyMirror();
+    document.getElementById('cam-container').classList.add('cam-scanning');
+    const interval=parseInt(document.getElementById('cam-interval').value);
+    _camTimer=setInterval(camSendFrame,interval);
+    toast('📷 Câmera iniciada');
+  }catch(e){
+    if(e.name==='NotAllowedError')toast('Permissão de câmera negada. Verifique as configurações do browser.','error');
+    else if(e.name==='NotFoundError')toast('Nenhuma câmera encontrada neste dispositivo.','error');
+    else toast('Erro ao acessar câmera: '+e.message,'error');
+    console.error('Camera error:',e);
   }
 }
-// =====================================================================
 
+function camStop(){
+  if(_camTimer){clearInterval(_camTimer);_camTimer=null;}
+  if(_camStream){_camStream.getTracks().forEach(t=>t.stop());_camStream=null;}
+  const video=document.getElementById('cam-video');
+  video.srcObject=null;video.style.display='none';
+  document.getElementById('cam-placeholder').style.display='flex';
+  document.getElementById('cam-result-img').style.display='none';
+  document.getElementById('cam-status-bar').style.display='none';
+  document.getElementById('cam-start-btn').style.display='inline-flex';
+  document.getElementById('cam-stop-btn').style.display='none';
+  document.getElementById('cam-badge').className='badge badge-off';
+  document.getElementById('cam-badge').textContent='INATIVO';
+  document.getElementById('cam-mirror-btn').classList.remove('visible');
+  document.getElementById('cam-device-sel').classList.remove('visible');
+  document.getElementById('cam-container').classList.remove('cam-scanning');
+  document.getElementById('cam-result-detail').innerHTML='<div class="empty-state" data-icon="📷">Câmera parada</div>';
+  _camFrameCount=0;_camFps=0;
+  toast('Câmera parada');
+}
 
+async function camSendFrame(){
+  if(_camSending)return;
+  const video=document.getElementById('cam-video');
+  if(!video.videoWidth)return;
+  _camSending=true;
+  const t0=performance.now();
+  try{
+    const canvas=document.getElementById('cam-canvas');
+    canvas.width=video.videoWidth;canvas.height=video.videoHeight;
+    const ctx=canvas.getContext('2d');
+    if(_camMirror){ctx.save();ctx.scale(-1,1);ctx.drawImage(video,-canvas.width,0,canvas.width,canvas.height);ctx.restore();}
+    else ctx.drawImage(video,0,0);
+    const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',0.8));
+    const fd=new FormData();
+    fd.append('file',blob,'frame.jpg');
+    fd.append('confidence',document.getElementById('cam-conf').value);
+    fd.append('detect_faces',document.getElementById('cam-faces').checked);
+    fd.append('face_threshold','0.45');
+    fd.append('annotate','true');
+    const resp=await fetch(API('/detect/frame'),{method:'POST',body:fd});
+    if(!resp.ok){_camSending=false;return;}
+    const r=await resp.json();
+    const elapsed=Math.round(performance.now()-t0);
+    if(r.annotated_base64){
+      const img=document.getElementById('cam-result-img');
+      const v2=document.getElementById('cam-video');
+      img.src='data:image/jpeg;base64,'+r.annotated_base64;
+      img.style.transform=_camMirror?'scaleX(-1)':'';
+      img.style.display='block';v2.style.display='none';
+    }
+    _camFrameCount++;
+    const now=performance.now();const elapsed2=(now-_camFpsTs)/1000;
+    if(elapsed2>=1.0){_camFps=Math.round(_camFrameCount/elapsed2);_camFrameCount=0;_camFpsTs=now;}
+    document.getElementById('cam-fps-badge').textContent=_camFps+' FPS';
+    const cbadge=document.getElementById('cam-compliance-badge');
+    if(r.compliant){cbadge.textContent='✓ COMPLIANT';cbadge.className='cam-fps-badge compliant';}
+    else{cbadge.textContent='✗ '+(r.missing||[]).join(', ')||'NON-COMPLIANT';cbadge.className='cam-fps-badge noncompliant';}
+    document.getElementById('cam-ms-badge').textContent=elapsed+'ms';
+    camRenderResult(r,elapsed);
+  }catch(e){console.warn('Frame send error:',e);}
+  finally{_camSending=false;}
+}
+
+function camRenderResult(r,ms){
+  const el=document.getElementById('cam-result-detail');
+  const compClass=r.compliant?'result-compliant':'result-noncompliant';
+  const compLabel=r.compliant?'✓ COMPLIANT':'✗ NON-COMPLIANT';
+  const compColor=r.compliant?'ok':'fail';
+  let html='<div class="result-box '+compClass+'">';
+  html+='<div class="result-title '+compColor+'">'+compLabel+'</div>';
+  html+='<div style="font-size:12px;color:var(--text-muted);margin-top:4px">EPIs detectados: <strong>'+(r.detected_count||0)+'/'+(r.required_count||0)+'</strong></div>';
+  if(r.missing&&r.missing.length)html+='<div style="margin-top:8px;font-size:12px">Faltando: <span style="color:var(--danger)">'+r.missing.join(', ')+'</span></div>';
+  if(r.detections&&r.detections.length){
+    html+='<div style="margin-top:8px">';
+    r.detections.forEach(d=>{html+='<span class="badge badge-blue" style="margin:2px;font-size:10px">'+d.class_name+' '+Math.round(d.confidence*100)+'%</span>';});
+    html+='</div>';
+  }
+  if(r.faces&&r.faces.length){
+    html+='<div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(0,0,0,0.08)">';
+    r.faces.forEach(f=>{
+      const fc=f.recognized?'badge-ok':'badge-off';
+      html+='<div style="font-size:12px;margin-bottom:4px"><span class="badge '+fc+'">'+f.person_name+'</span>';
+      if(f.recognized)html+=' <span style="color:var(--text-muted);font-size:11px">'+Math.round(f.confidence*100)+'% match</span>';
+      html+='</div>';
+    });
+    html+='</div>';
+  }
+  html+='<div style="margin-top:8px;font-size:10px;color:var(--text-dim);font-family:Space Mono,monospace">⏱ '+ms+'ms · model: '+(r.model_name||'best')+'</div>';
+  html+='</div>';
+  el.innerHTML=html;
+}
+
+function camToggleMirror(){_camMirror=document.getElementById('cam-mirror').checked;camApplyMirror();}
+function camApplyMirror(){document.getElementById('cam-video').style.transform=_camMirror?'scaleX(-1)':'';}
+
+async function camPopulateDevices(){
+  try{
+    const devices=await navigator.mediaDevices.enumerateDevices();
+    const cams=devices.filter(d=>d.kind==='videoinput');
+    const sel=document.getElementById('cam-device-sel');
+    sel.innerHTML=cams.map((d,i)=>'<option value="'+d.deviceId+'">'+(d.label||'Câmera '+(i+1))+'</option>').join('');
+    if(cams.length>1)sel.classList.add('visible');
+  }catch(e){}
+}
+
+async function camSwitchDevice(){
+  if(!_camStream)return;
+  const deviceId=document.getElementById('cam-device-sel').value;
+  if(!deviceId)return;
+  _camStream.getTracks().forEach(t=>t.stop());
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({video:{deviceId:{exact:deviceId},width:{ideal:1280},height:{ideal:720}},audio:false});
+    _camStream=stream;document.getElementById('cam-video').srcObject=stream;toast('Câmera alterada');
+  }catch(e){toast('Erro ao trocar câmera: '+e.message,'error');}
+}
 </script>
 </body>
 </html>
