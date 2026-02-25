@@ -10,6 +10,7 @@ from pathlib import Path
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import BaseHTTPMiddleware
 from loguru import logger
 
 from app.core.config import settings
@@ -173,6 +174,15 @@ async def health():
         "edge_mode": settings.EDGE_MODE,
     }
 
+
+class PermissionsPolicyMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        response.headers["Permissions-Policy"] = "camera=*, microphone=()"
+        response.headers["Feature-Policy"] = "camera *"
+        return response
+
+app.add_middleware(PermissionsPolicyMiddleware)
 
 if __name__ == "__main__":
     uvicorn.run(
