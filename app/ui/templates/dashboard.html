@@ -974,6 +974,168 @@ tr:hover td { background: var(--surface2); }
 .fb-upload-progress-label { display:flex; justify-content:space-between; font-family:'Space Mono',monospace; font-size:11px; color:var(--text-muted); margin-bottom:6px; }
 /* ============================================================= */
 
+/* ==================== INLINE VIDEO PLAYER ==================== */
+.vp-player-wrap {
+  position: relative;
+  background: #0a0a0f;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  user-select: none;
+}
+
+.vp-player-wrap video {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.vp-player-wrap canvas#vp-overlay {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.vp-controls {
+  background: rgba(10,10,15,0.92);
+  backdrop-filter: blur(8px);
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+
+.vp-seek {
+  flex: 1;
+  min-width: 120px;
+  -webkit-appearance: none;
+  height: 4px;
+  background: rgba(255,255,255,0.15);
+  border: none;
+  border-radius: 2px;
+  cursor: pointer;
+  outline: none;
+  margin: 0;
+  padding: 0;
+}
+.vp-seek::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px; height: 12px;
+  background: var(--primary);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.vp-btn {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 6px;
+  color: #e2e8f0;
+  font-size: 13px;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+  font-family: 'Space Mono', monospace;
+}
+.vp-btn:hover { background: rgba(255,255,255,0.16); }
+.vp-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+.vp-time {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  color: #718096;
+  white-space: nowrap;
+}
+
+.vp-status-badge {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+.vp-status-badge.ok   { background: rgba(30,140,69,0.25);  color: #68d391; border: 1px solid rgba(104,211,145,0.3); }
+.vp-status-badge.fail { background: rgba(217,48,37,0.25);  color: #fc8181; border: 1px solid rgba(252,129,129,0.3); }
+.vp-status-badge.idle { background: rgba(255,255,255,0.06); color: #718096; border: 1px solid rgba(255,255,255,0.1); }
+
+.vp-speed-sel {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 6px;
+  color: #e2e8f0;
+  font-size: 11px;
+  padding: 4px 6px;
+  cursor: pointer;
+  font-family: 'Space Mono', monospace;
+}
+.vp-speed-sel option { background: #1a202c; }
+/* ============================================================ */
+
+/* ==================== VIDEO FRAME PREVIEW MODAL ==================== */
+.vp-modal-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.75);
+  z-index: 10002;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 16px;
+}
+.vp-modal-backdrop.open { display: flex; }
+
+.vp-modal {
+  background: var(--surface);
+  border: 1px solid var(--border-bright);
+  border-radius: 14px;
+  padding: 24px;
+  width: 820px;
+  max-width: 95vw;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.35);
+  position: relative;
+  animation: vpIn 0.2s cubic-bezier(0.34,1.4,0.64,1);
+}
+@keyframes vpIn {
+  from { transform: scale(0.9) translateY(16px); opacity: 0; }
+  to   { transform: scale(1) translateY(0); opacity: 1; }
+}
+.vp-modal-close {
+  position: absolute; top: 14px; right: 16px;
+  background: none; border: none; cursor: pointer;
+  font-size: 20px; color: var(--text-muted); padding: 4px 7px;
+  border-radius: 6px; transition: background 0.15s, color 0.15s; line-height: 1;
+}
+.vp-modal-close:hover { background: var(--danger-dim); color: var(--danger); }
+
+.vp-modal-title {
+  font-family: 'Space Mono', monospace; font-size: 12px; font-weight: 700;
+  color: var(--text); text-transform: uppercase; letter-spacing: 0.08em;
+  margin-bottom: 16px; display: flex; align-items: center; gap: 8px;
+}
+.vp-img-wrap {
+  position: relative; border-radius: 10px; overflow: hidden;
+  background: #0a0a0f; min-height: 200px;
+  display: flex; align-items: center; justify-content: center;
+}
+.vp-img-wrap img { width: 100%; height: auto; display: block; border-radius: 10px; }
+.vp-loading {
+  color: #4a5568; font-family: 'Space Mono', monospace; font-size: 13px;
+  text-align: center; padding: 40px;
+}
+.vp-result-row {
+  display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; align-items: center;
+}
+/* ===================================================================== */
+
 /* ==================== BROWSER CAMERA CSS ==================== */
 .cam-container {
   position: relative;
@@ -1458,6 +1620,38 @@ tr:hover td { background: var(--surface2); }
       <button class="btn btn-danger" onclick="detectYouTube()">▶ Process YouTube</button>
     </div>
   </div>
+  <!-- INLINE VIDEO PLAYER -->
+  <div class="card" id="vp-player-card" style="display:none;padding:0;overflow:hidden">
+    <div class="card-header" style="padding:14px 16px 10px;border-bottom:1px solid var(--border)">
+      <div class="card-icon">▶</div>
+      <div class="card-title" id="vp-player-filename">Video Player</div>
+      <div style="margin-left:auto">
+        <button class="btn btn-ghost btn-sm" onclick="vpPlayerClose()">✕ Close</button>
+      </div>
+    </div>
+    <div class="vp-player-wrap" id="vp-player-wrap">
+      <video id="vp-player-video" preload="metadata"></video>
+      <canvas id="vp-overlay"></canvas>
+    </div>
+    <div class="vp-controls" id="vp-controls">
+      <button class="vp-btn" id="vp-play-btn" onclick="vpTogglePlay()">▶ Play</button>
+      <input type="range" class="vp-seek" id="vp-seek" value="0" min="0" step="0.01"
+        oninput="vpSeek(this.value)">
+      <span class="vp-time" id="vp-time">0:00 / 0:00</span>
+      <select class="vp-speed-sel" onchange="vpSetSpeed(this.value)">
+        <option value="0.25">0.25×</option>
+        <option value="0.5">0.5×</option>
+        <option value="1" selected>1×</option>
+        <option value="1.5">1.5×</option>
+        <option value="2">2×</option>
+      </select>
+      <button class="vp-btn active" id="vp-labels-btn" onclick="vpToggleLabels()">Labels ON</button>
+      <button class="vp-btn active" id="vp-boxes-btn" onclick="vpToggleBoxes()">Boxes ON</button>
+      <button class="vp-btn" id="vp-download-btn" onclick="vpDownload()" title="Download do vídeo">⬇ Download</button>
+      <span class="vp-status-badge idle" id="vp-live-badge">—</span>
+    </div>
+  </div>
+
   <div class="card">
     <div class="card-header"><div class="card-icon">⬡</div><div class="card-title">Results</div></div>
     <div id="video-result" class="empty-state" data-icon="▶">Upload a video or paste a YouTube URL</div>
@@ -1714,6 +1908,8 @@ tr:hover td { background: var(--surface2); }
 
 <script>
 let CID={{company_id}};
+let _lastVideoFile = null;   // stores the last uploaded video File object
+let _lastVideoFps  = 25;     // estimated FPS for seek calculation
 let currentStreamId=null;
 let streamPoll=null;
 let annAnnotations=[];
@@ -1990,26 +2186,173 @@ async function detectImage(){
 
 // ---- VIDEO ----
 async function detectVideo(){
-  const f=document.getElementById('video-file').files[0];if(!f)return toast('Select video first','error');
-  document.getElementById('video-result').innerHTML='<span class="badge badge-warn">Processing video...</span>';
-  const fd=new FormData();fd.append('file',f);fd.append('skip_frames',document.getElementById('video-skip').value);fd.append('confidence',document.getElementById('video-conf').value);fd.append('detect_faces',document.getElementById('video-faces').checked);
-  const r=await(await fetch(API('/detect/video'),{method:'POST',body:fd})).json();showVideoResult(r);
+  const f=document.getElementById('video-file').files[0];
+  if(!f)return toast('Select video first','error');
+  const el=document.getElementById('video-result');
+  el.innerHTML='<div style="padding:32px;text-align:center;font-family:Space Mono,monospace;color:var(--text-muted)">'+
+    '<div style="font-size:28px;margin-bottom:12px">⏳</div>'+
+    '<div>Processing video <strong>'+f.name+'</strong>...</div>'+
+    '<div style="font-size:12px;margin-top:8px;color:var(--text-dim)">This may take a few minutes depending on video length</div></div>';
+  try{
+    _lastVideoFile = f;  // store for frame preview
+    const fd=new FormData();
+    fd.append('file',f);
+    fd.append('skip_frames',document.getElementById('video-skip').value);
+    fd.append('confidence',document.getElementById('video-conf').value);
+    fd.append('detect_faces',document.getElementById('video-faces').checked);
+    const resp=await fetch(API('/detect/video'),{method:'POST',body:fd});
+    if(!resp.ok){
+      const err=await resp.json().catch(()=>({detail:resp.statusText}));
+      el.innerHTML='<div class="result-box result-noncompliant"><div class="result-title fail">✗ Processing Failed</div>'+
+        '<div style="font-size:13px;margin-top:8px;color:var(--text-muted)">'+(err.detail||resp.statusText)+'</div></div>';
+      toast('Video processing failed: '+(err.detail||resp.statusText),'error');
+      return;
+    }
+    const r=await resp.json();
+    showVideoResult(r, f.name);
+    vpPlayerOpen(f, r.details || []);
+  }catch(e){
+    console.error('detectVideo error:',e);
+    el.innerHTML='<div class="result-box result-noncompliant"><div class="result-title fail">✗ Error</div>'+
+      '<div style="font-size:13px;margin-top:8px">'+e.message+'</div></div>';
+    toast('Video error: '+e.message,'error');
+  }
 }
 async function detectYouTube(){
-  const u=document.getElementById('yt-url').value;if(!u)return toast('Enter YouTube URL','error');
-  document.getElementById('video-result').innerHTML='<span class="badge badge-warn">Downloading & processing...</span>';
-  const fd=new FormData();fd.append('url',u);fd.append('max_frames',document.getElementById('yt-max').value);
-  const r=await(await fetch(API('/detect/youtube'),{method:'POST',body:fd})).json();showVideoResult(r);
+  const u=document.getElementById('yt-url').value;
+  if(!u)return toast('Enter YouTube URL','error');
+  const el=document.getElementById('video-result');
+  el.innerHTML='<div style="padding:32px;text-align:center;font-family:Space Mono,monospace;color:var(--text-muted)">'+
+    '<div style="font-size:28px;margin-bottom:12px">⬇</div>'+
+    '<div>Downloading & processing YouTube video...</div>'+
+    '<div style="font-size:12px;margin-top:8px;color:var(--text-dim)">This may take several minutes</div></div>';
+  try{
+    const fd=new FormData();
+    fd.append('url',u);
+    fd.append('max_frames',document.getElementById('yt-max').value);
+    const resp=await fetch(API('/detect/youtube'),{method:'POST',body:fd});
+    if(!resp.ok){
+      const err=await resp.json().catch(()=>({detail:resp.statusText}));
+      el.innerHTML='<div class="result-box result-noncompliant"><div class="result-title fail">✗ Failed</div>'+
+        '<div style="font-size:13px;margin-top:8px">'+(err.detail||resp.statusText)+'</div></div>';
+      toast('YouTube processing failed','error');
+      return;
+    }
+    const r=await resp.json();
+    showVideoResult(r, u);
+  }catch(e){
+    console.error('detectYouTube error:',e);
+    el.innerHTML='<div class="result-box result-noncompliant"><div class="result-title fail">✗ Error</div>'+
+      '<div style="font-size:13px;margin-top:8px">'+e.message+'</div></div>';
+    toast('YouTube error: '+e.message,'error');
+  }
 }
-function showVideoResult(r){
-  const rate=r.compliance_rate||0;
-  const cls=rate>=80?'badge-ok':rate>=50?'badge-warn':'badge-err';
-  document.getElementById('video-result').innerHTML=
-    '<div class="grid-3" style="margin-bottom:16px">'+
-    '<div class="stat-card"><div class="stat-label">Frames</div><div class="stat-value">'+r.frames_processed+'</div></div>'+
-    '<div class="stat-card"><div class="stat-label">Compliant</div><div class="stat-value" style="color:var(--success)">'+r.compliant_frames+'</div></div>'+
-    '<div class="stat-card"><div class="stat-label">Non-Compliant</div><div class="stat-value" style="color:var(--danger)">'+r.non_compliant_frames+'</div></div>'+
-    '</div><div><span class="badge '+cls+'" style="font-size:14px;padding:6px 14px">'+rate+'% compliance</span></div>';
+function showVideoResult(r, sourceName){
+  const rate = typeof r.compliance_rate === 'number' ? r.compliance_rate : 0;
+  const badgeCls = rate >= 80 ? 'badge-ok' : rate >= 50 ? 'badge-warn' : 'badge-err';
+  const details  = Array.isArray(r.details) ? r.details : [];
+
+  // ── compute missing EPIs summary ──────────────────────────────────────────
+  const missingCount = {};
+  details.forEach(d => {
+    (d.missing || []).forEach(m => { missingCount[m] = (missingCount[m]||0)+1; });
+  });
+  const missingSorted = Object.entries(missingCount).sort((a,b)=>b[1]-a[1]);
+
+  // ── summary header ────────────────────────────────────────────────────────
+  let html = '<div class="grid-4" style="margin-bottom:16px">';
+  html += '<div class="stat-card"><div class="stat-label">Frames Processed</div><div class="stat-value">'+r.frames_processed+'</div></div>';
+  html += '<div class="stat-card"><div class="stat-label">Compliant</div><div class="stat-value" style="color:var(--success)">'+r.compliant_frames+'</div></div>';
+  html += '<div class="stat-card"><div class="stat-label">Non-Compliant</div><div class="stat-value" style="color:var(--danger)">'+r.non_compliant_frames+'</div></div>';
+  html += '<div class="stat-card"><div class="stat-label">Compliance Rate</div>';
+  html += '<div class="stat-value" style="color:'+(rate>=80?'var(--success)':rate>=50?'var(--warning)':'var(--danger)')+'">'+rate.toFixed(1)+'%</div></div>';
+  html += '</div>';
+
+  // ── verdict badge ─────────────────────────────────────────────────────────
+  html += '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">';
+  html += '<span class="badge '+badgeCls+'" style="font-size:13px;padding:6px 16px">';
+  html += rate >= 80 ? '✓ COMPLIANT' : rate >= 50 ? '⚠ PARTIALLY COMPLIANT' : '✗ NON-COMPLIANT';
+  html += '</span>';
+  if(sourceName) html += '<span style="font-family:Space Mono,monospace;font-size:11px;color:var(--text-dim)">'+sourceName+'</span>';
+  html += '</div>';
+
+  // ── most missing EPIs ─────────────────────────────────────────────────────
+  if(missingSorted.length){
+    html += '<div class="card" style="margin-bottom:16px;padding:14px 16px">';
+    html += '<div style="font-size:11px;font-family:Space Mono,monospace;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px">Most Missing EPIs</div>';
+    html += '<div style="display:flex;flex-wrap:wrap;gap:8px">';
+    missingSorted.forEach(([name, cnt]) => {
+      const pct = details.length ? Math.round(cnt/details.length*100) : 0;
+      html += '<div style="display:flex;align-items:center;gap:6px;padding:6px 12px;background:var(--danger-dim);border:1px solid rgba(217,48,37,0.2);border-radius:8px">';
+      html += '<span style="font-size:13px;font-weight:600;color:var(--danger)">'+name+'</span>';
+      html += '<span style="font-size:11px;color:var(--text-muted);font-family:Space Mono,monospace">'+cnt+' frames ('+pct+'%)</span>';
+      html += '</div>';
+    });
+    html += '</div></div>';
+  }
+
+  // ── frame details table ───────────────────────────────────────────────────
+  if(details.length){
+    html += '<div class="card" style="padding:14px 16px">';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">';
+    html += '<div style="font-size:11px;font-family:Space Mono,monospace;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em">Frame Details ('+details.length+' sampled)</div>';
+    html += '</div>';
+    html += '<div style="max-height:360px;overflow-y:auto;border-radius:8px;border:1px solid var(--border)">';
+    html += '<table style="font-size:12px">';
+    html += '<thead><tr>';
+    html += '<th style="position:sticky;top:0;background:var(--surface2)">Frame #</th>';
+    html += '<th style="position:sticky;top:0;background:var(--surface2)">Status</th>';
+    html += '<th style="position:sticky;top:0;background:var(--surface2)">Detected</th>';
+    html += '<th style="position:sticky;top:0;background:var(--surface2)">Missing EPIs</th>';
+    html += '<th style="position:sticky;top:0;background:var(--surface2)">Detections</th>';
+    html += '<th style="position:sticky;top:0;background:var(--surface2)">Time</th>';
+    html += '<th style="position:sticky;top:0;background:var(--surface2)">Preview</th>';
+    html += '</tr></thead><tbody>';
+
+    details.forEach(d => {
+      const ok = d.compliant;
+      const rowBg = ok ? 'rgba(30,140,69,0.04)' : 'rgba(217,48,37,0.04)';
+      html += '<tr style="background:'+rowBg+'">';
+      html += '<td style="font-family:Space Mono,monospace;color:var(--text-muted)">'+( d.frame_number||'—')+'</td>';
+      html += '<td><span class="badge '+(ok?'badge-ok':'badge-err')+'" style="font-size:10px">'+(ok?'✓ OK':'✗ FAIL')+'</span></td>';
+      html += '<td style="font-family:Space Mono,monospace;text-align:center">'+(d.detected_count||0)+'/'+(d.required_count||0)+'</td>';
+      if(d.missing && d.missing.length){
+        html += '<td><span style="color:var(--danger);font-size:11px">'+d.missing.join(', ')+'</span></td>';
+      } else {
+        html += '<td><span style="color:var(--success);font-size:11px">—</span></td>';
+      }
+      // detections badges
+      html += '<td>';
+      if(d.detections && d.detections.length){
+        // deduplicate by class_name, keep highest conf
+        const seen = {};
+        d.detections.forEach(det => {
+          if(!seen[det.class_name] || det.confidence > seen[det.class_name]) seen[det.class_name] = det.confidence;
+        });
+        Object.entries(seen).forEach(([cls, conf]) => {
+          html += '<span class="badge badge-blue" style="font-size:9px;margin:1px">'+cls+' '+Math.round(conf*100)+'%</span>';
+        });
+      } else {
+        html += '<span style="color:var(--text-dim);font-size:11px">none</span>';
+      }
+      html += '</td>';
+      html += '<td style="font-family:Space Mono,monospace;color:var(--text-dim);font-size:11px">'+(d.processing_ms||'—')+'ms</td>';
+      html += '<td><button class="btn btn-ghost btn-sm" style="padding:3px 8px;font-size:11px" '+
+        'onclick="vpOpenPreview('+( d.frame_number||0)+',event)">🔍</button></td>';
+      html += '</tr>';
+    });
+
+    html += '</tbody></table></div>';
+
+    if(r.frames_processed > details.length){
+      html += '<div style="margin-top:8px;font-size:11px;color:var(--text-dim);font-family:Space Mono,monospace">Showing first '+details.length+' of '+r.frames_processed+' processed frames</div>';
+    }
+    html += '</div>';
+  } else {
+    html += '<div class="empty-state" data-icon="▶">No frame details available</div>';
+  }
+
+  document.getElementById('video-result').innerHTML = html;
 }
 
 // ---- FACES ----
@@ -2077,6 +2420,365 @@ async function stopSid(sid){
 
 document.getElementById('companySelect').value=CID;
 loadDashboard();
+
+// ==================== INLINE VIDEO PLAYER ====================
+let _vpAnnotations  = [];   // [{frame_number, compliant, missing, detections:[{class_name,confidence,bbox}]}]
+let _vpShowLabels   = true;
+let _vpShowBoxes    = true;
+let _vpRafId        = null;
+let _vpLastFrame    = -1;
+
+// Color map per class (matches backend ALL_CLASS_COLORS)
+const VP_COLORS = {
+  thermal_coat:  '#FF4444',
+  thermal_pants: '#4488FF',
+  gloves:        '#44FF44',
+  helmet:        '#44FFFF',
+  boots:         '#FF44FF',
+  person:        '#FFA844',
+};
+
+function vpPlayerOpen(file, details) {
+  if (!file || !details.length) return;
+
+  // store annotations indexed by frame_number
+  _vpAnnotations = details;
+
+  const vid = document.getElementById('vp-player-video');
+  if (vid._objUrl) URL.revokeObjectURL(vid._objUrl);
+  vid._objUrl = URL.createObjectURL(file);
+  vid.src = vid._objUrl;
+
+  document.getElementById('vp-player-filename').textContent = '▶ ' + file.name;
+  document.getElementById('vp-player-card').style.display = 'block';
+  document.getElementById('vp-play-btn').textContent = '▶ Play';
+  document.getElementById('vp-live-badge').className = 'vp-status-badge idle';
+  document.getElementById('vp-live-badge').textContent = '—';
+
+  vid.onloadedmetadata = () => {
+    document.getElementById('vp-seek').max = vid.duration;
+    vpUpdateTime();
+    vpStartRender();
+  };
+
+  // scroll to player
+  document.getElementById('vp-player-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function vpPlayerClose() {
+  vpStopRender();
+  const vid = document.getElementById('vp-player-video');
+  vid.pause();
+  if (vid._objUrl) { URL.revokeObjectURL(vid._objUrl); vid._objUrl = null; }
+  vid.src = '';
+  document.getElementById('vp-player-card').style.display = 'none';
+  _vpAnnotations = [];
+}
+
+function vpTogglePlay() {
+  const vid = document.getElementById('vp-player-video');
+  if (vid.paused) {
+    vid.play();
+    document.getElementById('vp-play-btn').textContent = '⏸ Pause';
+  } else {
+    vid.pause();
+    document.getElementById('vp-play-btn').textContent = '▶ Play';
+  }
+}
+
+function vpSeek(val) {
+  document.getElementById('vp-player-video').currentTime = parseFloat(val);
+}
+
+function vpSetSpeed(val) {
+  document.getElementById('vp-player-video').playbackRate = parseFloat(val);
+}
+
+function vpToggleLabels() {
+  _vpShowLabels = !_vpShowLabels;
+  const btn = document.getElementById('vp-labels-btn');
+  btn.textContent = _vpShowLabels ? 'Labels ON' : 'Labels OFF';
+  btn.classList.toggle('active', _vpShowLabels);
+}
+
+function vpToggleBoxes() {
+  _vpShowBoxes = !_vpShowBoxes;
+  const btn = document.getElementById('vp-boxes-btn');
+  btn.textContent = _vpShowBoxes ? 'Boxes ON' : 'Boxes OFF';
+  btn.classList.toggle('active', _vpShowBoxes);
+}
+
+function vpUpdateTime() {
+  const vid = document.getElementById('vp-player-video');
+  const cur = vid.currentTime || 0;
+  const dur = vid.duration   || 0;
+  document.getElementById('vp-time').textContent = vpFmtTime(cur) + ' / ' + vpFmtTime(dur);
+  document.getElementById('vp-seek').value = cur;
+}
+
+function vpFmtTime(s) {
+  const m = Math.floor(s / 60);
+  const sec = Math.floor(s % 60);
+  return m + ':' + String(sec).padStart(2, '0');
+}
+
+function vpGetAnnotationForTime(currentTime) {
+  if (!_vpAnnotations.length) return null;
+
+  // estimate FPS: use video metadata or default 25
+  const vid = document.getElementById('vp-player-video');
+  const estimatedFps = _lastVideoFps || 25;
+
+  // find the annotation whose frame_number is closest to currentTime * fps
+  const currentFrameEst = currentTime * estimatedFps;
+
+  let best = _vpAnnotations[0];
+  let bestDist = Math.abs((best.frame_number || 0) - currentFrameEst);
+
+  for (const ann of _vpAnnotations) {
+    const dist = Math.abs((ann.frame_number || 0) - currentFrameEst);
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = ann;
+    }
+  }
+  return best;
+}
+
+function vpStartRender() {
+  vpStopRender();
+  const vid     = document.getElementById('vp-player-video');
+  const canvas  = document.getElementById('vp-overlay');
+  const wrap    = document.getElementById('vp-player-wrap');
+
+  function render() {
+    // sync canvas size to video display size
+    const rect = vid.getBoundingClientRect();
+    if (canvas.width  !== Math.round(rect.width))  canvas.width  = Math.round(rect.width);
+    if (canvas.height !== Math.round(rect.height)) canvas.height = Math.round(rect.height);
+
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    if (!vid.paused || vid.currentTime > 0) {
+      vpUpdateTime();
+    }
+
+    const ann = vpGetAnnotationForTime(vid.currentTime);
+
+    if (ann) {
+      const vw = vid.videoWidth  || canvas.width;
+      const vh = vid.videoHeight || canvas.height;
+      const scaleX = canvas.width  / vw;
+      const scaleY = canvas.height / vh;
+
+      // draw boxes
+      if (_vpShowBoxes && ann.detections && ann.detections.length) {
+        ann.detections.forEach(det => {
+          const b = det.bbox;
+          if (!b) return;
+          const x = b.x * scaleX;
+          const y = b.y * scaleY;
+          const w = b.w * scaleX;
+          const h = b.h * scaleY;
+          const color = VP_COLORS[det.class_name] || '#63B3ED';
+
+          ctx.strokeStyle = color;
+          ctx.lineWidth   = 2.5;
+          ctx.strokeRect(x, y, w, h);
+
+          // semi-transparent fill
+          ctx.fillStyle = color + '22';
+          ctx.fillRect(x, y, w, h);
+
+          // label background + text
+          if (_vpShowLabels) {
+            const label = det.class_name + ' ' + Math.round(det.confidence * 100) + '%';
+            ctx.font = 'bold 12px Space Mono, monospace';
+            const tw = ctx.measureText(label).width;
+            const ty = Math.max(y - 4, 16);
+
+            ctx.fillStyle = color;
+            ctx.fillRect(x, ty - 14, tw + 8, 18);
+
+            ctx.fillStyle = '#fff';
+            ctx.fillText(label, x + 4, ty);
+          }
+        });
+      }
+
+      // compliance banner
+      const bannerH = 36;
+      if (ann.compliant) {
+        ctx.fillStyle = 'rgba(30,140,69,0.82)';
+        ctx.fillRect(0, 0, canvas.width, bannerH);
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 14px Space Mono, monospace';
+        ctx.fillText('✓  COMPLIANT', 10, 24);
+      } else {
+        ctx.fillStyle = 'rgba(180,20,20,0.82)';
+        ctx.fillRect(0, 0, canvas.width, bannerH);
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 13px Space Mono, monospace';
+        const missing = ann.missing && ann.missing.length ? '  Missing: ' + ann.missing.join(', ') : '';
+        ctx.fillText('✗  NON-COMPLIANT' + missing, 10, 24);
+      }
+
+      // frame number badge (bottom-right)
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      ctx.fillRect(canvas.width - 100, canvas.height - 24, 96, 22);
+      ctx.fillStyle = '#a0aec0';
+      ctx.font = '10px Space Mono, monospace';
+      ctx.fillText('frame #' + (ann.frame_number || '?'), canvas.width - 96, canvas.height - 8);
+
+      // update live badge
+      const badge = document.getElementById('vp-live-badge');
+      if (ann.compliant) {
+        badge.className = 'vp-status-badge ok';
+        badge.textContent = '✓ COMPLIANT';
+      } else {
+        badge.className = 'vp-status-badge fail';
+        badge.textContent = '✗ ' + (ann.missing || []).slice(0, 2).join(', ');
+      }
+    }
+
+    _vpRafId = requestAnimationFrame(render);
+  }
+
+  _vpRafId = requestAnimationFrame(render);
+
+  // sync play/pause button
+  vid.onplay  = () => document.getElementById('vp-play-btn').textContent = '⏸ Pause';
+  vid.onpause = () => document.getElementById('vp-play-btn').textContent = '▶ Play';
+  vid.onended = () => document.getElementById('vp-play-btn').textContent = '▶ Play';
+}
+
+function vpStopRender() {
+  if (_vpRafId) { cancelAnimationFrame(_vpRafId); _vpRafId = null; }
+}
+// =============================================================
+
+// ==================== VIDEO FRAME PREVIEW ====================
+function vpCloseModal(ev) {
+  if (ev && ev.target !== document.getElementById('vp-modal')) return;
+  document.getElementById('vp-modal').classList.remove('open');
+  // release object URL if any
+  const vid = document.getElementById('vp-video');
+  if (vid.src && vid.src.startsWith('blob:')) {
+    URL.revokeObjectURL(vid.src);
+    vid.src = '';
+  }
+}
+
+async function vpOpenPreview(frameNumber, ev) {
+  if (ev) ev.stopPropagation();
+
+  if (!_lastVideoFile) {
+    toast('Video file not available. Re-upload the video first.', 'error');
+    return;
+  }
+
+  // open modal
+  document.getElementById('vp-modal').classList.add('open');
+  document.getElementById('vp-modal-title').textContent = 'Frame #' + frameNumber + ' — ' + _lastVideoFile.name;
+  document.getElementById('vp-loading').style.display = 'block';
+  document.getElementById('vp-loading').textContent = '⏳ Extracting frame #' + frameNumber + '...';
+  document.getElementById('vp-result-img').style.display = 'none';
+  document.getElementById('vp-result-row').innerHTML = '';
+
+  try {
+    // create object URL for the video
+    const vid = document.getElementById('vp-video');
+    if (!vid.src || !vid.src.startsWith('blob:')) {
+      vid.src = URL.createObjectURL(_lastVideoFile);
+    }
+
+    // seek to the frame timestamp
+    // skip_frames default is 5, so every processed frame is at multiple of (skip+1)=6
+    // frame_number from backend is the actual frame index in the video
+    const targetTime = frameNumber / _lastVideoFps;
+
+    await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('Video seek timeout')), 8000);
+
+      vid.onseeked = () => { clearTimeout(timeout); resolve(); };
+      vid.onerror  = () => { clearTimeout(timeout); reject(new Error('Video load error')); };
+
+      if (vid.readyState >= 2) {
+        vid.currentTime = targetTime;
+      } else {
+        vid.onloadeddata = () => { vid.currentTime = targetTime; };
+      }
+    });
+
+    // capture frame to canvas
+    const canvas = document.getElementById('vp-canvas');
+    canvas.width  = vid.videoWidth  || 640;
+    canvas.height = vid.videoHeight || 480;
+
+    // update estimated FPS from video metadata
+    if (vid.duration && vid.duration > 0) {
+      // try to get FPS from video (not always available)
+      _lastVideoFps = Math.round(frameNumber / targetTime) || 25;
+    }
+
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(vid, 0, 0, canvas.width, canvas.height);
+
+    document.getElementById('vp-loading').textContent = '🔍 Running detection...';
+
+    // send to detect/frame endpoint
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.92));
+    const conf = document.getElementById('video-conf')?.value || '0.45';
+    const faces = document.getElementById('video-faces')?.checked || false;
+
+    const fd = new FormData();
+    fd.append('file', blob, 'frame.jpg');
+    fd.append('confidence', conf);
+    fd.append('detect_faces', faces);
+    fd.append('face_threshold', '0.45');
+    fd.append('annotate', 'true');
+
+    const resp = await fetch(API('/detect/frame'), { method: 'POST', body: fd });
+    if (!resp.ok) throw new Error('Detection failed: ' + resp.statusText);
+    const r = await resp.json();
+
+    // show annotated image
+    document.getElementById('vp-loading').style.display = 'none';
+    const img = document.getElementById('vp-result-img');
+    if (r.annotated_base64) {
+      img.src = 'data:image/jpeg;base64,' + r.annotated_base64;
+      img.style.display = 'block';
+    } else {
+      // fallback: show raw captured frame
+      img.src = canvas.toDataURL('image/jpeg', 0.92);
+      img.style.display = 'block';
+    }
+
+    // result row
+    const compClass = r.compliant ? 'badge-ok' : 'badge-err';
+    const compLabel = r.compliant ? '✓ COMPLIANT' : '✗ NON-COMPLIANT';
+    let rowHtml = '<span class="badge ' + compClass + '">' + compLabel + '</span>';
+    rowHtml += '<span style="font-size:12px;color:var(--text-muted)">Detected: <strong>' + (r.detected_count||0) + '/' + (r.required_count||0) + '</strong></span>';
+
+    if (r.missing && r.missing.length) {
+      rowHtml += '<span style="font-size:12px;color:var(--danger)">Missing: ' + r.missing.join(', ') + '</span>';
+    }
+    if (r.detections && r.detections.length) {
+      r.detections.forEach(d => {
+        rowHtml += '<span class="badge badge-blue" style="font-size:10px">' + d.class_name + ' ' + Math.round(d.confidence*100) + '%</span>';
+      });
+    }
+    rowHtml += '<span style="font-family:Space Mono,monospace;font-size:10px;color:var(--text-dim)">' + (r.processing_ms||'—') + 'ms · frame#' + frameNumber + '</span>';
+    document.getElementById('vp-result-row').innerHTML = rowHtml;
+
+  } catch(e) {
+    console.error('vpOpenPreview error:', e);
+    document.getElementById('vp-loading').textContent = '✗ Error: ' + e.message;
+    toast('Frame preview error: ' + e.message, 'error');
+  }
+}
+// =============================================================
 
 // ==================== FILE BROWSER JS ====================
 let fbCurrentPath='';
@@ -2602,6 +3304,184 @@ async function camSwitchDevice(){
     _camStream=stream;document.getElementById('cam-video').srcObject=stream;toast('Câmera alterada');
   }catch(e){toast('Erro ao trocar câmera: '+e.message,'error');}
 }
+
+
+// function vpDownload() {
+//   const vid = document.getElementById('vp-player-video');
+//   if (!vid.src || !_lastVideoFile) {
+//     toast('Nenhum vídeo carregado para download.', 'error');
+//     return;
+//   }
+//   const a = document.createElement('a');
+//   a.href = vid.src; // já é um blob URL
+//   a.download = _lastVideoFile ? _lastVideoFile.name : 'video.mp4';
+//   document.body.appendChild(a);
+//   a.click();
+//   document.body.removeChild(a);
+//   toast('⬇ Download iniciado: ' + a.download);
+// }
+
+async function vpDownload() {
+  if (!_lastVideoFile || !_vpAnnotations.length) {
+    toast('Nenhum vídeo ou anotações carregadas.', 'error');
+    return;
+  }
+
+  const vid = document.getElementById('vp-player-video');
+  const overlayCanvas = document.getElementById('vp-overlay');
+
+  // Cria um canvas combinado (vídeo + overlay)
+  const mergeCanvas = document.createElement('canvas');
+  mergeCanvas.width  = vid.videoWidth  || 1280;
+  mergeCanvas.height = vid.videoHeight || 720;
+  const mCtx = mergeCanvas.getContext('2d');
+
+  // Verifica suporte a MediaRecorder
+  const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
+    ? 'video/webm;codecs=vp9'
+    : MediaRecorder.isTypeSupported('video/webm')
+    ? 'video/webm'
+    : null;
+
+  if (!mimeType) {
+    toast('Seu browser não suporta gravação de vídeo.', 'error');
+    return;
+  }
+
+  toast('🎬 Iniciando exportação do vídeo anotado...');
+
+  const btn = document.getElementById('vp-download-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Exportando...';
+
+  const chunks = [];
+  const stream = mergeCanvas.captureStream(30);
+  const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 5_000_000 });
+
+  recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+
+  recorder.onstop = () => {
+    const blob = new Blob(chunks, { type: mimeType });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    const ext  = mimeType.includes('mp4') ? 'mp4' : 'webm';
+    a.href     = url;
+    a.download = (_lastVideoFile.name.replace(/\.[^.]+$/, '') || 'video') + '_annotated.' + ext;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    btn.disabled = false;
+    btn.textContent = '⬇ Download';
+    toast('✅ Download concluído!');
+  };
+
+  // Função que renderiza um frame combinado
+  function renderMergeFrame() {
+    mCtx.clearRect(0, 0, mergeCanvas.width, mergeCanvas.height);
+    mCtx.drawImage(vid, 0, 0, mergeCanvas.width, mergeCanvas.height);
+
+    // Pega anotação mais próxima do tempo atual
+    const ann = vpGetAnnotationForTime(vid.currentTime);
+    if (!ann) return;
+
+    const vw = vid.videoWidth  || mergeCanvas.width;
+    const vh = vid.videoHeight || mergeCanvas.height;
+    const sx = mergeCanvas.width  / vw;
+    const sy = mergeCanvas.height / vh;
+
+    // Desenha boxes
+    if (_vpShowBoxes && ann.detections && ann.detections.length) {
+      ann.detections.forEach(det => {
+        const b = det.bbox; if (!b) return;
+        const x = b.x * sx, y = b.y * sy, w = b.w * sx, h = b.h * sy;
+        const color = VP_COLORS[det.class_name] || '#63B3ED';
+        mCtx.strokeStyle = color; mCtx.lineWidth = 2.5;
+        mCtx.strokeRect(x, y, w, h);
+        mCtx.fillStyle = color + '22'; mCtx.fillRect(x, y, w, h);
+        if (_vpShowLabels) {
+          const label = det.class_name + ' ' + Math.round(det.confidence * 100) + '%';
+          mCtx.font = 'bold 12px Space Mono, monospace';
+          const tw = mCtx.measureText(label).width;
+          const ty = Math.max(y - 4, 16);
+          mCtx.fillStyle = color; mCtx.fillRect(x, ty - 14, tw + 8, 18);
+          mCtx.fillStyle = '#fff'; mCtx.fillText(label, x + 4, ty);
+        }
+      });
+    }
+
+    // Banner compliance
+    const bannerH = 36;
+    if (ann.compliant) {
+      mCtx.fillStyle = 'rgba(30,140,69,0.82)'; mCtx.fillRect(0, 0, mergeCanvas.width, bannerH);
+      mCtx.fillStyle = '#fff'; mCtx.font = 'bold 14px Space Mono, monospace';
+      mCtx.fillText('✓  COMPLIANT', 10, 24);
+    } else {
+      mCtx.fillStyle = 'rgba(180,20,20,0.82)'; mCtx.fillRect(0, 0, mergeCanvas.width, bannerH);
+      mCtx.fillStyle = '#fff'; mCtx.font = 'bold 13px Space Mono, monospace';
+      const miss = ann.missing && ann.missing.length ? '  Missing: ' + ann.missing.join(', ') : '';
+      mCtx.fillText('✗  NON-COMPLIANT' + miss, 10, 24);
+    }
+
+    // Badge frame
+    mCtx.fillStyle = 'rgba(0,0,0,0.55)';
+    mCtx.fillRect(mergeCanvas.width - 100, mergeCanvas.height - 24, 96, 22);
+    mCtx.fillStyle = '#a0aec0'; mCtx.font = '10px Space Mono, monospace';
+    mCtx.fillText('frame #' + (ann.frame_number || '?'), mergeCanvas.width - 96, mergeCanvas.height - 8);
+  }
+
+  // Inicia gravação e toca o vídeo do início
+  recorder.start(100); // coleta dados a cada 100ms
+  vid.currentTime = 0;
+  await new Promise(r => setTimeout(r, 300)); // aguarda seek
+  vid.playbackRate = 1;
+  vid.play();
+
+  // Loop de renderização sincronizado com o vídeo
+  let rafLoop;
+  function loop() {
+    renderMergeFrame();
+    if (!vid.ended && !vid.paused) {
+      rafLoop = requestAnimationFrame(loop);
+    } else {
+      // Vídeo terminou
+      cancelAnimationFrame(rafLoop);
+      recorder.stop();
+      vid.pause();
+      document.getElementById('vp-play-btn').textContent = '▶ Play';
+    }
+  }
+
+  vid.onended = () => {
+    cancelAnimationFrame(rafLoop);
+    recorder.stop();
+    document.getElementById('vp-play-btn').textContent = '▶ Play';
+  };
+
+  rafLoop = requestAnimationFrame(loop);
+}
+
 </script>
+
+<!-- ===== VIDEO FRAME PREVIEW MODAL ===== -->
+<div class="vp-modal-backdrop" id="vp-modal" onclick="vpCloseModal(event)">
+  <div class="vp-modal" onclick="event.stopPropagation()">
+    <button class="vp-modal-close" onclick="vpCloseModal()">✕</button>
+    <div class="vp-modal-title">
+      <span>▶</span>
+      <span id="vp-modal-title">Frame Preview</span>
+    </div>
+    <div class="vp-img-wrap" id="vp-img-wrap">
+      <div class="vp-loading" id="vp-loading">⏳ Extracting frame...</div>
+      <img id="vp-result-img" src="" alt="frame" style="display:none">
+    </div>
+    <div class="vp-result-row" id="vp-result-row"></div>
+    <!-- hidden elements for frame extraction -->
+    <video id="vp-video" style="display:none" muted preload="auto"></video>
+    <canvas id="vp-canvas" style="display:none"></canvas>
+  </div>
+</div>
+<!-- ===== FIM VIDEO FRAME PREVIEW MODAL ===== -->
+
 </body>
 </html>
