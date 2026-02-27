@@ -1265,151 +1265,6 @@ tr:hover td { background: var(--surface2); }
   0%   { top: 0%; }
   100% { top: 100%; }
 }
-
-
-
-/* ==================== TRAIN SPINNER + DOWNLOAD ==================== */
-.train-spinner {
-  display: inline-block;
-  width: 13px; height: 13px;
-  border: 2px solid rgba(255,255,255,0.35);
-  border-top-color: #fff;
-  border-radius: 50%;
-  animation: spin 0.7s linear infinite;
-  vertical-align: middle;
-  flex-shrink: 0;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-
-.progress-fill.training-pulse {
-  background: linear-gradient(90deg, var(--primary), #63b3ed, var(--primary));
-  background-size: 200% 100%;
-  animation: progress-pulse 2s linear infinite;
-}
-@keyframes progress-pulse {
-  0%   { background-position: 0% 0; }
-  100% { background-position: 200% 0; }
-}
-
-.train-download-box {
-  display: flex; align-items: center; gap: 12px;
-  padding: 14px 16px;
-  background: rgba(30,140,69,0.06);
-  border: 1px solid rgba(30,140,69,0.2);
-  border-radius: 10px; margin-top: 10px;
-}
-.train-download-box .dl-icon { font-size: 22px; flex-shrink: 0; }
-.train-download-box .dl-info { flex: 1; min-width: 0; }
-.train-download-box .dl-label { font-size: 12px; font-weight: 600; color: var(--success); font-family: 'Space Mono', monospace; margin-bottom: 2px; }
-.train-download-box .dl-path  { font-size: 11px; color: var(--text-muted); font-family: 'Space Mono', monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-.train-status-area {
-  margin-top: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-/* ── Metric pills row ── */
-.train-metrics-row {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 4px;
-}
-.train-metric-pill {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 6px 12px;
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  min-width: 72px;
-  gap: 2px;
-}
-.train-metric-pill .mp-label {
-  font-family: 'Space Mono', monospace;
-  font-size: 9px;
-  color: var(--text-dim);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-.train-metric-pill .mp-value {
-  font-family: 'Space Mono', monospace;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--primary);
-  line-height: 1;
-}
-.train-metric-pill.mp-good  .mp-value { color: var(--success); }
-.train-metric-pill.mp-warn  .mp-value { color: var(--warning); }
-.train-metric-pill.mp-epoch .mp-value { color: var(--text); font-size: 13px; }
-
-/* ── Live log terminal ── */
-.train-log-wrap {
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  overflow: hidden;
-  margin-top: 4px;
-}
-.train-log-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 6px 10px;
-  background: var(--surface2);
-  border-bottom: 1px solid var(--border);
-  font-family: 'Space Mono', monospace;
-  font-size: 10px;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  cursor: pointer;
-  user-select: none;
-}
-.train-log-header:hover { background: var(--surface3); }
-.train-log-toggle { font-size: 10px; color: var(--primary); }
-
-.train-log-body {
-  font-family: 'Space Mono', monospace;
-  font-size: 11px;
-  background: #0d1117;
-  color: #c9d1d9;
-  padding: 10px 12px;
-  max-height: 220px;
-  overflow-y: auto;
-  line-height: 1.65;
-  white-space: pre-wrap;
-  word-break: break-all;
-  scrollbar-width: thin;
-  scrollbar-color: #30363d #0d1117;
-}
-.train-log-body::-webkit-scrollbar { width: 5px; }
-.train-log-body::-webkit-scrollbar-track { background: #0d1117; }
-.train-log-body::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
-
-/* color-coded log lines */
-.tl-epoch  { color: #79c0ff; }   /* blue   — epoch header */
-.tl-metric { color: #56d364; }   /* green  — loss / mAP line */
-.tl-warn   { color: #e3b341; }   /* yellow — WARNING */
-.tl-err    { color: #ff7b72; }   /* red    — ERROR */
-.tl-info   { color: #8b949e; }   /* grey   — generic info */
-.tl-ok     { color: #56d364; font-weight: 700; } /* complete */
-
-/* ── Epoch progress row ── */
-.train-epoch-row {
-  display: flex; align-items: center;
-  justify-content: space-between;
-  margin-bottom: 6px;
-}
-.train-epoch-label { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--text-muted); }
-.train-epoch-pct   { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--primary); font-weight: 700; }
-.train-meta        { font-size: 11px; color: var(--text-dim); font-family: 'Space Mono', monospace; margin-top: 4px; }
-/* ================================================================== */
-
-
-
 /* ============================================================ */
 </style>
 </head>
@@ -1659,7 +1514,7 @@ tr:hover td { background: var(--surface2); }
       <div id="dataset-result" style="margin-top:14px"></div>
     </div>
 
-    <!-- <div class="card">
+    <div class="card">
       <div class="card-header"><div class="card-icon">⚙</div><div class="card-title">2 — Train Model</div></div>
       <label>Base Model</label>
       <select id="train-model">
@@ -1694,95 +1549,7 @@ tr:hover td { background: var(--surface2); }
       </button>
       <div class="train-status-area" id="train-status-area" style="display:none"></div>
       <div id="train-download" style="display:none"></div>
-    </div> -->
-
-    
-<!-- Card 2 — Train Model (substitua o existente) -->
-<div class="card" id="card-train-model">
-  <div class="card-header">
-    <div class="card-icon">⚙</div>
-    <div class="card-title">2 — Train Model</div>
-    <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
-      <span class="badge badge-off" id="train-live-badge" style="font-size:10px">IDLE</span>
     </div>
-  </div>
-
-  <label>Base Model</label>
-  <select id="train-model">
-    <option value="yolov8n.pt">yolov8n — Fast</option>
-    <option value="yolov8s.pt">yolov8s — Small</option>
-    <option value="yolov8m.pt" selected>yolov8m — Medium</option>
-    <option value="yolov8l.pt">yolov8l — Large</option>
-  </select>
-
-  <div class="grid-2">
-    <div><label>Epochs</label>  <input type="number" id="train-epochs"  value="60"  min="10" max="300"></div>
-    <div><label>Batch Size</label><input type="number" id="train-batch"  value="16"  min="4"  max="64"></div>
-  </div>
-  <div class="grid-2">
-    <div><label>Image Size</label><input type="number" id="train-imgsz" value="640"></div>
-    <div><label>Patience</label>  <input type="number" id="train-patience" value="15"></div>
-  </div>
-
-  <button class="btn btn-success" id="btn-start-train" onclick="startTraining()">
-    <span id="btn-train-icon">⚙</span>
-    <span id="btn-train-text">Start Training</span>
-  </button>
-
-  <!-- Status area (visível só durante/após treino) -->
-  <div class="train-status-area" id="train-status-area" style="display:none">
-
-    <!-- Progress bar + epoch counter -->
-    <div id="train-progress-wrap">
-      <div class="train-epoch-row">
-        <span class="train-epoch-label" id="train-epoch-label">EPOCH — / —</span>
-        <span class="train-epoch-pct"   id="train-epoch-pct">0%</span>
-      </div>
-      <div class="progress-bar">
-        <div class="progress-fill training-pulse" id="train-progress-fill" style="width:2%"></div>
-      </div>
-    </div>
-
-    <!-- Metric pills: elapsed · ETA · box_loss · cls_loss · mAP50 -->
-    <div class="train-metrics-row" id="train-metrics-row" style="display:none">
-      <div class="train-metric-pill mp-epoch" id="mp-elapsed">
-        <span class="mp-label">Elapsed</span>
-        <span class="mp-value" id="mpv-elapsed">—</span>
-      </div>
-      <div class="train-metric-pill mp-epoch" id="mp-eta">
-        <span class="mp-label">ETA</span>
-        <span class="mp-value" id="mpv-eta">—</span>
-      </div>
-      <div class="train-metric-pill" id="mp-box">
-        <span class="mp-label">Box Loss</span>
-        <span class="mp-value" id="mpv-box">—</span>
-      </div>
-      <div class="train-metric-pill" id="mp-cls">
-        <span class="mp-label">Cls Loss</span>
-        <span class="mp-value" id="mpv-cls">—</span>
-      </div>
-      <div class="train-metric-pill" id="mp-map">
-        <span class="mp-label">mAP50</span>
-        <span class="mp-value" id="mpv-map">—</span>
-      </div>
-    </div>
-
-    <!-- Live log terminal (collapsible) -->
-    <div class="train-log-wrap" id="train-log-wrap" style="display:none">
-      <div class="train-log-header" onclick="trainToggleLog()">
-        <span>▶ Live Output</span>
-        <span class="train-log-toggle" id="train-log-toggle-icon">▾ collapse</span>
-      </div>
-      <div class="train-log-body" id="train-log-body"></div>
-    </div>
-
-  </div><!-- /train-status-area -->
-
-  <!-- Download box (visível após conclusão) -->
-  <div id="train-download" style="display:none"></div>
-
-</div><!-- /card-train-model -->
-
   </div>
 </div>
 
@@ -2333,64 +2100,13 @@ async function annSave(){
 }
 
 // ======================== TRAIN ========================
-// function setTrainLoading(loading){
-//   const btn=document.getElementById('btn-start-train');
-//   const icon=document.getElementById('btn-train-icon');
-//   const txt=document.getElementById('btn-train-text');
-//   if(loading){btn.disabled=true;btn.style.opacity='0.75';btn.style.cursor='not-allowed';icon.innerHTML='<span class="train-spinner"></span>';txt.textContent='Training...';}
-//   else{btn.disabled=false;btn.style.opacity='';btn.style.cursor='';icon.textContent='⚙';txt.textContent='Start Training';}
-// }
-
-// ── train button loading state ─────────────────────────────────────────
-function setTrainLoading(loading) {
-  const btn  = document.getElementById('btn-start-train');
-  const icon = document.getElementById('btn-train-icon');
-  const txt  = document.getElementById('btn-train-text');
-  if (loading) {
-    btn.disabled = true;
-    btn.style.opacity = '0.75';
-    btn.style.cursor  = 'not-allowed';
-    icon.innerHTML = '<span class="train-spinner"></span>';
-    txt.textContent = 'Training...';
-  } else {
-    btn.disabled = false;
-    btn.style.opacity = '';
-    btn.style.cursor  = '';
-    icon.textContent  = '⚙';
-    txt.textContent   = 'Start Training';
-  }
+function setTrainLoading(loading){
+  const btn=document.getElementById('btn-start-train');
+  const icon=document.getElementById('btn-train-icon');
+  const txt=document.getElementById('btn-train-text');
+  if(loading){btn.disabled=true;btn.style.opacity='0.75';btn.style.cursor='not-allowed';icon.innerHTML='<span class="train-spinner"></span>';txt.textContent='Training...';}
+  else{btn.disabled=false;btn.style.opacity='';btn.style.cursor='';icon.textContent='⚙';txt.textContent='Start Training';}
 }
-
-
-// ── live badge ────────────────────────────────────────────────────────
-function _setTrainBadge(status) {
-  const b = document.getElementById('train-live-badge');
-  if (!b) return;
-  const map = {
-    training: ['badge-warn',    '⚙ TRAINING'],
-    complete: ['badge-ok',      '✓ DONE'],
-    error:    ['badge-err',     '✗ ERROR'],
-    idle:     ['badge-off',     'IDLE'],
-  };
-  const [cls, label] = map[status] || ['badge-off', status.toUpperCase()];
-  b.className = 'badge ' + cls;
-  b.textContent = label;
-}
-
-
-// ── log coloring ──────────────────────────────────────────────────────
-function _colorLogLine(line) {
-  if (/error|exception|traceback/i.test(line))        return '<span class="tl-err">'  + _esc(line) + '</span>';
-  if (/warning/i.test(line))                           return '<span class="tl-warn">' + _esc(line) + '</span>';
-  if (/training complete|results saved|best\.pt/i.test(line)) return '<span class="tl-ok">' + _esc(line) + '</span>';
-  if (/^\s*\d+\/\d+\s+[\d.]+G/.test(line))            return '<span class="tl-metric">' + _esc(line) + '</span>';
-  if (/epoch\s+gpu_mem|class\s+images/i.test(line))   return '<span class="tl-epoch">' + _esc(line) + '</span>';
-  return '<span class="tl-info">' + _esc(line) + '</span>';
-}
-function _esc(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-
 
 async function generateDataset(){
   const el=document.getElementById('dataset-result');
@@ -2406,202 +2122,22 @@ async function generateDataset(){
   }catch(e){el.innerHTML='<span class="badge badge-err">'+e.message+'</span>';toast('Dataset failed','error');}
 }
 
-// async function startTraining(){
-//   const b={base_model:document.getElementById('train-model').value,epochs:parseInt(document.getElementById('train-epochs').value),batch_size:parseInt(document.getElementById('train-batch').value),img_size:parseInt(document.getElementById('train-imgsz').value),patience:parseInt(document.getElementById('train-patience').value)};
-//   const resp=await fetch(API('/train/start'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});
-//   const r=await resp.json().catch(()=>({}));
-//   if(!resp.ok){toast(r.detail||'Failed to start training','error');return;}
-//   toast('Training started ⚙');
-//   setTrainLoading(true);
-//   document.getElementById('train-download').style.display='none';
-//   const sa=document.getElementById('train-status-area');
-//   sa.style.display='flex';
-//   sa.innerHTML='<span class="badge badge-warn" style="font-size:12px">⚙ Initializing...</span>';
-//   pollTrainStatus();
-// }
-
-
-
-// ── start training ────────────────────────────────────────────────────
-async function startTraining() {
-  const b = {
-    base_model: document.getElementById('train-model').value,
-    epochs:     parseInt(document.getElementById('train-epochs').value),
-    batch_size: parseInt(document.getElementById('train-batch').value),
-    img_size:   parseInt(document.getElementById('train-imgsz').value),
-    patience:   parseInt(document.getElementById('train-patience').value),
-  };
-  const resp = await fetch(API('/train/start'), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(b),
-  });
-  const r = await resp.json().catch(() => ({}));
-  if (!resp.ok) { toast(r.detail || 'Failed to start training', 'error'); return; }
-
+async function startTraining(){
+  const b={base_model:document.getElementById('train-model').value,epochs:parseInt(document.getElementById('train-epochs').value),batch_size:parseInt(document.getElementById('train-batch').value),img_size:parseInt(document.getElementById('train-imgsz').value),patience:parseInt(document.getElementById('train-patience').value)};
+  const resp=await fetch(API('/train/start'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});
+  const r=await resp.json().catch(()=>({}));
+  if(!resp.ok){toast(r.detail||'Failed to start training','error');return;}
   toast('Training started ⚙');
   setTrainLoading(true);
-  _setTrainBadge('training');
-  _logOffset = 0;
-
-  // reset UI
-  document.getElementById('train-download').style.display = 'none';
-  const sa = document.getElementById('train-status-area');
-  sa.style.display = 'flex';
-  document.getElementById('train-log-body').innerHTML = '';
-  document.getElementById('train-log-wrap').style.display = 'none';
-  document.getElementById('train-metrics-row').style.display = 'none';
-  document.getElementById('train-progress-fill').style.width = '2%';
-  document.getElementById('train-epoch-label').textContent = 'EPOCH — / —';
-  document.getElementById('train-epoch-pct').textContent   = '0%';
-
+  document.getElementById('train-download').style.display='none';
+  const sa=document.getElementById('train-status-area');
+  sa.style.display='flex';
+  sa.innerHTML='<span class="badge badge-warn" style="font-size:12px">⚙ Initializing...</span>';
   pollTrainStatus();
 }
 
-// ── polling ───────────────────────────────────────────────────────────
-let _trainPollTimer = null;
-
-function stopTrainPoll() {
-  if (_trainPollTimer) { clearTimeout(_trainPollTimer); _trainPollTimer = null; }
-  if (_logPollTimer)   { clearTimeout(_logPollTimer);   _logPollTimer   = null; }
-}
-
-async function pollTrainStatus() {
-  stopTrainPoll();
-  let r;
-  try {
-    r = await (await fetch(API('/train/status'))).json();
-  } catch(e) {
-    _trainPollTimer = setTimeout(pollTrainStatus, 5000);
-    return;
-  }
-
-  const sa  = document.getElementById('train-status-area');
-  const dl  = document.getElementById('train-download');
-
-  // ── TRAINING ──────────────────────────────────────────────────────
-  if (r.status === 'training') {
-    setTrainLoading(true);
-    _setTrainBadge('training');
-    sa.style.display = 'flex';
-
-    const epoch  = r.epoch       || 0;
-    const total  = r.total_epochs || parseInt(document.getElementById('train-epochs').value) || 1;
-    const pct    = Math.max(2, Math.round((epoch / total) * 100));
-
-    document.getElementById('train-epoch-label').textContent = 'EPOCH ' + epoch + ' / ' + total;
-    document.getElementById('train-epoch-pct').textContent   = pct + '%';
-    document.getElementById('train-progress-fill').style.width = pct + '%';
-
-    // Metric pills
-    const mRow = document.getElementById('train-metrics-row');
-    mRow.style.display = 'flex';
-
-    function _setMp(id, val, goodBelow) {
-      const el = document.getElementById('mpv-' + id);
-      const pill = document.getElementById('mp-' + id);
-      if (!el) return;
-      el.textContent = val != null ? val : '—';
-      if (goodBelow != null && val != null) {
-        pill.classList.toggle('mp-good', parseFloat(val) < goodBelow);
-        pill.classList.toggle('mp-warn', parseFloat(val) >= goodBelow);
-      }
-    }
-
-    _setMp('elapsed', r.elapsed_seconds != null ? formatDuration(r.elapsed_seconds) : null);
-    _setMp('eta',     r.eta_seconds     != null ? formatDuration(r.eta_seconds)     : null);
-    _setMp('box',     r.box_loss  != null ? r.box_loss  : null,  1.0);
-    _setMp('cls',     r.cls_loss  != null ? r.cls_loss  : null,  1.5);
-
-    const mapEl   = document.getElementById('mpv-map');
-    const mapPill = document.getElementById('mp-map');
-    if (r.map50 != null) {
-      mapEl.textContent = r.map50;
-      mapPill.classList.toggle('mp-good', r.map50 >= 0.5);
-    } else {
-      mapEl.textContent = '—';
-    }
-
-    // Poll logs
-    await _pollLogs();
-    _logPollTimer   = setTimeout(_pollLogs, 2000);
-    _trainPollTimer = setTimeout(pollTrainStatus, 3000);
-
-  // ── COMPLETE ──────────────────────────────────────────────────────
-  } else if (r.status === 'complete') {
-    setTrainLoading(false);
-    stopTrainPoll();
-    _setTrainBadge('complete');
-
-    // Final log flush
-    await _pollLogs();
-
-    // Progress to 100%
-    document.getElementById('train-progress-fill').style.width = '100%';
-    document.getElementById('train-progress-fill').classList.remove('training-pulse');
-    document.getElementById('train-progress-fill').style.background = 'var(--success)';
-
-    const epoch = r.epoch || r.total_epochs || '?';
-    const total = r.total_epochs || '?';
-    document.getElementById('train-epoch-label').textContent = 'EPOCH ' + epoch + ' / ' + total;
-    document.getElementById('train-epoch-pct').textContent   = '100%';
-
-    const mp = r.model_path || '';
-    const fname = mp.split(/[/\\]/).pop() || 'best.pt';
-
-    dl.style.display = 'block';
-    dl.innerHTML =
-      '<div class="train-download-box">' +
-        '<span class="dl-icon">⬇</span>' +
-        '<div class="dl-info">' +
-          '<div class="dl-label">✓ Training Complete — Model ready</div>' +
-          '<div class="dl-path">' + fname + '</div>' +
-        '</div>' +
-        '<a class="btn btn-primary btn-sm" href="' + API('/train/download') + '" download="' + fname + '" style="text-decoration:none;flex-shrink:0">' +
-          'Download .pt' +
-        '</a>' +
-      '</div>';
-
-    toast('✓ Training complete! Model ready to download.');
-
-  // ── ERROR ─────────────────────────────────────────────────────────
-  } else if (r.status === 'error') {
-    setTrainLoading(false);
-    stopTrainPoll();
-    _setTrainBadge('error');
-
-    await _pollLogs();
-
-    document.getElementById('train-progress-fill').style.background = 'var(--danger)';
-    document.getElementById('train-progress-fill').classList.remove('training-pulse');
-
-    // Append error to log
-    const body = document.getElementById('train-log-body');
-    if (body) {
-      const msg = r.error || 'Unknown error';
-      body.insertAdjacentHTML('beforeend',
-        '<span class="tl-err">✗ TRAINING FAILED: ' + _esc(msg) + '</span>\n');
-      _scrollLogBottom();
-      document.getElementById('train-log-wrap').style.display = 'block';
-    }
-
-    toast('Training error: ' + (r.error || 'unknown'), 'error');
-
-  // ── IDLE ──────────────────────────────────────────────────────────
-  } else {
-    setTrainLoading(false);
-    _setTrainBadge('idle');
-    // Não altera sa.style.display para não esconder status de treino anterior
-  }
-}
-
-
-// let _trainPollTimer=null;
+let _trainPollTimer=null;
 function stopTrainPoll(){if(_trainPollTimer){clearTimeout(_trainPollTimer);_trainPollTimer=null;}}
-
-
-document.getElementById('train-status-area').style.display='flex';
-pollTrainStatus();
 
 async function pollTrainStatus(){
   stopTrainPoll();
@@ -2611,33 +2147,11 @@ async function pollTrainStatus(){
   const sa=document.getElementById('train-status-area');
   const dl=document.getElementById('train-download');
   if(r.status==='training'){
-    fetch('/api/v1/epi/train/status?company_id=1').then(r=>r.json()).then(console.log)
-    setTrainLoading(true);
-    sa.style.display='flex';
-    const epoch      = r.epoch        || 0;
-    const totalEpochs= r.total_epochs || 1;
-    const pct        = Math.max(2, Math.round((epoch / totalEpochs) * 100));
-    const elapsed    = r.elapsed_seconds ? formatDuration(r.elapsed_seconds) : '';
-    const eta        = r.eta_seconds     ? 'ETA ' + formatDuration(r.eta_seconds) : '';
-    const lossInfo   = (r.box_loss != null)
-      ? '<div class="train-meta" style="margin-top:4px">loss → box: <strong>'+r.box_loss+'</strong> · cls: <strong>'+(r.cls_loss??'—')+'</strong>'+(r.map50?' · mAP50: <strong>'+r.map50+'</strong>':'')+'</div>'
-      : '';
-    const timeRow    = (elapsed || eta)
-      ? '<div class="train-meta" style="margin-top:2px">⏱ '+elapsed+(elapsed&&eta?' · ':'')+eta+'</div>'
-      : '';
-    sa.innerHTML=
-      '<div style="width:100%">'+
-        '<div class="train-epoch-row">'+
-          '<span class="train-epoch-label">EPOCH '+epoch+' / '+totalEpochs+'</span>'+
-          '<span class="train-epoch-pct">'+pct+'%</span>'+
-        '</div>'+
-        '<div class="progress-bar">'+
-          '<div class="progress-fill training-pulse" style="width:'+pct+'%"></div>'+
-        '</div>'+
-        timeRow+
-        lossInfo+
-      '</div>';
-    dl.style.display='none';_trainPollTimer=setTimeout(pollTrainStatus,3000);
+    setTrainLoading(true);sa.style.display='flex';
+    const pct=r.total_epochs?Math.round((r.epoch/r.total_epochs)*100):5;
+    const elapsed=r.elapsed_seconds?formatDuration(r.elapsed_seconds):'';
+    sa.innerHTML='<div style="width:100%"><div class="train-epoch-row"><span class="train-epoch-label">EPOCH '+(r.epoch??'?')+' / '+(r.total_epochs??'?')+'</span><span class="train-epoch-pct">'+pct+'%</span></div><div class="progress-bar"><div class="progress-fill training-pulse" style="width:'+pct+'%"></div></div>'+(elapsed?'<div class="train-meta">⏱ '+elapsed+' elapsed</div>':'')+(r.box_loss?'<div class="train-meta" style="margin-top:2px">loss → box: '+r.box_loss+' · cls: '+r.cls_loss+'</div>':'')+'</div>';
+    dl.style.display='none';_trainPollTimer=setTimeout(pollTrainStatus,4000);
   }else if(r.status==='complete'){
     setTrainLoading(false);stopTrainPoll();
     const mp=r.model_path||'';const fname=mp.split(/[/\\]/).pop()||'best.pt';
@@ -2656,64 +2170,7 @@ async function pollTrainStatus(){
   }
 }
 
-// function formatDuration(s){const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sec=s%60;if(h>0)return h+'h '+m+'m';if(m>0)return m+'m '+sec+'s';return sec+'s';}
-
-// ── helpers ───────────────────────────────────────────────────────────
-function formatDuration(s) {
-  s = Math.round(s);
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const sec = s % 60;
-  if (h > 0) return h + 'h ' + m + 'm';
-  if (m > 0) return m + 'm ' + sec + 's';
-  return sec + 's';
-}
-
-
-
-// ── log state ─────────────────────────────────────────────────────────
-let _logOffset      = 0;
-let _logCollapsed   = false;
-let _logPollTimer   = null;
-
-function trainToggleLog() {
-  _logCollapsed = !_logCollapsed;
-  const body = document.getElementById('train-log-body');
-  const icon = document.getElementById('train-log-toggle-icon');
-  if (_logCollapsed) {
-    body.style.display = 'none';
-    icon.textContent   = '▸ expand';
-  } else {
-    body.style.display = 'block';
-    icon.textContent   = '▾ collapse';
-    _scrollLogBottom();
-  }
-}
-
-function _scrollLogBottom() {
-  const body = document.getElementById('train-log-body');
-  if (body && !_logCollapsed) body.scrollTop = body.scrollHeight;
-}
-
-async function _pollLogs() {
-  clearTimeout(_logPollTimer);
-  try {
-    const r = await (await fetch(API('/train/logs') + '&offset=' + _logOffset)).json();
-    if (r.lines && r.lines.length) {
-      const body = document.getElementById('train-log-body');
-      const wrap = document.getElementById('train-log-wrap');
-      if (!wrap || !body) return;
-      wrap.style.display = 'block';
-      const atBottom = body.scrollHeight - body.scrollTop - body.clientHeight < 40;
-      r.lines.forEach(line => {
-        body.insertAdjacentHTML('beforeend', _colorLogLine(line) + '\n');
-      });
-      _logOffset = r.total;
-      if (atBottom) _scrollLogBottom();
-    }
-  } catch(e) { /* silencioso */ }
-}
-
+function formatDuration(s){const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sec=s%60;if(h>0)return h+'h '+m+'m';if(m>0)return m+'m '+sec+'s';return sec+'s';}
 
 // ---- DETECT IMAGE ----
 function previewDetect(i){if(i.files[0]){const r=new FileReader();r.onload=e=>document.getElementById('detect-preview').innerHTML='<img src="'+e.target.result+'" class="preview-img">';r.readAsDataURL(i.files[0])}}
