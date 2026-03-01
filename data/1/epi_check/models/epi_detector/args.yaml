@@ -1,7 +1,7 @@
 task: detect
 mode: train
 model: yolov8m.pt
-data: C:\Users\Jaderson\Desktop\AI-HUB\data\1\epi_check\dataset\data.yaml
+data: C:\Users\jaderson.moreira.DROGARIAGLOBO\Desktop\ai-hub\data\1\epi_check\dataset\data.yaml
 epochs: 60
 time: null
 patience: 15
@@ -12,7 +12,7 @@ save_period: -1
 cache: false
 device: null
 workers: 8
-project: C:\Users\Jaderson\Desktop\AI-HUB\data\1\epi_check\models
+project: C:\Users\jaderson.moreira.DROGARIAGLOBO\Desktop\ai-hub\data\1\epi_check\models
 name: epi_detector
 exist_ok: true
 pretrained: true
@@ -103,4 +103,4 @@ erasing: 0.4
 crop_fraction: 1.0
 cfg: null
 tracker: botsort.yaml
-save_dir: C:\Users\Jaderson\Desktop\AI-HUB\data\1\epi_check\models\epi_detector
+save_dir: C:\Users\jaderson.moreira.DROGARIAGLOBO\Desktop\ai-hub\data\1\epi_check\models\epi_detector

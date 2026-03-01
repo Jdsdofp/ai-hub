@@ -416,6 +416,7 @@ async def start_training(req: TrainRequest, company_id: int = Depends(get_ui_com
 @router.get("/train/status", tags=["Dataset & Training"], summary="Poll Training Progress")
 async def train_status(company_id: int = Depends(get_ui_company)):
     try:
+        print("result: ", epi_engine.get_train_status(company_id))
         return epi_engine.get_train_status(company_id)
     except Exception as e:
         logger.error(f"[Company {company_id}] train_status error: {e}")
@@ -865,3 +866,25 @@ def patch_routes():
 
     ROUTES_PATH.write_text(content)
     print("  [DONE] routes.py salvo")
+
+
+
+@router.get("/train/logs", tags=["Dataset & Training"], summary="Get live training log lines")
+async def get_train_logs(
+    offset: int = Query(0, ge=0, description="Linha a partir da qual retornar (para polling incremental)"),
+    company_id: int = Depends(get_ui_company),
+):
+    """
+    Retorna linhas de log do treinamento a partir de `offset`.
+    O frontend faz polling passando o total recebido anteriormente
+    como offset — assim só trafegam as linhas novas a cada chamada.
+
+    Exemplo de uso pelo frontend:
+      GET /api/v1/epi/train/logs?company_id=1&offset=0   → primeiras linhas
+      GET /api/v1/epi/train/logs?company_id=1&offset=42  → linhas 42 em diante
+    """
+    try:
+        return epi_engine.get_train_logs(company_id, offset)
+    except Exception as e:
+        logger.error(f"[Company {company_id}] get_train_logs error: {e}")
+        raise HTTPException(500, detail=f"Error reading train logs: {str(e)}")
