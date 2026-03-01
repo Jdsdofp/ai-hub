@@ -1,0 +1,8 @@
+{
+  "thermal_coat": false,
+  "thermal_pants": false,
+  "gloves": false,
+  "helmet": true,
+  "boots": true,
+  "person": true
+}
