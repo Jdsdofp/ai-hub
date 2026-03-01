@@ -62,6 +62,9 @@ from pathlib import Path
 from pydantic_settings import BaseSettings
 from typing import Optional
 
+# Caminho absoluto do .env, sempre relativo a este arquivo
+ENV_FILE = Path(__file__).resolve().parent.parent.parent / ".env.example"
+
 
 class Settings(BaseSettings):
     APP_NAME: str = "SmartX Vision Platform"
@@ -106,7 +109,8 @@ class Settings(BaseSettings):
     EDGE_DEVICE_ID: str = "edge-001"
 
     class Config:
-        env_file = ".env"
+        # env_file = ".env"
+        env_file = str(ENV_FILE)
         case_sensitive = True
 
     @property

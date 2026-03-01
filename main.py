@@ -19,7 +19,9 @@ from app.core.company import CompanyData
 from app.mqtt.client import mqtt_client
 from app.streaming.manager import stream_manager
 
-
+# No início do main.py, antes de qualquer import
+# from app.core.config import settings
+# print("HOST:", settings.MYSQL_HOST)  # deve mostrar aihubdb.smartxhub.io
 
 
 OPENAPI_TAGS = [
