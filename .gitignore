@@ -12,7 +12,7 @@ logs/
 *.onnx
 runs/
 *.jpg
-
+.env.exemple
 
 *.png
 !app/ui/static/img/
