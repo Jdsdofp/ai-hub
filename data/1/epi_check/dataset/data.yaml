@@ -1,7 +1,10 @@
 names:
+- thermal_coat
+- thermal_pants
+- gloves
 - helmet
 - boots
 - person
-nc: 3
-train: C:\Users\jaderson.moreira.DROGARIAGLOBO\Desktop\ai-hub\data\1\epi_check\dataset\train\images
-val: C:\Users\jaderson.moreira.DROGARIAGLOBO\Desktop\ai-hub\data\1\epi_check\dataset\valid\images
+nc: 6
+train: C:\Users\Jaderson\Desktop\AI-HUB\data\1\epi_check\dataset\train\images
+val: C:\Users\Jaderson\Desktop\AI-HUB\data\1\epi_check\dataset\valid\images

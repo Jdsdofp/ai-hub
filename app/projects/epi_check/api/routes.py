@@ -1,3 +1,1269 @@
+# """
+# EPI Check API v3 — REST endpoints for PPE detection, face recognition,
+# annotation converter, training, upload, and streaming.
+
+# FIXES v3.1:
+#   - BUG-05: generate_dataset HTTPException sem `detail=` keyword
+#   - BUG-06: detect_image_b64 retornava np.int64 não serializável em JSON
+#   - BUG-07: stream_feed acessava session._running (atributo privado) diretamente
+
+# INTEGRAÇÃO MySQL v3.2:
+#   - detect/upload    → salva em vision_detection_events + vision_epi_detections
+#   - detect/frame     → salva detecção + alerta se não-conforme
+#   - detect/image     → salva detecção + alerta se não-conforme
+#   - stream/start     → registra sessão em vision_stream_sessions
+#   - stream/stop      → fecha sessão com frame_count
+#   - faces/register   → persiste em vision_people + vision_face_photos
+#   - stats            → inclui dados do banco (people_count, alerts_open)
+#   - GET /analytics/* → 7 endpoints de analytics direto do MySQL
+# """
+# import base64
+# import json
+# import shutil
+# import time
+# import uuid
+# from pathlib import Path
+# from typing import Optional
+# from collections import defaultdict
+
+# from datetime import date
+# from datetime import datetime
+
+# import cv2
+# import numpy as np
+# from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query
+# from fastapi.responses import StreamingResponse, JSONResponse
+# from loguru import logger
+
+# from app.core.security import get_authenticated_company, get_ui_company
+# from app.core.company import CompanyData
+# from app.core.repository import repo
+# from app.projects.epi_check.engine.detector import (
+#     epi_engine, ALL_PPE_CLASSES, ALL_CLASS_COLORS,
+# )
+# from app.projects.epi_check.models.schemas import (
+#     PPEConfig, DetectRequest, TrainRequest, VideoSource,
+#     ConvertRequest, AnnotationSave, FaceRegisterRequest, APIResponse,
+# )
+# from app.streaming.manager import stream_manager
+# from app.mqtt.client import mqtt_client
+
+# router = APIRouter()
+
+
+# # ======================================================================
+# # PPE CONFIGURATION
+# # ======================================================================
+# @router.get("/config", tags=["PPE Configuration"], summary="Get PPE Configuration")
+# async def get_ppe_config(company_id: int = Depends(get_ui_company)):
+#     try:
+#         config = epi_engine.get_ppe_config(company_id)
+#         active = epi_engine.get_active_classes(company_id)
+#         return {"config": config, "active_classes": active, "all_classes": ALL_PPE_CLASSES}
+#     except Exception as e:
+#         logger.error(f"[Company {company_id}] get_ppe_config error: {e}")
+#         raise HTTPException(500, detail=f"Failed to get PPE config: {str(e)}")
+
+
+# @router.post("/config", tags=["PPE Configuration"], summary="Save PPE Configuration")
+# async def save_ppe_config(config: PPEConfig, company_id: int = Depends(get_ui_company)):
+#     try:
+#         epi_engine.save_ppe_config(company_id, config.model_dump())
+#         # Persiste no MySQL também
+#         await repo.save_ppe_config(company_id, config.model_dump())
+#         return {"success": True, "config": config.model_dump()}
+#     except Exception as e:
+#         logger.error(f"[Company {company_id}] save_ppe_config error: {e}")
+#         raise HTTPException(500, detail=f"Failed to save PPE config: {str(e)}")
+
+
+# # ======================================================================
+# # PHOTO UPLOAD
+# # ======================================================================
+# @router.post("/upload/photos", tags=["Photo Upload"], summary="Upload Training Photos by Category")
+# async def upload_photos(
+#     category: str = Form(...),
+#     files: list[UploadFile] = File(...),
+#     company_id: int = Depends(get_ui_company),
+# ):
+#     try:
+#         dest = CompanyData.epi(company_id, "photos_raw", category)
+#         dest.mkdir(parents=True, exist_ok=True)
+#         results = []
+#         for f in files:
+#             try:
+#                 data = await f.read()
+#                 fpath = dest / f.filename
+#                 fpath.write_bytes(data)
+#                 img = cv2.imread(str(fpath))
+#                 if img is not None:
+#                     h, w = img.shape[:2]
+#                     results.append({"file": f.filename, "ok": True, "size": f"{w}x{h}"})
+#                 else:
+#                     fpath.unlink()
+#                     results.append({"file": f.filename, "ok": False, "error": "Not a valid image"})
+#             except Exception as fe:
+#                 results.append({"file": f.filename, "ok": False, "error": str(fe)})
+#         return {"category": category, "uploaded": len([r for r in results if r["ok"]]), "results": results}
+#     except Exception as e:
+#         logger.error(f"[Company {company_id}] upload_photos error: {e}")
+#         raise HTTPException(500, detail=f"Upload failed: {str(e)}")
+
+
+# # ======================================================================
+# # BULK UPLOAD
+# # ======================================================================
+# @router.post("/upload/bulk", tags=["Photo Upload"], summary="Bulk Upload Images + YOLO TXT Labels")
+# async def upload_bulk(
+#     category: str = Form("mixed"),
+#     remap_json: str = Form("{}"),
+#     files: list[UploadFile] = File(...),
+#     company_id: int = Depends(get_ui_company),
+# ):
+#     try:
+#         ann_dir = CompanyData.epi(company_id, "annotations")
+#         ann_dir.mkdir(parents=True, exist_ok=True)
+#         remap = {}
+#         try:
+#             raw = json.loads(remap_json)
+#             remap = {int(k): int(v) for k, v in raw.items()} if raw else {}
+#         except Exception as je:
+#             raise HTTPException(400, detail=f"Invalid remap_json: {str(je)}")
+
+#         img_exts = {".jpg", ".jpeg", ".png", ".bmp", ".webp", "*.jiff", "*.jfif"}
+#         images_data = {}
+#         labels_data = {}
+
+#         for f in files:
+#             data = await f.read()
+#             stem = Path(f.filename).stem
+#             ext = Path(f.filename).suffix.lower()
+#             if ext in img_exts:
+#                 images_data[stem] = (f.filename, data)
+#             elif ext == ".txt":
+#                 labels_data[stem] = (f.filename, data)
+
+#         active = epi_engine.get_active_classes(company_id)
+#         active_ids = set(active.keys())
+#         paired = 0
+#         images_only = 0
+
+#         for stem, (img_name, img_bytes) in images_data.items():
+#             (ann_dir / img_name).write_bytes(img_bytes)
+#             if stem in labels_data:
+#                 lbl_name, lbl_bytes = labels_data[stem]
+#                 lbl_text = lbl_bytes.decode("utf-8", errors="ignore")
+#                 filtered = []
+#                 for line in lbl_text.strip().split("\n"):
+#                     parts = line.strip().split()
+#                     if len(parts) >= 5:
+#                         old_id = int(parts[0])
+#                         new_id = remap.get(old_id, old_id)
+#                         if new_id in active_ids:
+#                             parts[0] = str(new_id)
+#                             filtered.append(" ".join(parts))
+#                 (ann_dir / (stem + ".txt")).write_text("\n".join(filtered))
+#                 paired += 1
+#             else:
+#                 images_only += 1
+#         return {"paired": paired, "images_only": images_only, "total_files": len(files)}
+#     except HTTPException:
+#         raise
+#     except Exception as e:
+#         logger.error(f"[Company {company_id}] upload_bulk error: {e}")
+#         raise HTTPException(500, detail=f"Bulk upload failed: {str(e)}")
+
+
+# # ======================================================================
+# # ANNOTATION CONVERTER
+# # ======================================================================
+# @router.post("/convert/upload", tags=["Annotation Converter"], summary="Upload & Convert Polygon/OBB → YOLO BBox")
+# async def convert_upload(
+#     remap_json: str = Form("{}"),
+#     files: list[UploadFile] = File(...),
+#     company_id: int = Depends(get_ui_company),
+# ):
+#     try:
+#         raw_dir = CompanyData.epi(company_id, "raw_labels")
+#         raw_dir.mkdir(parents=True, exist_ok=True)
+#         ann_dir = CompanyData.epi(company_id, "annotations")
+
+#         for f in files:
+#             data = await f.read()
+#             (raw_dir / f.filename).write_bytes(data)
+
+#         remap = {}
+#         try:
+#             raw = json.loads(remap_json)
+#             remap = {int(k): int(v) for k, v in raw.items()} if raw else {}
+#         except Exception as je:
+#             raise HTTPException(400, detail=f"Invalid remap_json: {str(je)}")
+
+#         result = epi_engine.converter.convert_directory(
+#             str(raw_dir), str(ann_dir), remap=remap, copy_images=True,
+#         )
+#         return {"files_converted": result["files"], "boxes_converted": result["boxes"],
+#                 "remap": remap, "output": str(ann_dir)}
+#     except HTTPException:
+#         raise
+#     except Exception as e:
+#         logger.error(f"[Company {company_id}] convert_upload error: {e}")
+#         raise HTTPException(500, detail=f"Conversion failed: {str(e)}")
+
+
+# @router.post("/convert/run", tags=["Annotation Converter"], summary="Convert Existing raw_labels/ Files")
+# async def convert_existing(
+#     remap_json: str = Form("{}"),
+#     company_id: int = Depends(get_ui_company),
+# ):
+#     try:
+#         raw_dir = CompanyData.epi(company_id, "raw_labels")
+#         ann_dir = CompanyData.epi(company_id, "annotations")
+#         remap = {}
+#         try:
+#             raw = json.loads(remap_json)
+#             remap = {int(k): int(v) for k, v in raw.items()} if raw else {}
+#         except Exception as je:
+#             raise HTTPException(400, detail=f"Invalid remap_json: {str(je)}")
+#         result = epi_engine.converter.convert_directory(
+#             str(raw_dir), str(ann_dir), remap=remap, copy_images=True,
+#         )
+#         return {"files_converted": result["files"], "boxes_converted": result["boxes"]}
+#     except HTTPException:
+#         raise
+#     except Exception as e:
+#         logger.error(f"[Company {company_id}] convert_existing error: {e}")
+#         raise HTTPException(500, detail=f"Conversion failed: {str(e)}")
+
+
+# # ======================================================================
+# # VISUAL ANNOTATION
+# # ======================================================================
+# @router.get("/annotate/images", tags=["Visual Annotation"], summary="List Images Available for Annotation")
+# async def list_annotation_images(company_id: int = Depends(get_ui_company)):
+#     try:
+#         ann_dir = CompanyData.epi(company_id, "annotations")
+#         raw_dir = CompanyData.epi(company_id, "photos_raw")
+#         images = []
+#         for d in [ann_dir, raw_dir]:
+#             if not d.exists():
+#                 continue
+#             for ext in ["*.jpg", "*.jpeg", "*.png"]:
+#                 for f in d.rglob(ext):
+#                     images.append({"name": f.name, "path": str(f),
+#                                    "has_label": (ann_dir / (f.stem + ".txt")).exists()})
+#         seen = set()
+#         unique = []
+#         for img in images:
+#             if img["name"] not in seen:
+#                 seen.add(img["name"])
+#                 unique.append(img)
+#         return unique
+#     except Exception as e:
+#         logger.error(f"[Company {company_id}] list_annotation_images error: {e}")
+#         raise HTTPException(500, detail=f"Error listing images: {str(e)}")
+
+
+# @router.get("/annotate/image/{filename}", tags=["Visual Annotation"], summary="Serve Image for Annotation")
+# async def get_annotation_image(filename: str, company_id: int = Depends(get_ui_company)):
+#     try:
+#         search_dirs = [CompanyData.epi(company_id, "annotations")]
+#         raw_dir = CompanyData.epi(company_id, "photos_raw")
+#         search_dirs.append(raw_dir)
+#         if raw_dir.is_dir():
+#             for sub in raw_dir.iterdir():
+#                 if sub.is_dir():
+#                     search_dirs.append(sub)
+#         for d in search_dirs:
+#             if not d.is_dir():
+#                 continue
+#             fp = d / filename
+#             if fp.exists() and fp.is_file():
+#                 return StreamingResponse(open(fp, "rb"), media_type="image/jpeg")
+#         raise HTTPException(404, detail=f"Image not found: {filename}")
+#     except HTTPException:
+#         raise
+#     except Exception as e:
+#         logger.error(f"[Company {company_id}] get_annotation_image error: {e}")
+#         raise HTTPException(500, detail=f"Error loading image: {str(e)}")
+
+
+# @router.get("/annotate/labels/{filename}", tags=["Visual Annotation"], summary="Get YOLO Labels for an Image")
+# async def get_labels(filename: str, company_id: int = Depends(get_ui_company)):
+#     try:
+#         stem = Path(filename).stem
+#         lbl_path = CompanyData.epi(company_id, "annotations", stem + ".txt")
+#         if not lbl_path.exists():
+#             return {"labels": []}
+#         text = lbl_path.read_text().strip()
+#         if not text:
+#             return {"labels": []}
+#         labels = []
+#         for line in text.split("\n"):
+#             parts = line.strip().split()
+#             if len(parts) >= 5:
+#                 labels.append({
+#                     "class_id": int(parts[0]),
+#                     "cx": float(parts[1]), "cy": float(parts[2]),
+#                     "w": float(parts[3]), "h": float(parts[4]),
+#                 })
+#         return {"labels": labels}
+#     except Exception as e:
+#         logger.error(f"[Company {company_id}] get_labels error for {filename}: {e}")
+#         raise HTTPException(500, detail=f"Error reading labels: {str(e)}")
+
+
+# @router.post("/annotate/save", tags=["Visual Annotation"], summary="Save Drawn Annotations")
+# async def save_annotations(data: AnnotationSave, company_id: int = Depends(get_ui_company)):
+#     try:
+#         ann_dir = CompanyData.epi(company_id, "annotations")
+#         stem = Path(data.image_filename).stem
+#         lbl_path = ann_dir / (stem + ".txt")
+#         img_dest = ann_dir / data.image_filename
+#         if not img_dest.exists():
+#             raw_dir = CompanyData.epi(company_id, "photos_raw")
+#             for src in raw_dir.rglob(data.image_filename):
+#                 shutil.copy2(str(src), str(img_dest))
+#                 break
+#         active_classes = epi_engine.get_active_classes(company_id)
+#         lines = []
+#         for ann in data.annotations:
+#             cid = int(ann.get('class_id', ann.get('classId', 0)))
+#             cx = float(ann.get('cx', 0))
+#             cy = float(ann.get('cy', 0))
+#             w = float(ann.get('w', 0))
+#             h = float(ann.get('h', 0))
+#             lines.append(f"{cid} {cx:.6f} {cy:.6f} {w:.6f} {h:.6f}")
+#         lbl_path.write_text("\n".join(lines))
+
+#         # ── MySQL ─────────────────────────────────────────────────────────
+#         await repo.save_annotations(
+#             company_id=company_id,
+#             image_name=data.image_filename,
+#             annotations=data.annotations,
+#             active_classes=active_classes,
+#         )
+#         # ─────────────────────────────────────────────────────────────────
+
+#         return {"saved": len(lines), "file": str(lbl_path)}
+#     except Exception as e:
+#         logger.error(f"[Company {company_id}] save_annotations error: {e}")
+#         raise HTTPException(500, detail=f"Error saving annotations: {str(e)}")
+    
+# # @router.post("/annotate/save", tags=["Visual Annotation"], summary="Save Drawn Annotations")
+# # async def save_annotations(data: AnnotationSave, company_id: int = Depends(get_ui_company)):
+# #     try:
+# #         ann_dir = CompanyData.epi(company_id, "annotations")
+# #         stem = Path(data.image_filename).stem
+# #         lbl_path = ann_dir / (stem + ".txt")
+# #         img_dest = ann_dir / data.image_filename
+# #         if not img_dest.exists():
+# #             raw_dir = CompanyData.epi(company_id, "photos_raw")
+# #             for src in raw_dir.rglob(data.image_filename):
+# #                 shutil.copy2(str(src), str(img_dest))
+# #                 break
+# #         active_classes = epi_engine.get_active_classes(company_id)
+# #         lines = []
+# #         for ann in data.annotations:
+# #             cid = int(ann.get('class_id', ann.get('classId', 0)))
+# #             cx = float(ann.get('cx', 0))
+# #             cy = float(ann.get('cy', 0))
+# #             w = float(ann.get('w', 0))
+# #             h = float(ann.get('h', 0))
+# #             lines.append(f"{cid} {cx:.6f} {cy:.6f} {w:.6f} {h:.6f}")
+# #         lbl_path.write_text("\n".join(lines))
+
+# #         # ── MySQL ─────────────────────────────────────────────────────────
+# #         # Deleta anotações antigas da imagem antes de reinserir
+# #         await repo.db.execute(
+# #             "DELETE FROM vision_annotations WHERE company_id = %s AND image_name = %s",
+# #             (company_id, data.image_filename)
+# #         )
+# #         for ann in data.annotations:
+# #             cid = int(ann.get('class_id', ann.get('classId', 0)))
+# #             await repo.db.execute(
+# #                 """INSERT INTO vision_annotations 
+# #                    (company_id, image_name, class_id, class_name, cx, cy, w, h, source)
+# #                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+# #                 (
+# #                     company_id,
+# #                     data.image_filename,
+# #                     cid,
+# #                     active_classes.get(cid, f"class_{cid}"),
+# #                     float(ann.get('cx', 0)),
+# #                     float(ann.get('cy', 0)),
+# #                     float(ann.get('w', 0)),
+# #                     float(ann.get('h', 0)),
+# #                     "manual",
+# #                 )
+# #             )
+# #         # ─────────────────────────────────────────────────────────────────
+
+# #         return {"saved": len(lines), "file": str(lbl_path)}
+# #     except Exception as e:
+# #         logger.error(f"[Company {company_id}] save_annotations error: {e}")
+# #         raise HTTPException(500, detail=f"Error saving annotations: {str(e)}")
+
+
+# # ======================================================================
+# # ANNOTATION STATUS
+# # ======================================================================
+# @router.get("/annotations/status", tags=["Visual Annotation"], summary="Annotation Statistics")
+# async def annotation_status(company_id: int = Depends(get_ui_company)):
+#     try:
+#         ann_dir = CompanyData.epi(company_id, "annotations")
+#         labels = list(ann_dir.glob("*.txt"))
+#         images = list(ann_dir.glob("*.jpg")) + list(ann_dir.glob("*.jpeg")) + list(ann_dir.glob("*.png"))
+#         class_counts = defaultdict(int)
+#         for lbl in labels:
+#             text = lbl.read_text().strip()
+#             if not text:
+#                 continue
+#             for line in text.split("\n"):
+#                 parts = line.strip().split()
+#                 if len(parts) >= 5:
+#                     cid = int(parts[0])
+#                     name = ALL_PPE_CLASSES.get(cid, f"class_{cid}")
+#                     class_counts[name] += 1
+#         return {"annotated_images": len(labels), "total_images": len(images), "class_counts": dict(class_counts)}
+#     except Exception as e:
+#         logger.error(f"[Company {company_id}] annotation_status error: {e}")
+#         raise HTTPException(500, detail=f"Error reading annotations: {str(e)}")
+
+
+# @router.get("/photos/summary", tags=["Photo Upload"], summary="Photo Counts per Category")
+# async def photo_summary(company_id: int = Depends(get_ui_company)):
+#     try:
+#         raw_dir = CompanyData.epi(company_id, "photos_raw")
+#         summary = {}
+#         for cls_name in list(ALL_PPE_CLASSES.values()) + ["full_body"]:
+#             d = raw_dir / cls_name
+#             n = len(list(d.glob("*.*"))) if d.exists() else 0
+#             summary[cls_name] = n
+#         return summary
+#     except Exception as e:
+#         logger.error(f"[Company {company_id}] photo_summary error: {e}")
+#         raise HTTPException(500, detail=f"Error reading photo summary: {str(e)}")
+
+
+# # ======================================================================
+# # DATASET GENERATION
+# # ======================================================================
+# @router.post("/dataset/generate", tags=["Dataset & Training"], summary="Generate YOLOv8 Train/Valid Dataset")
+# async def generate_dataset(
+#     train_split: float = Form(0.8),
+#     company_id: int = Depends(get_ui_company),
+# ):
+#     try:
+#         result = epi_engine.generate_dataset(company_id, train_split)
+#         if "error" in result:
+#             raise HTTPException(400, detail=result["error"])
+#         # Persiste no MySQL
+#         await repo.save_dataset(
+#             company_id=company_id,
+#             train_count=result.get("train_count", 0),
+#             valid_count=result.get("valid_count", 0),
+#             classes=result.get("classes", {}),
+#             yaml_path=result.get("yaml_path", ""),
+#             train_split=train_split,
+#         )
+#         return result
+#     except HTTPException:
+#         raise
+#     except Exception as e:
+#         logger.error(f"[Company {company_id}] generate_dataset error: {e}")
+#         raise HTTPException(500, detail=f"Dataset generation failed: {str(e)}")
+
+
+# @router.get("/dataset/stats", tags=["Dataset & Training"], summary="Dataset Image Counts")
+# async def dataset_stats(company_id: int = Depends(get_ui_company)):
+#     try:
+#         train_dir = CompanyData.epi(company_id, "dataset", "train", "images")
+#         valid_dir = CompanyData.epi(company_id, "dataset", "valid", "images")
+#         return {
+#             "train_images": len(list(train_dir.glob("*.*"))) if train_dir.exists() else 0,
+#             "valid_images": len(list(valid_dir.glob("*.*"))) if valid_dir.exists() else 0,
+#         }
+#     except Exception as e:
+#         logger.error(f"[Company {company_id}] dataset_stats error: {e}")
+#         raise HTTPException(500, detail=f"Error reading dataset stats: {str(e)}")
+
+
+# # ======================================================================
+# # TRAINING
+# # ======================================================================
+# @router.post("/train/start", tags=["Dataset & Training"], summary="Start Model Training")
+# async def start_training(req: TrainRequest, company_id: int = Depends(get_ui_company)):
+#     try:
+#         result = epi_engine.train_model(company_id, req.base_model, req.epochs,
+#                                         req.batch_size, req.img_size, req.patience)
+#         # Registra training run no MySQL
+#         await repo.create_training_run(
+#             company_id=company_id,
+#             base_model=req.base_model,
+#             epochs=req.epochs,
+#             batch_size=req.batch_size,
+#             img_size=req.img_size,
+#             classes=epi_engine.get_active_classes(company_id),
+#         )
+#         return result
+#     except Exception as e:
+#         logger.error(f"[Company {company_id}] start_training error: {e}")
+#         raise HTTPException(500, detail=f"Training failed to start: {str(e)}")
+
+
+# @router.get("/train/status", tags=["Dataset & Training"], summary="Poll Training Progress")
+# async def train_status(company_id: int = Depends(get_ui_company)):
+#     try:
+#         status = epi_engine.get_train_status(company_id)
+#         # Atualiza status no MySQL se treino completou ou deu erro
+#         if status.get("status") in ("complete", "error"):
+#             rows = await repo.get_training_history(company_id, limit=1)
+#             if rows and rows[0].get("status") not in ("complete", "error"):
+#                 await repo.update_training_run(
+#                     run_id=rows[0]["id"],
+#                     status=status["status"],
+#                     best_map50=status.get("best_map50"),
+#                     best_map50_95=status.get("best_map50_95"),
+#                     model_path=status.get("model_path"),
+#                     error_message=status.get("error"),
+#                 )
+#         return status
+#     except Exception as e:
+#         logger.error(f"[Company {company_id}] train_status error: {e}")
+#         raise HTTPException(500, detail=f"Error getting train status: {str(e)}")
+
+
+# # ======================================================================
+# # UTILS
+# # ======================================================================
+# def _sanitize_result(result: dict) -> dict:
+#     """
+#     FIX BUG-06: Converte tipos numpy não-serializáveis para tipos Python nativos.
+#     """
+#     import math
+
+#     def _convert(obj):
+#         if isinstance(obj, dict):
+#             return {k: _convert(v) for k, v in obj.items()}
+#         if isinstance(obj, list):
+#             return [_convert(v) for v in obj]
+#         if isinstance(obj, np.integer):
+#             return int(obj)
+#         if isinstance(obj, np.floating):
+#             v = float(obj)
+#             return None if math.isnan(v) or math.isinf(v) else v
+#         if isinstance(obj, np.ndarray):
+#             return obj.tolist()
+#         return obj
+
+#     return _convert(result)
+
+
+# # ======================================================================
+# # DETECTION — Image (Base64 REST API)
+# # ======================================================================
+# @router.post("/detect/image", tags=["Detection — Image"], summary="Detect PPE from Base64 Image (REST API)",
+#     response_model=APIResponse)
+# async def detect_image_b64(req: DetectRequest, company_id: int = Depends(get_ui_company)):
+#     try:
+#         if not req.image_base64:
+#             raise HTTPException(400, detail="image_base64 required")
+#         raw = base64.b64decode(req.image_base64.split(",")[-1])
+#         arr = np.frombuffer(raw, dtype=np.uint8)
+#         img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+#         if img is None:
+#             raise HTTPException(400, detail="Invalid image — could not decode base64")
+
+#         result = epi_engine.detect_image(company_id, img, req.model_name,
+#                                           req.confidence, req.detect_faces, req.face_threshold)
+
+#         # ── MySQL ─────────────────────────────────────────────────────────
+#         await repo.save_detection(
+#             company_id=company_id,
+#             result=result,
+#             camera_id=req.camera_id if hasattr(req, "camera_id") else None,
+#             source_type="upload",
+#         )
+#         if not result["compliant"]:
+#             await mqtt_client.publish_alert(company_id, "EPI_NON_COMPLIANT", {
+#                 "missing": result["missing"], "camera_id": getattr(req, "camera_id", None),
+#                 "faces": result.get("faces", []),
+#             })
+#             await repo.save_alert(
+#                 company_id=company_id,
+#                 alert_type="EPI_NON_COMPLIANT",
+#                 details={"missing": result["missing"], "source": "api_b64"},
+#                 severity="high" if len(result.get("missing", [])) > 1 else "medium",
+#             )
+#         # ─────────────────────────────────────────────────────────────────
+
+#         return APIResponse(data=_sanitize_result(result), company_id=company_id)
+#     except HTTPException:
+#         raise
+#     except Exception as e:
+#         logger.error(f"[Company {company_id}] detect_image_b64 error: {e}")
+#         raise HTTPException(500, detail=f"Detection failed: {str(e)}")
+
+
+# # ======================================================================
+# # DETECTION — Upload (UI)
+# # ======================================================================
+# @router.post("/detect/upload", tags=["Detection — Image"], summary="Detect PPE from Uploaded Image (UI)")
+# async def detect_image_upload(
+#     file: UploadFile = File(...),
+#     model_name: str = Form("best"),
+#     confidence: float = Form(0.4),
+#     detect_faces: bool = Form(False),
+#     face_threshold: float = Form(0.45),
+#     company_id: int = Depends(get_ui_company),
+# ):
+#     try:
+#         data = await file.read()
+#         if not data:
+#             raise HTTPException(400, detail="Empty file uploaded")
+#         arr = np.frombuffer(data, dtype=np.uint8)
+#         img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+#         if img is None:
+#             raise HTTPException(400, detail="Invalid image file — could not decode")
+
+#         annotated, result = epi_engine.detect_and_annotate(
+#             company_id, img, model_name, confidence, detect_faces, face_threshold,
+#         )
+
+#         snap_dir = CompanyData.epi(company_id, "results")
+#         snap_name = f"result_{uuid.uuid4().hex[:8]}.jpg"
+#         snap_path = snap_dir / snap_name
+#         cv2.imwrite(str(snap_path), annotated)
+#         result["snapshot_url"] = f"/api/v1/epi/results/{snap_name}?company_id={company_id}"
+#         _, buf = cv2.imencode(".jpg", annotated)
+#         result["annotated_base64"] = base64.b64encode(buf).decode()
+
+#         # ── MySQL ─────────────────────────────────────────────────────────
+#         event_id = await repo.save_detection(
+#             company_id=company_id,
+#             result=result,
+#             snapshot_path=str(snap_path),
+#             model_name=model_name,
+#             confidence_threshold=confidence,
+#             source_type="upload",
+#         )
+#         await repo.save_snapshot(
+#             company_id=company_id,
+#             filename=snap_name,
+#             filepath=str(snap_path),
+#             snapshot_type="EPI_DETECTION",
+#             source_type="upload",
+#             event_id=event_id,
+#         )
+#         if not result["compliant"]:
+#             await repo.save_alert(
+#                 company_id=company_id,
+#                 alert_type="EPI_NON_COMPLIANT",
+#                 details={"missing": result["missing"], "snapshot": snap_name},
+#                 severity="high" if len(result.get("missing", [])) > 1 else "medium",
+#             )
+#         # Atualiza agregado diário
+#         await repo.upsert_compliance_daily(
+#             company_id=company_id,
+#             date=date.today().isoformat(),
+#             total=1,
+#             compliant=1 if result["compliant"] else 0,
+#         )
+#         # ─────────────────────────────────────────────────────────────────
+
+#         return _sanitize_result(result)
+#     except HTTPException:
+#         raise
+#     except Exception as e:
+#         logger.error(f"[Company {company_id}] detect_image_upload error: {e}")
+#         raise HTTPException(500, detail=f"Detection failed: {str(e)}")
+
+
+# # ======================================================================
+# # DETECTION — Video
+# # ======================================================================
+# # @router.post("/detect/video", tags=["Detection — Video"], summary="Process Uploaded Video File")
+# # async def detect_video_upload(
+# #     file: UploadFile = File(...),
+# #     model_name: str = Form("best"),
+# #     confidence: float = Form(0.4),
+# #     skip_frames: int = Form(5),
+# #     detect_faces: bool = Form(False),
+# #     company_id: int = Depends(get_ui_company),
+# # ):
+# #     temp_path = None
+# #     try:
+# #         temp_dir = CompanyData.epi(company_id, "temp")
+# #         suffix = Path(file.filename).suffix if file.filename else ".mp4"
+# #         temp_path = temp_dir / f"video_{uuid.uuid4().hex[:8]}{suffix}"
+# #         content = await file.read()
+# #         if not content:
+# #             raise HTTPException(400, detail="Empty video file")
+# #         temp_path.write_bytes(content)
+# #         results = epi_engine.process_video(company_id, str(temp_path), model_name,
+# #                                             confidence, skip_frames, detect_faces=detect_faces)
+# #         compliant_count = sum(1 for r in results if r["compliant"])
+# #         total = len(results)
+# #         if total == 0:
+# #             raise HTTPException(400, detail="No frames could be processed.")
+# #         return {
+# #             "frames_processed": total,
+# #             "compliant_frames": compliant_count,
+# #             "non_compliant_frames": total - compliant_count,
+# #             "compliance_rate": round(compliant_count / max(total, 1) * 100, 1),
+# #             "details": _sanitize_result(results[:50]),
+# #         }
+# #     except HTTPException:
+# #         raise
+# #     except Exception as e:
+# #         logger.error(f"[Company {company_id}] detect_video_upload error: {e}")
+# #         raise HTTPException(500, detail=f"Video processing failed: {str(e)}")
+# #     finally:
+# #         if temp_path and temp_path.exists():
+# #             try:
+# #                 temp_path.unlink()
+# #             except Exception:
+# #                 pass
+
+# @router.post("/detect/video", tags=["Detection — Video"], summary="Process Uploaded Video File")
+# async def detect_video_upload(
+#     file: UploadFile = File(...),
+#     model_name: str = Form("best"),
+#     confidence: float = Form(0.4),
+#     skip_frames: int = Form(5),
+#     detect_faces: bool = Form(False),
+#     company_id: int = Depends(get_ui_company),
+# ):
+#     temp_path = None
+#     try:
+#         temp_dir = CompanyData.epi(company_id, "temp")
+#         suffix = Path(file.filename).suffix if file.filename else ".mp4"
+#         temp_path = temp_dir / f"video_{uuid.uuid4().hex[:8]}{suffix}"
+#         content = await file.read()
+#         if not content:
+#             raise HTTPException(400, detail="Empty video file")
+#         temp_path.write_bytes(content)
+#         results = epi_engine.process_video(company_id, str(temp_path), model_name,
+#                                             confidence, skip_frames, detect_faces=detect_faces)
+#         compliant_count = sum(1 for r in results if r["compliant"])
+#         total = len(results)
+#         if total == 0:
+#             raise HTTPException(400, detail="No frames could be processed.")
+
+#         # ── MySQL ─────────────────────────────────────────────────────────
+#         non_compliant_frames = [r for r in results if not r["compliant"]]
+
+#         # Salva um evento resumo do vídeo
+#         summary_result = {
+#             "compliant": compliant_count == total,
+#             "compliance_score": round(compliant_count / total, 4),
+#             "epi_required_count": results[0].get("required_count", 0) if results else 0,
+#             "epi_detected_count": results[0].get("detected_count", 0) if results else 0,
+#             "epi_missing_count": len(results[0].get("missing", [])) if results else 0,
+#             "missing_items": results[0].get("missing", []) if non_compliant_frames else [],
+#             "detections": non_compliant_frames[0].get("detections", []) if non_compliant_frames else [],
+#             "faces": [],
+#         }
+#         await repo.save_detection(
+#             company_id=company_id,
+#             result=summary_result,
+#             model_name=model_name,
+#             confidence_threshold=confidence,
+#             source_type="video_upload",
+#         )
+
+#         if non_compliant_frames:
+#             await repo.save_alert(
+#                 company_id=company_id,
+#                 alert_type="EPI_NON_COMPLIANT",
+#                 details={
+#                     "missing": non_compliant_frames[0].get("missing", []),
+#                     "source": "video_upload",
+#                     "frames_non_compliant": len(non_compliant_frames),
+#                     "total_frames": total,
+#                     "compliance_rate": round(compliant_count / total * 100, 1),
+#                 },
+#                 severity="high" if len(non_compliant_frames[0].get("missing", [])) > 1 else "medium",
+#             )
+#         # ─────────────────────────────────────────────────────────────────
+
+#         return {
+#             "frames_processed": total,
+#             "compliant_frames": compliant_count,
+#             "non_compliant_frames": total - compliant_count,
+#             "compliance_rate": round(compliant_count / max(total, 1) * 100, 1),
+#             "details": _sanitize_result(results[:50]),
+#         }
+#     except HTTPException:
+#         raise
+#     except Exception as e:
+#         logger.error(f"[Company {company_id}] detect_video_upload error: {e}")
+#         raise HTTPException(500, detail=f"Video processing failed: {str(e)}")
+#     finally:
+#         if temp_path and temp_path.exists():
+#             try:
+#                 temp_path.unlink()
+#             except Exception:
+#                 pass
+
+
+
+# @router.post("/detect/youtube", tags=["Detection — Video"], summary="Process YouTube Video")
+# async def detect_youtube(
+#     url: str = Form(...),
+#     model_name: str = Form("best"),
+#     confidence: float = Form(0.4),
+#     max_frames: int = Form(100),
+#     detect_faces: bool = Form(False),
+#     company_id: int = Depends(get_ui_company),
+# ):
+#     temp_path = None
+#     try:
+#         import yt_dlp
+#         temp_dir = CompanyData.epi(company_id, "temp")
+#         temp_path = temp_dir / f"yt_{uuid.uuid4().hex[:8]}.mp4"
+#         ydl_opts = {
+#             "format": "best[ext=mp4][height<=720]/best[ext=mp4]/best",
+#             "outtmpl": str(temp_path),
+#             "quiet": True,
+#         }
+#         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+#             ydl.download([url])
+#         if not temp_path.exists():
+#             raise HTTPException(400, detail=f"Failed to download: {url}")
+#         results = epi_engine.process_video(company_id, str(temp_path), model_name,
+#                                             confidence, skip_frames=10, max_frames=max_frames,
+#                                             detect_faces=detect_faces)
+#         compliant_count = sum(1 for r in results if r["compliant"])
+#         total = len(results)
+#         return {"source": url, "frames_processed": total,
+#                 "compliant_frames": compliant_count,
+#                 "compliance_rate": round(compliant_count / max(total, 1) * 100, 1),
+#                 "details": _sanitize_result(results[:50])}
+#     except HTTPException:
+#         raise
+#     except ImportError:
+#         raise HTTPException(500, detail="yt-dlp not installed.")
+#     except Exception as e:
+#         logger.error(f"[Company {company_id}] detect_youtube error: {e}")
+#         raise HTTPException(500, detail=f"YouTube processing failed: {str(e)}")
+#     finally:
+#         if temp_path and temp_path.exists():
+#             try:
+#                 temp_path.unlink()
+#             except Exception:
+#                 pass
+
+
+# # ======================================================================
+# # DETECTION — Single Frame (Browser Camera)
+# # ======================================================================
+# @router.post("/detect/frame", tags=["Detection — Image"],
+#     summary="Detect PPE from raw JPEG bytes (browser camera frames)")
+# async def detect_frame(
+#     file: UploadFile = File(...),
+#     model_name: str = Form("best"),
+#     confidence: float = Form(0.4),
+#     detect_faces: bool = Form(False),
+#     face_threshold: float = Form(0.45),
+#     annotate: bool = Form(True),
+#     company_id: int = Depends(get_ui_company),
+# ):
+#     try:
+#         data = await file.read()
+#         if not data:
+#             raise HTTPException(400, detail="Empty frame")
+#         arr = np.frombuffer(data, dtype=np.uint8)
+#         img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+#         if img is None:
+#             raise HTTPException(400, detail="Invalid frame — could not decode")
+
+#         if annotate:
+#             annotated, result = epi_engine.detect_and_annotate(
+#                 company_id, img, model_name, confidence, detect_faces, face_threshold,
+#             )
+#             _, buf = cv2.imencode(".jpg", annotated, [cv2.IMWRITE_JPEG_QUALITY, 75])
+#             result["annotated_base64"] = base64.b64encode(buf).decode()
+#         else:
+#             result = epi_engine.detect_image(
+#                 company_id, img, model_name, confidence, detect_faces, face_threshold,
+#             )
+
+#         # ── MySQL ─────────────────────────────────────────────────────────
+#         await repo.save_detection(
+#             company_id=company_id,
+#             result=result,
+#             model_name=model_name,
+#             confidence_threshold=confidence,
+#             source_type="browser_camera",
+#         )
+#         if not result["compliant"]:
+#             await mqtt_client.publish_alert(company_id, "EPI_NON_COMPLIANT", {
+#                 "missing": result["missing"],
+#                 "source": "browser_camera",
+#                 "faces": result.get("faces", []),
+#             })
+#             await repo.save_alert(
+#                 company_id=company_id,
+#                 alert_type="EPI_NON_COMPLIANT",
+#                 details={"missing": result["missing"], "source": "browser_camera"},
+#                 severity="high" if len(result.get("missing", [])) > 1 else "medium",
+#             )
+#         # ─────────────────────────────────────────────────────────────────
+
+#         return _sanitize_result(result)
+
+#     except HTTPException:
+#         raise
+#     except Exception as e:
+#         logger.error(f"[Company {company_id}] detect_frame error: {e}")
+#         raise HTTPException(500, detail=f"Frame detection failed: {str(e)}")
+
+
+# # ======================================================================
+# # FACE RECOGNITION
+# # ======================================================================
+# @router.post("/faces/register", tags=["Face Recognition"], summary="Register Person with Face Photo")
+# async def register_face(
+#     person_code: str = Form(...),
+#     person_name: str = Form(...),
+#     badge_id: str = Form(""),
+#     file: UploadFile = File(...),
+#     company_id: int = Depends(get_ui_company),
+# ):
+#     try:
+#         data = await file.read()
+#         if not data:
+#             raise HTTPException(400, detail="Empty image file")
+#         arr = np.frombuffer(data, dtype=np.uint8)
+#         img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+#         if img is None:
+#             raise HTTPException(400, detail="Invalid image — could not decode")
+
+#         result = epi_engine.face_engine.register_face(
+#             company_id, person_code, person_name, badge_id, img,
+#         )
+
+#         # ── MySQL ─────────────────────────────────────────────────────────
+#         await repo.upsert_person(
+#             company_id=company_id,
+#             person_code=person_code,
+#             person_name=person_name,
+#             badge_id=badge_id,
+#         )
+#         # Descobre o path da última foto salva
+#         person_dir = CompanyData.epi(company_id, "people", person_code)
+#         photos = sorted(person_dir.glob("face_*.jpg"))
+#         if photos:
+#             last_photo = photos[-1]
+#             await repo.save_face_photo(
+#                 company_id=company_id,
+#                 person_code=person_code,
+#                 filename=last_photo.name,
+#                 filepath=str(last_photo),
+#             )
+#         # ─────────────────────────────────────────────────────────────────
+
+#         return {"success": True, **result}
+#     except HTTPException:
+#         raise
+#     except Exception as e:
+#         logger.error(f"[Company {company_id}] register_face error: {e}")
+#         raise HTTPException(500, detail=f"Face registration failed: {str(e)}")
+
+
+# @router.get("/faces/people", tags=["Face Recognition"], summary="List Registered People")
+# async def list_people(company_id: int = Depends(get_ui_company)):
+#     try:
+#         return epi_engine.face_engine.list_people(company_id)
+#     except Exception as e:
+#         logger.error(f"[Company {company_id}] list_people error: {e}")
+#         raise HTTPException(500, detail=f"Error listing people: {str(e)}")
+
+
+# @router.post("/faces/rebuild", tags=["Face Recognition"], summary="Rebuild Face Embeddings Database")
+# async def rebuild_face_db(company_id: int = Depends(get_ui_company)):
+#     try:
+#         db_result = epi_engine.face_engine.build_face_db(company_id)
+#         return {"people_loaded": len(db_result)}
+#     except Exception as e:
+#         logger.error(f"[Company {company_id}] rebuild_face_db error: {e}")
+#         raise HTTPException(500, detail=f"Face DB rebuild failed: {str(e)}")
+
+
+# # ======================================================================
+# # LIVE STREAMING
+# # ======================================================================
+# @router.post("/stream/start", tags=["Live Streaming"], summary="Start Live Stream with Real-Time Detection")
+# async def start_stream(
+#     source: str = Form(...),
+#     source_type: str = Form("rtsp"),
+#     model_name: str = Form("best"),
+#     confidence: float = Form(0.4),
+#     detect_faces: bool = Form(False),
+#     face_threshold: float = Form(0.45),
+#     company_id: int = Depends(get_ui_company),
+# ):
+#     try:
+#         if not source or not source.strip():
+#             raise HTTPException(400, detail="Source URL/path is required")
+
+#         def process_fn(frame):
+#             return epi_engine.detect_and_annotate(company_id, frame, model_name, confidence, detect_faces, face_threshold)
+
+#         session = stream_manager.create_session(source, source_type, company_id, process_fn)
+#         session.start()
+
+#         # ── MySQL ─────────────────────────────────────────────────────────
+#         await repo.save_stream_session(
+#             company_id=company_id,
+#             session_id=session.session_id,
+#             source_url=source,
+#             source_type=source_type,
+#             model_name=model_name,
+#             confidence=confidence,
+#             detect_faces=detect_faces,
+#         )
+#         # ─────────────────────────────────────────────────────────────────
+
+#         return {"session_id": session.session_id, "source": source, "source_type": source_type}
+#     except HTTPException:
+#         raise
+#     except RuntimeError as e:
+#         raise HTTPException(400, detail=str(e))
+#     except Exception as e:
+#         logger.error(f"[Company {company_id}] start_stream error: {e}")
+#         raise HTTPException(500, detail=f"Stream failed to start: {str(e)}")
+
+
+# @router.get("/stream/{session_id}/feed", tags=["Live Streaming"], summary="MJPEG Video Feed")
+# async def stream_feed(session_id: str):
+#     import asyncio
+#     session = stream_manager.get_session(session_id)
+#     if not session:
+#         raise HTTPException(404, detail=f"Stream session not found: {session_id}")
+
+#     async def generate():
+#         while session.info.get("running", False):
+#             jpeg = stream_manager.get_frame_jpeg(session_id, quality=70)
+#             if jpeg:
+#                 yield b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + jpeg + b"\r\n"
+#             await asyncio.sleep(0.05)
+
+#     return StreamingResponse(generate(), media_type="multipart/x-mixed-replace; boundary=frame")
+
+
+# @router.get("/stream/{session_id}/status", tags=["Live Streaming"], summary="Stream Session Status")
+# async def stream_status(session_id: str):
+#     try:
+#         session = stream_manager.get_session(session_id)
+#         if not session:
+#             raise HTTPException(404, detail=f"Stream session not found: {session_id}")
+#         latest = session.latest_result
+#         return {**session.info, "latest_result": _sanitize_result(latest) if latest else None}
+#     except HTTPException:
+#         raise
+#     except Exception as e:
+#         raise HTTPException(500, detail=f"Error getting stream status: {str(e)}")
+
+
+# @router.post("/stream/{session_id}/stop", tags=["Live Streaming"], summary="Stop Stream")
+# async def stop_stream(session_id: str):
+#     try:
+#         session = stream_manager.get_session(session_id)
+#         frame_count = session.info.get("frame_count", 0) if session else 0
+#         avg_fps = session.info.get("fps", 0) if session else 0
+
+#         stream_manager.stop_session(session_id)
+
+#         # ── MySQL ─────────────────────────────────────────────────────────
+#         await repo.close_stream_session(
+#             session_id=session_id,
+#             frame_count=frame_count,
+#             avg_fps=avg_fps,
+#         )
+#         # ─────────────────────────────────────────────────────────────────
+
+#         return {"stopped": True, "session_id": session_id}
+#     except Exception as e:
+#         raise HTTPException(500, detail=f"Error stopping stream: {str(e)}")
+
+
+# @router.get("/stream/sessions", tags=["Live Streaming"], summary="List Active Stream Sessions")
+# async def list_streams(company_id: int = Depends(get_ui_company)):
+#     try:
+#         return [s for s in stream_manager.list_sessions() if s["company_id"] == company_id]
+#     except Exception as e:
+#         raise HTTPException(500, detail=f"Error listing streams: {str(e)}")
+
+
+# # ======================================================================
+# # MODELS / RESULTS / STATS
+# # ======================================================================
+# @router.get("/models", tags=["Models & Results"], summary="List Trained Models")
+# async def list_models(company_id: int = Depends(get_ui_company)):
+#     try:
+#         return epi_engine.list_models(company_id)
+#     except Exception as e:
+#         raise HTTPException(500, detail=f"Error listing models: {str(e)}")
+
+
+# @router.get("/results/{filename}", tags=["Models & Results"], summary="Serve Detection Result Snapshot")
+# async def get_result_image(filename: str, company_id: int = Depends(get_ui_company)):
+#     try:
+#         fpath = CompanyData.epi(company_id, "results", filename)
+#         if not fpath.exists():
+#             raise HTTPException(404, detail=f"Result file not found: {filename}")
+#         return StreamingResponse(open(fpath, "rb"), media_type="image/jpeg")
+#     except HTTPException:
+#         raise
+#     except Exception as e:
+#         raise HTTPException(500, detail=f"Error serving result: {str(e)}")
+
+
+# @router.get("/stats", tags=["Models & Results"], summary="System Statistics")
+# async def epi_stats(company_id: int = Depends(get_ui_company)):
+#     try:
+#         config  = epi_engine.get_ppe_config(company_id)
+#         active  = epi_engine.get_active_classes(company_id)
+#         models  = epi_engine.list_models(company_id)
+#         storage = CompanyData.disk_usage(company_id)
+#         people  = epi_engine.face_engine.list_people(company_id)
+
+#         # ── Dados do MySQL ────────────────────────────────────────────────
+#         db_stats = await repo.get_dashboard_stats(company_id)
+#         # ─────────────────────────────────────────────────────────────────
+
+#         return {
+#             "company_id":     company_id,
+#             "ppe_config":     config,
+#             "active_classes": active,
+#             "models_count":   len(models),
+#             "people_count":   db_stats.get("people_count") or len(people),
+#             "alerts_open":    db_stats.get("alerts_open", 0),
+#             "storage":        storage,
+#             "train_status":   epi_engine.get_train_status(company_id),
+#             "today":          db_stats.get("today", {}),
+#             "week":           db_stats.get("week", {}),
+#         }
+#     except Exception as e:
+#         logger.error(f"[Company {company_id}] epi_stats error: {e}")
+#         raise HTTPException(500, detail=f"Error getting stats: {str(e)}")
+
+
+# # ======================================================================
+# # ANALYTICS — MySQL
+# # ======================================================================
+# @router.get("/analytics/dashboard", tags=["Analytics"], summary="Dashboard Stats (MySQL)")
+# async def analytics_dashboard(company_id: int = Depends(get_ui_company)):
+#     """Totais hoje, semana, pessoas ativas e alertas abertos."""
+#     try:
+#         return await repo.get_dashboard_stats(company_id)
+#     except Exception as e:
+#         raise HTTPException(500, detail=str(e))
+
+
+# @router.get("/analytics/compliance/hourly", tags=["Analytics"], summary="Compliance by Hour")
+# async def analytics_compliance_hourly(
+#     hours: int = Query(24, ge=1, le=168),
+#     company_id: int = Depends(get_ui_company),
+# ):
+#     """Conformidade por hora das últimas N horas (máx 7 dias)."""
+#     try:
+#         return await repo.get_hourly_compliance(company_id, hours)
+#     except Exception as e:
+#         raise HTTPException(500, detail=str(e))
+
+
+# @router.get("/analytics/missing-ppe", tags=["Analytics"], summary="Missing PPE Ranking")
+# async def analytics_missing_ppe(
+#     days: int = Query(7, ge=1, le=90),
+#     company_id: int = Depends(get_ui_company),
+# ):
+#     """Ranking dos EPIs mais ausentes nos últimos N dias."""
+#     try:
+#         return await repo.get_missing_ppe_ranking(company_id, days)
+#     except Exception as e:
+#         raise HTTPException(500, detail=str(e))
+
+
+# @router.get("/analytics/detections", tags=["Analytics"], summary="Recent Detection Events")
+# async def analytics_detections(
+#     limit: int = Query(50, ge=1, le=500),
+#     noncompliant_only: bool = Query(False),
+#     company_id: int = Depends(get_ui_company),
+# ):
+#     """Eventos de detecção recentes do banco MySQL."""
+#     try:
+#         return await repo.get_recent_detections(company_id, limit, noncompliant_only)
+#     except Exception as e:
+#         raise HTTPException(500, detail=str(e))
+
+
+# @router.get("/analytics/alerts", tags=["Analytics"], summary="Alerts (MySQL)")
+# async def analytics_alerts(
+#     limit: int = Query(50, ge=1, le=200),
+#     unresolved_only: bool = Query(False),
+#     company_id: int = Depends(get_ui_company),
+# ):
+#     """Alertas registrados no MySQL."""
+#     try:
+#         return await repo.get_alerts(company_id, limit, unresolved_only)
+#     except Exception as e:
+#         raise HTTPException(500, detail=str(e))
+
+
+# @router.get("/analytics/training-history", tags=["Analytics"], summary="Training History (MySQL)")
+# async def analytics_training_history(
+#     limit: int = Query(20, ge=1, le=100),
+#     company_id: int = Depends(get_ui_company),
+# ):
+#     """Histórico de treinamentos do MySQL."""
+#     try:
+#         return await repo.get_training_history(company_id, limit)
+#     except Exception as e:
+#         raise HTTPException(500, detail=str(e))
+
+
+# @router.get("/analytics/people", tags=["Analytics"], summary="People (MySQL)")
+# async def analytics_people(
+#     active_only: bool = Query(True),
+#     company_id: int = Depends(get_ui_company),
+# ):
+#     """Pessoas registradas no MySQL."""
+#     try:
+#         return await repo.list_people(company_id, active_only)
+#     except Exception as e:
+#         raise HTTPException(500, detail=str(e))
+
+
+# @router.get("/analytics/compliance/summary", tags=["Analytics"], summary="Compliance Summary")
+# async def analytics_compliance_summary(
+#     days: int = Query(7, ge=1, le=90),
+#     company_id: int = Depends(get_ui_company),
+# ):
+#     """Resumo de conformidade: total, rate, avg_score dos últimos N dias."""
+#     try:
+#         return await repo.get_compliance_summary(company_id, days)
+#     except Exception as e:
+#         raise HTTPException(500, detail=str(e))
+
+
+# # ======================================================================
+# # TRAIN LOGS
+# # ======================================================================
+# @router.get("/train/logs", tags=["Dataset & Training"], summary="Get live training log lines")
+# async def get_train_logs(
+#     offset: int = Query(0, ge=0),
+#     company_id: int = Depends(get_ui_company),
+# ):
+#     try:
+#         return epi_engine.get_train_logs(company_id, offset)
+#     except Exception as e:
+#         logger.error(f"[Company {company_id}] get_train_logs error: {e}")
+#         raise HTTPException(500, detail=f"Error reading train logs: {str(e)}")
+
 """
 EPI Check API v3 — REST endpoints for PPE detection, face recognition,
 annotation converter, training, upload, and streaming.
@@ -6,6 +1272,24 @@ FIXES v3.1:
   - BUG-05: generate_dataset HTTPException sem `detail=` keyword
   - BUG-06: detect_image_b64 retornava np.int64 não serializável em JSON
   - BUG-07: stream_feed acessava session._running (atributo privado) diretamente
+
+INTEGRAÇÃO MySQL v3.2:
+  - detect/upload    → salva em vision_detection_events + vision_epi_detections
+  - detect/frame     → salva detecção + alerta se não-conforme
+  - detect/image     → salva detecção + alerta se não-conforme
+  - detect/video     → salva resumo de detecção + alerta se não-conforme
+  - stream/start     → registra sessão em vision_stream_sessions
+  - stream/stop      → fecha sessão com frame_count
+  - faces/register   → persiste em vision_people + vision_face_photos
+  - annotate/save    → persiste em vision_annotations
+  - stats            → inclui dados do banco (people_count, alerts_open)
+  - GET /analytics/* → 7 endpoints de analytics direto do MySQL
+
+INTEGRAÇÃO MySQL v3.3:
+  - detect/upload    → upsert vision_compliance_daily
+  - detect/frame     → upsert vision_compliance_daily
+  - detect/video     → upsert vision_compliance_daily
+  - detect/image     → upsert vision_compliance_daily
 """
 import base64
 import json
@@ -15,6 +1299,7 @@ import uuid
 from pathlib import Path
 from typing import Optional
 from collections import defaultdict
+from datetime import date, datetime
 
 import cv2
 import numpy as np
@@ -24,6 +1309,7 @@ from loguru import logger
 
 from app.core.security import get_authenticated_company, get_ui_company
 from app.core.company import CompanyData
+from app.core.repository import repo
 from app.projects.epi_check.engine.detector import (
     epi_engine, ALL_PPE_CLASSES, ALL_CLASS_COLORS,
 )
@@ -55,6 +1341,7 @@ async def get_ppe_config(company_id: int = Depends(get_ui_company)):
 async def save_ppe_config(config: PPEConfig, company_id: int = Depends(get_ui_company)):
     try:
         epi_engine.save_ppe_config(company_id, config.model_dump())
+        await repo.save_ppe_config(company_id, config.model_dump())
         return {"success": True, "config": config.model_dump()}
     except Exception as e:
         logger.error(f"[Company {company_id}] save_ppe_config error: {e}")
@@ -114,7 +1401,7 @@ async def upload_bulk(
         except Exception as je:
             raise HTTPException(400, detail=f"Invalid remap_json: {str(je)}")
 
-        img_exts = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
+        img_exts = {".jpg", ".jpeg", ".png", ".bmp", ".webp", "*.jiff", "*.jfif"}
         images_data = {}
         labels_data = {}
 
@@ -309,6 +1596,7 @@ async def save_annotations(data: AnnotationSave, company_id: int = Depends(get_u
             for src in raw_dir.rglob(data.image_filename):
                 shutil.copy2(str(src), str(img_dest))
                 break
+        active_classes = epi_engine.get_active_classes(company_id)
         lines = []
         for ann in data.annotations:
             cid = int(ann.get('class_id', ann.get('classId', 0)))
@@ -318,6 +1606,16 @@ async def save_annotations(data: AnnotationSave, company_id: int = Depends(get_u
             h = float(ann.get('h', 0))
             lines.append(f"{cid} {cx:.6f} {cy:.6f} {w:.6f} {h:.6f}")
         lbl_path.write_text("\n".join(lines))
+
+        # ── MySQL ─────────────────────────────────────────────────────────
+        await repo.save_annotations(
+            company_id=company_id,
+            image_name=data.image_filename,
+            annotations=data.annotations,
+            active_classes=active_classes,
+        )
+        # ─────────────────────────────────────────────────────────────────
+
         return {"saved": len(lines), "file": str(lbl_path)}
     except Exception as e:
         logger.error(f"[Company {company_id}] save_annotations error: {e}")
@@ -376,8 +1674,15 @@ async def generate_dataset(
     try:
         result = epi_engine.generate_dataset(company_id, train_split)
         if "error" in result:
-            # FIX BUG-05: `detail=` keyword obrigatório no FastAPI para JSON correto
             raise HTTPException(400, detail=result["error"])
+        await repo.save_dataset(
+            company_id=company_id,
+            train_count=result.get("train_count", 0),
+            valid_count=result.get("valid_count", 0),
+            classes=result.get("classes", {}),
+            yaml_path=result.get("yaml_path", ""),
+            train_split=train_split,
+        )
         return result
     except HTTPException:
         raise
@@ -406,8 +1711,17 @@ async def dataset_stats(company_id: int = Depends(get_ui_company)):
 @router.post("/train/start", tags=["Dataset & Training"], summary="Start Model Training")
 async def start_training(req: TrainRequest, company_id: int = Depends(get_ui_company)):
     try:
-        return epi_engine.train_model(company_id, req.base_model, req.epochs,
-                                       req.batch_size, req.img_size, req.patience)
+        result = epi_engine.train_model(company_id, req.base_model, req.epochs,
+                                        req.batch_size, req.img_size, req.patience)
+        await repo.create_training_run(
+            company_id=company_id,
+            base_model=req.base_model,
+            epochs=req.epochs,
+            batch_size=req.batch_size,
+            img_size=req.img_size,
+            classes=epi_engine.get_active_classes(company_id),
+        )
+        return result
     except Exception as e:
         logger.error(f"[Company {company_id}] start_training error: {e}")
         raise HTTPException(500, detail=f"Training failed to start: {str(e)}")
@@ -416,23 +1730,29 @@ async def start_training(req: TrainRequest, company_id: int = Depends(get_ui_com
 @router.get("/train/status", tags=["Dataset & Training"], summary="Poll Training Progress")
 async def train_status(company_id: int = Depends(get_ui_company)):
     try:
-        print("result: ", epi_engine.get_train_status(company_id))
-        return epi_engine.get_train_status(company_id)
+        status = epi_engine.get_train_status(company_id)
+        if status.get("status") in ("complete", "error"):
+            rows = await repo.get_training_history(company_id, limit=1)
+            if rows and rows[0].get("status") not in ("complete", "error"):
+                await repo.update_training_run(
+                    run_id=rows[0]["id"],
+                    status=status["status"],
+                    best_map50=status.get("best_map50"),
+                    best_map50_95=status.get("best_map50_95"),
+                    model_path=status.get("model_path"),
+                    error_message=status.get("error"),
+                )
+        return status
     except Exception as e:
         logger.error(f"[Company {company_id}] train_status error: {e}")
         raise HTTPException(500, detail=f"Error getting train status: {str(e)}")
 
 
 # ======================================================================
-# DETECTION — Image
+# UTILS
 # ======================================================================
-
 def _sanitize_result(result: dict) -> dict:
-    """
-    FIX BUG-06: Converte tipos numpy não-serializáveis (np.int64, np.float32, etc.)
-    para tipos Python nativos antes de retornar via FastAPI/JSON.
-    Sem isso, APIResponse(data=result) lança TypeError em produção.
-    """
+    """FIX BUG-06: Converte tipos numpy não-serializáveis para tipos Python nativos."""
     import math
 
     def _convert(obj):
@@ -452,6 +1772,9 @@ def _sanitize_result(result: dict) -> dict:
     return _convert(result)
 
 
+# ======================================================================
+# DETECTION — Image (Base64 REST API)
+# ======================================================================
 @router.post("/detect/image", tags=["Detection — Image"], summary="Detect PPE from Base64 Image (REST API)",
     response_model=APIResponse)
 async def detect_image_b64(req: DetectRequest, company_id: int = Depends(get_ui_company)):
@@ -463,14 +1786,36 @@ async def detect_image_b64(req: DetectRequest, company_id: int = Depends(get_ui_
         img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
         if img is None:
             raise HTTPException(400, detail="Invalid image — could not decode base64")
+
         result = epi_engine.detect_image(company_id, img, req.model_name,
                                           req.confidence, req.detect_faces, req.face_threshold)
+
+        # ── MySQL ─────────────────────────────────────────────────────────
+        await repo.save_detection(
+            company_id=company_id,
+            result=result,
+            camera_id=req.camera_id if hasattr(req, "camera_id") else None,
+            source_type="upload",
+        )
         if not result["compliant"]:
             await mqtt_client.publish_alert(company_id, "EPI_NON_COMPLIANT", {
-                "missing": result["missing"], "camera_id": req.camera_id,
+                "missing": result["missing"], "camera_id": getattr(req, "camera_id", None),
                 "faces": result.get("faces", []),
             })
-        # FIX BUG-06: sanitizar numpy types antes de serializar
+            await repo.save_alert(
+                company_id=company_id,
+                alert_type="EPI_NON_COMPLIANT",
+                details={"missing": result["missing"], "source": "api_b64"},
+                severity="high" if len(result.get("missing", [])) > 1 else "medium",
+            )
+        await repo.upsert_compliance_daily(
+            company_id=company_id,
+            date=date.today().isoformat(),
+            total=1,
+            compliant=1 if result["compliant"] else 0,
+        )
+        # ─────────────────────────────────────────────────────────────────
+
         return APIResponse(data=_sanitize_result(result), company_id=company_id)
     except HTTPException:
         raise
@@ -479,6 +1824,9 @@ async def detect_image_b64(req: DetectRequest, company_id: int = Depends(get_ui_
         raise HTTPException(500, detail=f"Detection failed: {str(e)}")
 
 
+# ======================================================================
+# DETECTION — Upload (UI)
+# ======================================================================
 @router.post("/detect/upload", tags=["Detection — Image"], summary="Detect PPE from Uploaded Image (UI)")
 async def detect_image_upload(
     file: UploadFile = File(...),
@@ -496,16 +1844,51 @@ async def detect_image_upload(
         img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
         if img is None:
             raise HTTPException(400, detail="Invalid image file — could not decode")
+
         annotated, result = epi_engine.detect_and_annotate(
             company_id, img, model_name, confidence, detect_faces, face_threshold,
         )
+
         snap_dir = CompanyData.epi(company_id, "results")
         snap_name = f"result_{uuid.uuid4().hex[:8]}.jpg"
-        cv2.imwrite(str(snap_dir / snap_name), annotated)
+        snap_path = snap_dir / snap_name
+        cv2.imwrite(str(snap_path), annotated)
         result["snapshot_url"] = f"/api/v1/epi/results/{snap_name}?company_id={company_id}"
         _, buf = cv2.imencode(".jpg", annotated)
         result["annotated_base64"] = base64.b64encode(buf).decode()
-        # FIX BUG-06: sanitizar antes de retornar
+
+        # ── MySQL ─────────────────────────────────────────────────────────
+        event_id = await repo.save_detection(
+            company_id=company_id,
+            result=result,
+            snapshot_path=str(snap_path),
+            model_name=model_name,
+            confidence_threshold=confidence,
+            source_type="upload",
+        )
+        await repo.save_snapshot(
+            company_id=company_id,
+            filename=snap_name,
+            filepath=str(snap_path),
+            snapshot_type="EPI_DETECTION",
+            source_type="upload",
+            event_id=event_id,
+        )
+        if not result["compliant"]:
+            await repo.save_alert(
+                company_id=company_id,
+                alert_type="EPI_NON_COMPLIANT",
+                details={"missing": result["missing"], "snapshot": snap_name},
+                severity="high" if len(result.get("missing", [])) > 1 else "medium",
+            )
+        await repo.upsert_compliance_daily(
+            company_id=company_id,
+            date=date.today().isoformat(),
+            total=1,
+            compliant=1 if result["compliant"] else 0,
+        )
+        # ─────────────────────────────────────────────────────────────────
+
         return _sanitize_result(result)
     except HTTPException:
         raise
@@ -535,13 +1918,53 @@ async def detect_video_upload(
         if not content:
             raise HTTPException(400, detail="Empty video file")
         temp_path.write_bytes(content)
-        logger.info(f"[Company {company_id}] Processing video: {file.filename} ({len(content)} bytes)")
         results = epi_engine.process_video(company_id, str(temp_path), model_name,
                                             confidence, skip_frames, detect_faces=detect_faces)
         compliant_count = sum(1 for r in results if r["compliant"])
         total = len(results)
         if total == 0:
-            raise HTTPException(400, detail="No frames could be processed. Check if the file is a valid video (MP4, AVI, MOV).")
+            raise HTTPException(400, detail="No frames could be processed.")
+
+        # ── MySQL ─────────────────────────────────────────────────────────
+        non_compliant_frames = [r for r in results if not r["compliant"]]
+        summary_result = {
+            "compliant": compliant_count == total,
+            "compliance_score": round(compliant_count / total, 4),
+            "epi_required_count": results[0].get("required_count", 0) if results else 0,
+            "epi_detected_count": results[0].get("detected_count", 0) if results else 0,
+            "epi_missing_count": len(results[0].get("missing", [])) if results else 0,
+            "missing_items": results[0].get("missing", []) if non_compliant_frames else [],
+            "detections": non_compliant_frames[0].get("detections", []) if non_compliant_frames else [],
+            "faces": [],
+        }
+        await repo.save_detection(
+            company_id=company_id,
+            result=summary_result,
+            model_name=model_name,
+            confidence_threshold=confidence,
+            source_type="video_upload",
+        )
+        if non_compliant_frames:
+            await repo.save_alert(
+                company_id=company_id,
+                alert_type="EPI_NON_COMPLIANT",
+                details={
+                    "missing": non_compliant_frames[0].get("missing", []),
+                    "source": "video_upload",
+                    "frames_non_compliant": len(non_compliant_frames),
+                    "total_frames": total,
+                    "compliance_rate": round(compliant_count / total * 100, 1),
+                },
+                severity="high" if len(non_compliant_frames[0].get("missing", [])) > 1 else "medium",
+            )
+        await repo.upsert_compliance_daily(
+            company_id=company_id,
+            date=date.today().isoformat(),
+            total=total,
+            compliant=compliant_count,
+        )
+        # ─────────────────────────────────────────────────────────────────
+
         return {
             "frames_processed": total,
             "compliant_frames": compliant_count,
@@ -584,7 +2007,7 @@ async def detect_youtube(
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([url])
         if not temp_path.exists():
-            raise HTTPException(400, detail=f"Failed to download YouTube video: {url}")
+            raise HTTPException(400, detail=f"Failed to download: {url}")
         results = epi_engine.process_video(company_id, str(temp_path), model_name,
                                             confidence, skip_frames=10, max_frames=max_frames,
                                             detect_faces=detect_faces)
@@ -597,7 +2020,7 @@ async def detect_youtube(
     except HTTPException:
         raise
     except ImportError:
-        raise HTTPException(500, detail="yt-dlp not installed. Run: pip install yt-dlp")
+        raise HTTPException(500, detail="yt-dlp not installed.")
     except Exception as e:
         logger.error(f"[Company {company_id}] detect_youtube error: {e}")
         raise HTTPException(500, detail=f"YouTube processing failed: {str(e)}")
@@ -607,6 +2030,77 @@ async def detect_youtube(
                 temp_path.unlink()
             except Exception:
                 pass
+
+
+# ======================================================================
+# DETECTION — Single Frame (Browser Camera)
+# ======================================================================
+@router.post("/detect/frame", tags=["Detection — Image"],
+    summary="Detect PPE from raw JPEG bytes (browser camera frames)")
+async def detect_frame(
+    file: UploadFile = File(...),
+    model_name: str = Form("best"),
+    confidence: float = Form(0.4),
+    detect_faces: bool = Form(False),
+    face_threshold: float = Form(0.45),
+    annotate: bool = Form(True),
+    company_id: int = Depends(get_ui_company),
+):
+    try:
+        data = await file.read()
+        if not data:
+            raise HTTPException(400, detail="Empty frame")
+        arr = np.frombuffer(data, dtype=np.uint8)
+        img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+        if img is None:
+            raise HTTPException(400, detail="Invalid frame — could not decode")
+
+        if annotate:
+            annotated, result = epi_engine.detect_and_annotate(
+                company_id, img, model_name, confidence, detect_faces, face_threshold,
+            )
+            _, buf = cv2.imencode(".jpg", annotated, [cv2.IMWRITE_JPEG_QUALITY, 75])
+            result["annotated_base64"] = base64.b64encode(buf).decode()
+        else:
+            result = epi_engine.detect_image(
+                company_id, img, model_name, confidence, detect_faces, face_threshold,
+            )
+
+        # ── MySQL ─────────────────────────────────────────────────────────
+        await repo.save_detection(
+            company_id=company_id,
+            result=result,
+            model_name=model_name,
+            confidence_threshold=confidence,
+            source_type="browser_camera",
+        )
+        if not result["compliant"]:
+            await mqtt_client.publish_alert(company_id, "EPI_NON_COMPLIANT", {
+                "missing": result["missing"],
+                "source": "browser_camera",
+                "faces": result.get("faces", []),
+            })
+            await repo.save_alert(
+                company_id=company_id,
+                alert_type="EPI_NON_COMPLIANT",
+                details={"missing": result["missing"], "source": "browser_camera"},
+                severity="high" if len(result.get("missing", [])) > 1 else "medium",
+            )
+        await repo.upsert_compliance_daily(
+            company_id=company_id,
+            date=date.today().isoformat(),
+            total=1,
+            compliant=1 if result["compliant"] else 0,
+        )
+        # ─────────────────────────────────────────────────────────────────
+
+        return _sanitize_result(result)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[Company {company_id}] detect_frame error: {e}")
+        raise HTTPException(500, detail=f"Frame detection failed: {str(e)}")
 
 
 # ======================================================================
@@ -628,9 +2122,30 @@ async def register_face(
         img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
         if img is None:
             raise HTTPException(400, detail="Invalid image — could not decode")
+
         result = epi_engine.face_engine.register_face(
             company_id, person_code, person_name, badge_id, img,
         )
+
+        # ── MySQL ─────────────────────────────────────────────────────────
+        await repo.upsert_person(
+            company_id=company_id,
+            person_code=person_code,
+            person_name=person_name,
+            badge_id=badge_id,
+        )
+        person_dir = CompanyData.epi(company_id, "people", person_code)
+        photos = sorted(person_dir.glob("face_*.jpg"))
+        if photos:
+            last_photo = photos[-1]
+            await repo.save_face_photo(
+                company_id=company_id,
+                person_code=person_code,
+                filename=last_photo.name,
+                filepath=str(last_photo),
+            )
+        # ─────────────────────────────────────────────────────────────────
+
         return {"success": True, **result}
     except HTTPException:
         raise
@@ -651,8 +2166,8 @@ async def list_people(company_id: int = Depends(get_ui_company)):
 @router.post("/faces/rebuild", tags=["Face Recognition"], summary="Rebuild Face Embeddings Database")
 async def rebuild_face_db(company_id: int = Depends(get_ui_company)):
     try:
-        db = epi_engine.face_engine.build_face_db(company_id)
-        return {"people_loaded": len(db)}
+        db_result = epi_engine.face_engine.build_face_db(company_id)
+        return {"people_loaded": len(db_result)}
     except Exception as e:
         logger.error(f"[Company {company_id}] rebuild_face_db error: {e}")
         raise HTTPException(500, detail=f"Face DB rebuild failed: {str(e)}")
@@ -680,11 +2195,23 @@ async def start_stream(
 
         session = stream_manager.create_session(source, source_type, company_id, process_fn)
         session.start()
+
+        # ── MySQL ─────────────────────────────────────────────────────────
+        await repo.save_stream_session(
+            company_id=company_id,
+            session_id=session.session_id,
+            source_url=source,
+            source_type=source_type,
+            model_name=model_name,
+            confidence=confidence,
+            detect_faces=detect_faces,
+        )
+        # ─────────────────────────────────────────────────────────────────
+
         return {"session_id": session.session_id, "source": source, "source_type": source_type}
     except HTTPException:
         raise
     except RuntimeError as e:
-        logger.error(f"[Company {company_id}] start_stream RuntimeError: {e}")
         raise HTTPException(400, detail=str(e))
     except Exception as e:
         logger.error(f"[Company {company_id}] start_stream error: {e}")
@@ -693,22 +2220,17 @@ async def start_stream(
 
 @router.get("/stream/{session_id}/feed", tags=["Live Streaming"], summary="MJPEG Video Feed")
 async def stream_feed(session_id: str):
-    """
-    FIX BUG-07: Usava session._running (atributo privado) diretamente fora da classe.
-    Agora usa session.info["running"] (propriedade pública via dict).
-    Também migrado para async generator para não bloquear o event loop.
-    """
     import asyncio
     session = stream_manager.get_session(session_id)
     if not session:
         raise HTTPException(404, detail=f"Stream session not found: {session_id}")
 
     async def generate():
-        while session.info.get("running", False):  # FIX BUG-07: acesso público via .info
+        while session.info.get("running", False):
             jpeg = stream_manager.get_frame_jpeg(session_id, quality=70)
             if jpeg:
                 yield b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + jpeg + b"\r\n"
-            await asyncio.sleep(0.05)  # FIX BUG-16: async sleep para não bloquear event loop
+            await asyncio.sleep(0.05)
 
     return StreamingResponse(generate(), media_type="multipart/x-mixed-replace; boundary=frame")
 
@@ -724,17 +2246,28 @@ async def stream_status(session_id: str):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"stream_status error for {session_id}: {e}")
         raise HTTPException(500, detail=f"Error getting stream status: {str(e)}")
 
 
 @router.post("/stream/{session_id}/stop", tags=["Live Streaming"], summary="Stop Stream")
 async def stop_stream(session_id: str):
     try:
+        session = stream_manager.get_session(session_id)
+        frame_count = session.info.get("frame_count", 0) if session else 0
+        avg_fps = session.info.get("fps", 0) if session else 0
+
         stream_manager.stop_session(session_id)
+
+        # ── MySQL ─────────────────────────────────────────────────────────
+        await repo.close_stream_session(
+            session_id=session_id,
+            frame_count=frame_count,
+            avg_fps=avg_fps,
+        )
+        # ─────────────────────────────────────────────────────────────────
+
         return {"stopped": True, "session_id": session_id}
     except Exception as e:
-        logger.error(f"stop_stream error for {session_id}: {e}")
         raise HTTPException(500, detail=f"Error stopping stream: {str(e)}")
 
 
@@ -743,7 +2276,6 @@ async def list_streams(company_id: int = Depends(get_ui_company)):
     try:
         return [s for s in stream_manager.list_sessions() if s["company_id"] == company_id]
     except Exception as e:
-        logger.error(f"[Company {company_id}] list_streams error: {e}")
         raise HTTPException(500, detail=f"Error listing streams: {str(e)}")
 
 
@@ -755,7 +2287,6 @@ async def list_models(company_id: int = Depends(get_ui_company)):
     try:
         return epi_engine.list_models(company_id)
     except Exception as e:
-        logger.error(f"[Company {company_id}] list_models error: {e}")
         raise HTTPException(500, detail=f"Error listing models: {str(e)}")
 
 
@@ -769,120 +2300,145 @@ async def get_result_image(filename: str, company_id: int = Depends(get_ui_compa
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"[Company {company_id}] get_result_image error: {e}")
         raise HTTPException(500, detail=f"Error serving result: {str(e)}")
 
 
 @router.get("/stats", tags=["Models & Results"], summary="System Statistics")
 async def epi_stats(company_id: int = Depends(get_ui_company)):
     try:
-        config = epi_engine.get_ppe_config(company_id)
-        active = epi_engine.get_active_classes(company_id)
-        models = epi_engine.list_models(company_id)
+        config  = epi_engine.get_ppe_config(company_id)
+        active  = epi_engine.get_active_classes(company_id)
+        models  = epi_engine.list_models(company_id)
         storage = CompanyData.disk_usage(company_id)
-        people = epi_engine.face_engine.list_people(company_id)
-        return {"company_id": company_id, "ppe_config": config, "active_classes": active,
-                "models_count": len(models), "people_count": len(people),
-                "storage": storage, "train_status": epi_engine.get_train_status(company_id)}
+        people  = epi_engine.face_engine.list_people(company_id)
+
+        # ── Dados do MySQL ────────────────────────────────────────────────
+        db_stats = await repo.get_dashboard_stats(company_id)
+        # ─────────────────────────────────────────────────────────────────
+
+        return {
+            "company_id":     company_id,
+            "ppe_config":     config,
+            "active_classes": active,
+            "models_count":   len(models),
+            "people_count":   db_stats.get("people_count") or len(people),
+            "alerts_open":    db_stats.get("alerts_open", 0),
+            "storage":        storage,
+            "train_status":   epi_engine.get_train_status(company_id),
+            "today":          db_stats.get("today", {}),
+            "week":           db_stats.get("week", {}),
+        }
     except Exception as e:
         logger.error(f"[Company {company_id}] epi_stats error: {e}")
         raise HTTPException(500, detail=f"Error getting stats: {str(e)}")
 
 
+# ======================================================================
+# ANALYTICS — MySQL
+# ======================================================================
+@router.get("/analytics/dashboard", tags=["Analytics"], summary="Dashboard Stats (MySQL)")
+async def analytics_dashboard(company_id: int = Depends(get_ui_company)):
+    """Totais hoje, semana, pessoas ativas e alertas abertos."""
+    try:
+        return await repo.get_dashboard_stats(company_id)
+    except Exception as e:
+        raise HTTPException(500, detail=str(e))
 
 
-# ======================================================================
-# DETECTION — Single Frame (Browser Camera)
-# ======================================================================
-@router.post("/detect/frame", tags=["Detection — Image"],
-    summary="Detect PPE from raw JPEG bytes (browser camera frames)")
-async def detect_frame(
-    file: UploadFile = File(...),
-    model_name: str = Form("best"),
-    confidence: float = Form(0.4),
-    detect_faces: bool = Form(False),
-    face_threshold: float = Form(0.45),
-    annotate: bool = Form(True),
+@router.get("/analytics/compliance/hourly", tags=["Analytics"], summary="Compliance by Hour")
+async def analytics_compliance_hourly(
+    hours: int = Query(24, ge=1, le=168),
     company_id: int = Depends(get_ui_company),
 ):
-    """
-    Endpoint otimizado para receber frames de câmera do browser.
-    Retorna JSON com resultado + imagem anotada em base64 (opcional).
-    Menor overhead que /detect/upload pois não salva snapshot em disco.
-    """
+    """Conformidade por hora das últimas N horas (máx 7 dias)."""
     try:
-        data = await file.read()
-        if not data:
-            raise HTTPException(400, detail="Empty frame")
-        arr = np.frombuffer(data, dtype=np.uint8)
-        img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
-        if img is None:
-            raise HTTPException(400, detail="Invalid frame — could not decode")
-
-        if annotate:
-            annotated, result = epi_engine.detect_and_annotate(
-                company_id, img, model_name, confidence, detect_faces, face_threshold,
-            )
-            _, buf = cv2.imencode(".jpg", annotated, [cv2.IMWRITE_JPEG_QUALITY, 75])
-            result["annotated_base64"] = base64.b64encode(buf).decode()
-        else:
-            result = epi_engine.detect_image(
-                company_id, img, model_name, confidence, detect_faces, face_threshold,
-            )
-
-        if not result["compliant"]:
-            await mqtt_client.publish_alert(company_id, "EPI_NON_COMPLIANT", {
-                "missing": result["missing"],
-                "source": "browser_camera",
-                "faces": result.get("faces", []),
-            })
-
-        return _sanitize_result(result)
-
-    except HTTPException:
-        raise
+        return await repo.get_hourly_compliance(company_id, hours)
     except Exception as e:
-        logger.error(f"[Company {company_id}] detect_frame error: {e}")
-        raise HTTPException(500, detail=f"Frame detection failed: {str(e)}")
-
-def patch_routes():
-    print("\n[1/2] Patching routes.py ...")
-    backup(ROUTES_PATH)
-    content = ROUTES_PATH.read_text()
-
-    if "/detect/frame" in content:
-        print("  [SKIP] /detect/frame já existe")
-        return
-
-    # Inserir antes do bloco de Face Recognition
-    marker = "# ======================================================================\n# FACE RECOGNITION"
-    if marker in content:
-        content = content.replace(marker, FRAME_ENDPOINT + "\n" + marker)
-        print("  [OK] Endpoint /detect/frame adicionado")
-    else:
-        # fallback: append antes do último bloco
-        content += FRAME_ENDPOINT
-        print("  [OK] Endpoint /detect/frame adicionado (fallback)")
-
-    ROUTES_PATH.write_text(content)
-    print("  [DONE] routes.py salvo")
+        raise HTTPException(500, detail=str(e))
 
 
+@router.get("/analytics/missing-ppe", tags=["Analytics"], summary="Missing PPE Ranking")
+async def analytics_missing_ppe(
+    days: int = Query(7, ge=1, le=90),
+    company_id: int = Depends(get_ui_company),
+):
+    """Ranking dos EPIs mais ausentes nos últimos N dias."""
+    try:
+        return await repo.get_missing_ppe_ranking(company_id, days)
+    except Exception as e:
+        raise HTTPException(500, detail=str(e))
 
+
+@router.get("/analytics/detections", tags=["Analytics"], summary="Recent Detection Events")
+async def analytics_detections(
+    limit: int = Query(50, ge=1, le=500),
+    noncompliant_only: bool = Query(False),
+    company_id: int = Depends(get_ui_company),
+):
+    """Eventos de detecção recentes do banco MySQL."""
+    try:
+        return await repo.get_recent_detections(company_id, limit, noncompliant_only)
+    except Exception as e:
+        raise HTTPException(500, detail=str(e))
+
+
+@router.get("/analytics/alerts", tags=["Analytics"], summary="Alerts (MySQL)")
+async def analytics_alerts(
+    limit: int = Query(50, ge=1, le=200),
+    unresolved_only: bool = Query(False),
+    company_id: int = Depends(get_ui_company),
+):
+    """Alertas registrados no MySQL."""
+    try:
+        return await repo.get_alerts(company_id, limit, unresolved_only)
+    except Exception as e:
+        raise HTTPException(500, detail=str(e))
+
+
+@router.get("/analytics/training-history", tags=["Analytics"], summary="Training History (MySQL)")
+async def analytics_training_history(
+    limit: int = Query(20, ge=1, le=100),
+    company_id: int = Depends(get_ui_company),
+):
+    """Histórico de treinamentos do MySQL."""
+    try:
+        return await repo.get_training_history(company_id, limit)
+    except Exception as e:
+        raise HTTPException(500, detail=str(e))
+
+
+@router.get("/analytics/people", tags=["Analytics"], summary="People (MySQL)")
+async def analytics_people(
+    active_only: bool = Query(True),
+    company_id: int = Depends(get_ui_company),
+):
+    """Pessoas registradas no MySQL."""
+    try:
+        return await repo.list_people(company_id, active_only)
+    except Exception as e:
+        raise HTTPException(500, detail=str(e))
+
+
+@router.get("/analytics/compliance/summary", tags=["Analytics"], summary="Compliance Summary")
+async def analytics_compliance_summary(
+    days: int = Query(7, ge=1, le=90),
+    company_id: int = Depends(get_ui_company),
+):
+    """Resumo de conformidade: total, rate, avg_score dos últimos N dias."""
+    try:
+        return await repo.get_compliance_summary(company_id, days)
+    except Exception as e:
+        raise HTTPException(500, detail=str(e))
+
+
+# ======================================================================
+# TRAIN LOGS
+# ======================================================================
 @router.get("/train/logs", tags=["Dataset & Training"], summary="Get live training log lines")
 async def get_train_logs(
-    offset: int = Query(0, ge=0, description="Linha a partir da qual retornar (para polling incremental)"),
+    offset: int = Query(0, ge=0),
     company_id: int = Depends(get_ui_company),
 ):
-    """
-    Retorna linhas de log do treinamento a partir de `offset`.
-    O frontend faz polling passando o total recebido anteriormente
-    como offset — assim só trafegam as linhas novas a cada chamada.
-
-    Exemplo de uso pelo frontend:
-      GET /api/v1/epi/train/logs?company_id=1&offset=0   → primeiras linhas
-      GET /api/v1/epi/train/logs?company_id=1&offset=42  → linhas 42 em diante
-    """
     try:
         return epi_engine.get_train_logs(company_id, offset)
     except Exception as e:

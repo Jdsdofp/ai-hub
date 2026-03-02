@@ -167,15 +167,22 @@ from app.projects.epi_check.api.filebrowser import router as fb_router
 app.include_router(fb_router)
 
 
-@app.get("/health", tags=["System"], summary="Health Check")
+@app.get("/health", tags=["System"])
 async def health():
+    # Teste direto do banco
+    try:
+        row = await db.fetch_one("SELECT 1 AS ok")
+        db_status = "connected" if row else "no response"
+    except Exception as e:
+        db_status = f"ERROR: {e}"
+
     return {
         "status": "ok",
         "version": settings.APP_VERSION,
         "mqtt": mqtt_client.is_connected,
-        "edge_mode": settings.EDGE_MODE,
+        "db": db_status,          # ← mostra o status real
+        "db_pool": str(db._pool), # ← mostra se o pool existe
     }
-
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
