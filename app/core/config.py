@@ -63,7 +63,7 @@ from pydantic_settings import BaseSettings
 from typing import Optional
 
 # Caminho absoluto do .env, sempre relativo a este arquivo
-ENV_FILE = Path(__file__).resolve().parent.parent.parent / ".env.example"
+ENV_FILE = Path(__file__).resolve().parent.parent.parent / ".env"
 
 
 class Settings(BaseSettings):
