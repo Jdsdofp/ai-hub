@@ -2926,6 +2926,50 @@ function showVideoResult(r, sourceName){
 
 
 // ---- FACES ----
+// async function registerFace(){
+//   const code=document.getElementById('face-code').value.trim();
+//   const name=document.getElementById('face-name').value.trim();
+//   const f=document.getElementById('face-file').files[0];
+//   const badge=document.getElementById('face-badge').value.trim();
+
+//   if(!code||!name||!f) return toast('Preencha todos os campos','error');
+
+//   const fd=new FormData();
+//   fd.append('person_code',code);
+//   fd.append('person_name',name);
+//   fd.append('badge_id',badge);
+//   fd.append('photo',f);  // ← campo correto esperado pelo endpoint
+
+//   const el=document.getElementById('face-result');
+//   el.innerHTML='<span class="badge badge-warn">Registrando...</span>';
+
+//   try{
+//     const resp=await fetch(API('/faces/register'),{method:'POST',body:fd});
+//     if(!resp.ok){
+//       const err=await resp.json().catch(()=>({detail:resp.statusText}));
+//       // FastAPI 422 retorna {detail:[{loc,msg,type}]}
+//       let msg=err.detail;
+//       if(Array.isArray(msg)) msg=msg.map(e=>e.loc.slice(-1)[0]+': '+e.msg).join(' | ');
+//       el.innerHTML='<span class="badge badge-err">Erro '+resp.status+': '+(msg||resp.statusText)+'</span>';
+//       toast('Erro '+resp.status+': '+(msg||resp.statusText),'error');
+//       return;
+//     }
+//     const r=await resp.json();
+//     el.innerHTML='<span class="badge badge-ok">'+name+' registrado ('+(r.photos||r.photo_count||1)+' foto(s))</span>';
+//     toast(name+' registrado com sucesso');
+//     document.getElementById('face-code').value='';
+//     document.getElementById('face-name').value='';
+//     document.getElementById('face-badge').value='';
+//     document.getElementById('face-file').value='';
+//     loadPeople();
+//   }catch(e){
+//     el.innerHTML='<span class="badge badge-err">'+e.message+'</span>';
+//     toast('Erro: '+e.message,'error');
+//   }
+// }
+
+
+// ---- FACES ----
 async function registerFace(){
   const code=document.getElementById('face-code').value.trim();
   const name=document.getElementById('face-name').value.trim();
@@ -2938,7 +2982,7 @@ async function registerFace(){
   fd.append('person_code',code);
   fd.append('person_name',name);
   fd.append('badge_id',badge);
-  fd.append('photo',f);  // ← campo correto esperado pelo endpoint
+  fd.append('file',f);
 
   const el=document.getElementById('face-result');
   el.innerHTML='<span class="badge badge-warn">Registrando...</span>';
@@ -2947,7 +2991,6 @@ async function registerFace(){
     const resp=await fetch(API('/faces/register'),{method:'POST',body:fd});
     if(!resp.ok){
       const err=await resp.json().catch(()=>({detail:resp.statusText}));
-      // FastAPI 422 retorna {detail:[{loc,msg,type}]}
       let msg=err.detail;
       if(Array.isArray(msg)) msg=msg.map(e=>e.loc.slice(-1)[0]+': '+e.msg).join(' | ');
       el.innerHTML='<span class="badge badge-err">Erro '+resp.status+': '+(msg||resp.statusText)+'</span>';
@@ -2967,7 +3010,6 @@ async function registerFace(){
     toast('Erro: '+e.message,'error');
   }
 }
-
 
 
 
