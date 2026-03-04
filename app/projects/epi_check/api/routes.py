@@ -1175,26 +1175,47 @@ async def register_face(
         raise HTTPException(500, detail=f"Face registration failed: {str(e)}")
 
 
+# @router.get("/faces/people", tags=["Face Recognition"], summary="List Registered People")
+# async def list_people(company_id: int = Depends(get_ui_company)):
+#     try:
+#         # MySQL é a fonte primária — reflete edições feitas direto no banco
+#         db_people = await repo.list_people(company_id, active_only=False)
+#         if db_people:
+#             return [
+#                 {
+#                     "person_code": p["person_code"],
+#                     "person_name":  p["person_name"],
+#                     "badge_id":     p.get("badge_id") or "",
+#                     "photos":       p.get("face_photos_count") or 0,
+#                     "active":       bool(p.get("active", True)),
+#                     "is_inside":    bool(p.get("is_inside", False)),
+#                     "last_entry_at": str(p["last_entry_at"]) if p.get("last_entry_at") else None,
+#                 }
+#                 for p in db_people
+#             ]
+#         # Fallback: face engine (disco) caso banco vazio
+#         return epi_engine.face_engine.list_people(company_id)
+#     except Exception as e:
+#         logger.error(f"[Company {company_id}] list_people error: {e}")
+#         raise HTTPException(500, detail=f"Error listing people: {str(e)}")
+
 @router.get("/faces/people", tags=["Face Recognition"], summary="List Registered People")
 async def list_people(company_id: int = Depends(get_ui_company)):
     try:
-        # MySQL é a fonte primária — reflete edições feitas direto no banco
         db_people = await repo.list_people(company_id, active_only=False)
-        if db_people:
-            return [
-                {
-                    "person_code": p["person_code"],
-                    "person_name":  p["person_name"],
-                    "badge_id":     p.get("badge_id") or "",
-                    "photos":       p.get("face_photos_count") or 0,
-                    "active":       bool(p.get("active", True)),
-                    "is_inside":    bool(p.get("is_inside", False)),
-                    "last_entry_at": str(p["last_entry_at"]) if p.get("last_entry_at") else None,
-                }
-                for p in db_people
-            ]
-        # Fallback: face engine (disco) caso banco vazio
-        return epi_engine.face_engine.list_people(company_id)
+        return [
+            {
+                "person_code":   p["person_code"],
+                "person_name":   p["person_name"],
+                "badge_id":      p.get("badge_id") or "",
+                "photos":        p.get("face_photos_count") or 0,
+                "active":        bool(p.get("active", True)),
+                "is_inside":     bool(p.get("is_inside", False)),
+                "last_entry_at": str(p["last_entry_at"]) if p.get("last_entry_at") else None,
+            }
+            for p in db_people
+        ]
+        # fallback de disco REMOVIDO — banco é a única fonte
     except Exception as e:
         logger.error(f"[Company {company_id}] list_people error: {e}")
         raise HTTPException(500, detail=f"Error listing people: {str(e)}")

@@ -51,4 +51,42 @@ class DatabasePool:
                 return cur.lastrowid
 
 
+
+
+
+    async def _get_pool(self) -> aiomysql.Pool:
+        """Garante que o pool existe — reconecta se necessário (multi-worker safe)."""
+        if self._pool is None:
+            await self.connect()
+        return self._pool
+
+    async def execute(self, query: str, params: tuple = ()) -> int:
+        pool = await self._get_pool()
+        async with pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(query, params)
+                return cur.rowcount
+
+    async def fetch_one(self, query: str, params: tuple = ()) -> Optional[dict]:
+        pool = await self._get_pool()
+        async with pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(query, params)
+                return await cur.fetchone()
+
+    async def fetch_all(self, query: str, params: tuple = ()) -> list[dict]:
+        pool = await self._get_pool()
+        async with pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(query, params)
+                return await cur.fetchall()
+
+    async def insert_get_id(self, query: str, params: tuple = ()) -> int:
+        pool = await self._get_pool()
+        async with pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(query, params)
+                return cur.lastrowid
+
+
 db = DatabasePool()
