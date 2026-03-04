@@ -219,6 +219,32 @@ class VisionRepository:
     # vision_people  +  vision_face_photos
     # =========================================================================
 
+    # async def upsert_person(
+    #     self,
+    #     company_id: int,
+    #     person_code: str,
+    #     person_name: str,
+    #     badge_id: str = "",
+    #     department: str = "",
+    # ) -> Optional[int]:
+    #     try:
+    #         return await db.insert_get_id(
+    #             """
+    #             INSERT INTO vision_people
+    #                 (company_id, person_code, person_name, badge_id, department)
+    #             VALUES (%s,%s,%s,%s,%s)
+    #             ON DUPLICATE KEY UPDATE
+    #                 person_name  = VALUES(person_name),
+    #                 badge_id     = VALUES(badge_id),
+    #                 department   = VALUES(department),
+    #                 updated_at   = CURRENT_TIMESTAMP
+    #             """,
+    #             (company_id, person_code, person_name, badge_id, department),
+    #         )
+    #     except Exception as e:
+    #         logger.error(f"[Repo] upsert_person: {e}")
+    #         return None
+
     async def upsert_person(
         self,
         company_id: int,
@@ -228,7 +254,7 @@ class VisionRepository:
         department: str = "",
     ) -> Optional[int]:
         try:
-            return await db.insert_get_id(
+            await db.execute(
                 """
                 INSERT INTO vision_people
                     (company_id, person_code, person_name, badge_id, department)
@@ -241,6 +267,12 @@ class VisionRepository:
                 """,
                 (company_id, person_code, person_name, badge_id, department),
             )
+            # ON DUPLICATE KEY retorna lastrowid=0 — busca o ID real
+            row = await db.fetch_one(
+                "SELECT id FROM vision_people WHERE company_id=%s AND person_code=%s",
+                (company_id, person_code),
+            )
+            return row["id"] if row else None
         except Exception as e:
             logger.error(f"[Repo] upsert_person: {e}")
             return None

@@ -82,20 +82,60 @@ OPENAPI_TAGS = [
 ]
 
 
+# @asynccontextmanager
+# async def lifespan(app: FastAPI):
+#     logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")
+#     logger.info(f"Working directory: {Path.cwd()}")
+#     CompanyData.init_base()
+#     try:
+#         await db.connect()
+#     except Exception as e:
+#         logger.warning(f"MySQL not available: {e}. Running without database.")
+#     try:
+#         await mqtt_client.connect()
+#     except Exception as e:
+#         logger.warning(f"MQTT not available: {e}. Running without MQTT.")
+#     yield
+#     stream_manager.stop_all()
+#     await mqtt_client.disconnect()
+#     await db.disconnect()
+#     logger.info("Shutdown complete")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")
     logger.info(f"Working directory: {Path.cwd()}")
     CompanyData.init_base()
+
     try:
         await db.connect()
     except Exception as e:
         logger.warning(f"MySQL not available: {e}. Running without database.")
+
     try:
         await mqtt_client.connect()
     except Exception as e:
         logger.warning(f"MQTT not available: {e}. Running without MQTT.")
+
+    # Pré-carrega PPE config do banco para o cache do engine
+    try:
+        from app.core.repository import repo
+        from app.projects.epi_check.engine.detector import epi_engine
+        db_companies = await db.fetch_all("SELECT DISTINCT company_id FROM vision_ppe_config", ())
+        if not db_companies:
+            db_companies = [{"company_id": 1}]
+        for row in db_companies:
+            cid = row["company_id"]
+            cfg = await repo.get_ppe_config(cid)
+            if cfg:
+                epi_engine.set_ppe_config_cache(cid, cfg)
+                logger.info(f"[Company {cid}] PPE config loaded from DB")
+            else:
+                logger.warning(f"[Company {cid}] No PPE config in DB — using DEFAULT")
+    except Exception as e:
+        logger.warning(f"PPE config preload failed: {e}. Engine will use DEFAULT.")
+
     yield
+
     stream_manager.stop_all()
     await mqtt_client.disconnect()
     await db.disconnect()
