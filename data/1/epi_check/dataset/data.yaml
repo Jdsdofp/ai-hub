@@ -6,5 +6,5 @@ names:
 - boots
 - person
 nc: 6
-train: C:\Users\Jaderson\Desktop\AI-HUB\data\1\epi_check\dataset\train\images
-val: C:\Users\Jaderson\Desktop\AI-HUB\data\1\epi_check\dataset\valid\images
+train: /opt/vision/data/1/epi_check/dataset/train/images
+val: /opt/vision/data/1/epi_check/dataset/valid/images

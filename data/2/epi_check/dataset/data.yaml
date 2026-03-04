@@ -1,0 +1,10 @@
+names:
+- thermal_coat
+- thermal_pants
+- gloves
+- helmet
+- boots
+- person
+nc: 6
+train: /opt/vision/data/2/epi_check/dataset/train/images
+val: /opt/vision/data/2/epi_check/dataset/valid/images
