@@ -79,28 +79,52 @@ def _current_hour() -> str:
 #     except Exception as e:
 #         logger.error(f"[Company {company_id}] get_ppe_config error: {e}")
 #         raise HTTPException(500, detail=f"Failed to get PPE config: {str(e)}")
+# @router.get("/config", tags=["PPE Configuration"], summary="Get PPE Configuration")
+# async def get_ppe_config(company_id: int = Depends(get_ui_company)):
+#     try:
+#         # Busca do banco primeiro
+#         db_config = await repo.get_ppe_config(company_id)
+#         if db_config:
+#             # Popula cache do engine
+#             epi_engine.set_ppe_config_cache(company_id, db_config)
+#             config = db_config
+#         else:
+#             # Banco vazio — usa DEFAULT e salva no banco
+#             config = epi_engine.get_ppe_config(company_id)
+#             await repo.save_ppe_config(company_id, config)
+#             epi_engine.set_ppe_config_cache(company_id, config)
+
+#         active = epi_engine.get_active_classes(company_id)
+#         return {"config": config, "active_classes": active, "all_classes": ALL_PPE_CLASSES}
+#     except Exception as e:
+#         logger.error(f"[Company {company_id}] get_ppe_config error: {e}")
+#         raise HTTPException(500, detail=f"Failed to get PPE config: {str(e)}")
+
+
 @router.get("/config", tags=["PPE Configuration"], summary="Get PPE Configuration")
 async def get_ppe_config(company_id: int = Depends(get_ui_company)):
     try:
         # Busca do banco primeiro
         db_config = await repo.get_ppe_config(company_id)
+
         if db_config:
-            # Popula cache do engine
-            epi_engine.set_ppe_config_cache(company_id, db_config)
             config = db_config
         else:
             # Banco vazio — usa DEFAULT e salva no banco
             config = epi_engine.get_ppe_config(company_id)
             await repo.save_ppe_config(company_id, config)
-            epi_engine.set_ppe_config_cache(company_id, config)
 
         active = epi_engine.get_active_classes(company_id)
-        return {"config": config, "active_classes": active, "all_classes": ALL_PPE_CLASSES}
+
+        return {
+            "config": config,
+            "active_classes": active,
+            "all_classes": ALL_PPE_CLASSES
+        }
+
     except Exception as e:
         logger.error(f"[Company {company_id}] get_ppe_config error: {e}")
         raise HTTPException(500, detail=f"Failed to get PPE config: {str(e)}")
-
-
 
 
 @router.post("/config", tags=["PPE Configuration"], summary="Save PPE Configuration")
