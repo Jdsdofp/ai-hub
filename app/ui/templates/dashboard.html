@@ -2903,14 +2903,74 @@ function showVideoResult(r, sourceName){
 }
 
 // ---- FACES ----
+// async function registerFace(){
+//   const code=document.getElementById('face-code').value;
+//   const name=document.getElementById('face-name').value;
+//   const f=document.getElementById('face-file').files[0];
+  
+//   if(!code||!name||!f) return toast('Fill all fields','error');
+
+//   const fd=new FormData();
+//   fd.append('person_code',code);
+//   fd.append('person_name',name);
+//   fd.append('badge_id',document.getElementById('face-badge').value);
+//   fd.append('file',f);
+
+//   const r=await(await fetch(API('/faces/register'),{method:'POST',body:fd})).json();
+//   document.getElementById('face-result').innerHTML='<span class="badge badge-ok">'+name+' registered ('+r.photos+' photos)</span>';
+//   toast(name+' registered');
+  
+//   loadPeople();
+// }
+
+
+
+// ---- FACES ----
 async function registerFace(){
-  const code=document.getElementById('face-code').value;const name=document.getElementById('face-name').value;const f=document.getElementById('face-file').files[0];
-  if(!code||!name||!f)return toast('Fill all fields','error');
-  const fd=new FormData();fd.append('person_code',code);fd.append('person_name',name);fd.append('badge_id',document.getElementById('face-badge').value);fd.append('file',f);
-  const r=await(await fetch(API('/faces/register'),{method:'POST',body:fd})).json();
-  document.getElementById('face-result').innerHTML='<span class="badge badge-ok">'+name+' registered ('+r.photos+' photos)</span>';
-  toast(name+' registered');loadPeople();
+  const code=document.getElementById('face-code').value.trim();
+  const name=document.getElementById('face-name').value.trim();
+  const f=document.getElementById('face-file').files[0];
+  const badge=document.getElementById('face-badge').value.trim();
+
+  if(!code||!name||!f) return toast('Preencha todos os campos','error');
+
+  const fd=new FormData();
+  fd.append('person_code',code);
+  fd.append('person_name',name);
+  fd.append('badge_id',badge);
+  fd.append('photo',f);  // ← campo correto esperado pelo endpoint
+
+  const el=document.getElementById('face-result');
+  el.innerHTML='<span class="badge badge-warn">Registrando...</span>';
+
+  try{
+    const resp=await fetch(API('/faces/register'),{method:'POST',body:fd});
+    if(!resp.ok){
+      const err=await resp.json().catch(()=>({detail:resp.statusText}));
+      // FastAPI 422 retorna {detail:[{loc,msg,type}]}
+      let msg=err.detail;
+      if(Array.isArray(msg)) msg=msg.map(e=>e.loc.slice(-1)[0]+': '+e.msg).join(' | ');
+      el.innerHTML='<span class="badge badge-err">Erro '+resp.status+': '+(msg||resp.statusText)+'</span>';
+      toast('Erro '+resp.status+': '+(msg||resp.statusText),'error');
+      return;
+    }
+    const r=await resp.json();
+    el.innerHTML='<span class="badge badge-ok">'+name+' registrado ('+(r.photos||r.photo_count||1)+' foto(s))</span>';
+    toast(name+' registrado com sucesso');
+    document.getElementById('face-code').value='';
+    document.getElementById('face-name').value='';
+    document.getElementById('face-badge').value='';
+    document.getElementById('face-file').value='';
+    loadPeople();
+  }catch(e){
+    el.innerHTML='<span class="badge badge-err">'+e.message+'</span>';
+    toast('Erro: '+e.message,'error');
+  }
 }
+
+
+
+
 async function loadPeople(){
   const p=await(await fetch(API('/faces/people'))).json();
   document.getElementById('people-list').innerHTML=p.length?
