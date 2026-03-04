@@ -1013,14 +1013,26 @@ class EPIEngine:
 
     # --- PPE Config ---
     def get_ppe_config(self, company_id: int) -> dict:
-        cfg_path = CompanyData.epi(company_id, "ppe_config.json")
-        if cfg_path.exists():
-            return json.loads(cfg_path.read_text())
+        # 1. Cache em memória (populado pelo endpoint GET /config via banco)
+        if hasattr(self, '_ppe_config_cache') and company_id in self._ppe_config_cache:
+            return self._ppe_config_cache[company_id]
+        # 2. Fallback: DEFAULT (disco não é mais fonte de verdade)
         return dict(DEFAULT_PPE_CONFIG)
-
+    
     def save_ppe_config(self, company_id: int, config: dict):
         cfg_path = CompanyData.epi(company_id, "ppe_config.json")
         cfg_path.write_text(json.dumps(config, indent=2))
+
+    def set_ppe_config_cache(self, company_id: int, config: dict):
+        """Chamado pelo endpoint após buscar do banco."""
+        if not hasattr(self, '_ppe_config_cache'):
+            self._ppe_config_cache = {}
+        self._ppe_config_cache[company_id] = config
+
+    def save_ppe_config(self, company_id: int, config: dict):
+        # Atualiza apenas o cache — banco é atualizado pelo repo no endpoint
+        self.set_ppe_config_cache(company_id, config)
+
 
     def get_active_classes(self, company_id: int) -> dict:
         config = self.get_ppe_config(company_id)
