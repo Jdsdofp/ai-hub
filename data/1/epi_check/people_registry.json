@@ -5,24 +5,28 @@
     "folder": "/opt/vision/data/1/epi_check/people/EMP01",
     "registered_at": "2026-03-04T00:43:31"
   },
-<<<<<<< HEAD
-  "js": {
-    "name": "jonh silva",
-    "badge_id": "emp002",
-    "folder": "C:\\Users\\Jaderson\\Desktop\\AI-HUB\\data\\1\\epi_check\\people\\js",
-    "registered_at": "2026-03-01T13:21:51"
-  },
-  "EMP001": {
-    "name": "JOSE SILVA",
-    "badge_id": "EMP01",
-    "folder": "C:\\Users\\jaderson.moreira.DROGARIAGLOBO\\Desktop\\ai-hub\\data\\1\\epi_check\\people\\EMP001",
-    "registered_at": "2026-03-04T09:30:18"
-=======
   "FUNC_0013": {
     "name": "Jo\u00e3o Silva3",
     "badge_id": "123456",
     "folder": "/opt/vision/data/1/epi_check/people/FUNC_0013",
     "registered_at": "2026-03-04T00:45:32"
->>>>>>> 7e1acd4 (ajustes locais)
+  },
+  "0869": {
+    "name": "Jonh Silva2",
+    "badge_id": "EMP01",
+    "folder": "/opt/vision/data/1/epi_check/people/0869",
+    "registered_at": "2026-03-04T14:10:57"
+  },
+  "1365": {
+    "name": "TESTE23",
+    "badge_id": "emp26",
+    "folder": "/opt/vision/data/1/epi_check/people/1365",
+    "registered_at": "2026-03-04T14:12:45"
+  },
+  "003": {
+    "name": "json01",
+    "badge_id": "emp01",
+    "folder": "/opt/vision/data/1/epi_check/people/003",
+    "registered_at": "2026-03-04T16:22:07"
   }
 }
