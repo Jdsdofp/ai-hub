@@ -58,9 +58,9 @@
 #                 import insightface
 #                 self._app = insightface.app.FaceAnalysis(
 #                     name=settings.FACE_MODEL,
-#                     providers=["CUDAExecutionProvider", "CPUExecutionProvider"],
+#                     providers=["CPUExecutionProvider"],
 #                 )
-#                 self._app.prepare(ctx_id=0, det_size=(settings.FACE_DET_SIZE, settings.FACE_DET_SIZE))
+#                 self._app.prepare(ctx_id=-1, det_size=(settings.FACE_DET_SIZE, settings.FACE_DET_SIZE))
 #                 logger.info("InsightFace model loaded")
 #             except Exception as e:
 #                 logger.error(f"InsightFace load failed: {e}")
@@ -730,9 +730,9 @@ class FaceEngine:
                 import insightface
                 self._app = insightface.app.FaceAnalysis(
                     name=settings.FACE_MODEL,
-                    providers=["CUDAExecutionProvider", "CPUExecutionProvider"],
+                    providers=["CPUExecutionProvider"],
                 )
-                self._app.prepare(ctx_id=0, det_size=(settings.FACE_DET_SIZE, settings.FACE_DET_SIZE))
+                self._app.prepare(ctx_id=-1, det_size=(settings.FACE_DET_SIZE, settings.FACE_DET_SIZE))
                 logger.info("InsightFace model loaded")
             except Exception as e:
                 logger.error(f"InsightFace load failed: {e}")
@@ -1013,26 +1013,14 @@ class EPIEngine:
 
     # --- PPE Config ---
     def get_ppe_config(self, company_id: int) -> dict:
-        # 1. Cache em memória (populado pelo endpoint GET /config via banco)
-        if hasattr(self, '_ppe_config_cache') and company_id in self._ppe_config_cache:
-            return self._ppe_config_cache[company_id]
-        # 2. Fallback: DEFAULT (disco não é mais fonte de verdade)
+        cfg_path = CompanyData.epi(company_id, "ppe_config.json")
+        if cfg_path.exists():
+            return json.loads(cfg_path.read_text())
         return dict(DEFAULT_PPE_CONFIG)
-    
+
     def save_ppe_config(self, company_id: int, config: dict):
         cfg_path = CompanyData.epi(company_id, "ppe_config.json")
         cfg_path.write_text(json.dumps(config, indent=2))
-
-    def set_ppe_config_cache(self, company_id: int, config: dict):
-        """Chamado pelo endpoint após buscar do banco."""
-        if not hasattr(self, '_ppe_config_cache'):
-            self._ppe_config_cache = {}
-        self._ppe_config_cache[company_id] = config
-
-    def save_ppe_config(self, company_id: int, config: dict):
-        # Atualiza apenas o cache — banco é atualizado pelo repo no endpoint
-        self.set_ppe_config_cache(company_id, config)
-
 
     def get_active_classes(self, company_id: int) -> dict:
         config = self.get_ppe_config(company_id)
