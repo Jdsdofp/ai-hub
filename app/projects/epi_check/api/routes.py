@@ -1218,6 +1218,7 @@ async def list_people(company_id: int = Depends(get_ui_company)):
         # fallback de disco REMOVIDO — banco é a única fonte
     except Exception as e:
         logger.error(f"[Company {company_id}] list_people error: {e}")
+        print("Error ao salva: ", e)
         raise HTTPException(500, detail=f"Error listing people: {str(e)}")
 
 
