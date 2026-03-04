@@ -23,4 +23,4 @@ runs/
 *.jpeg
 !app/ui/static/img/*.jpg
 !app/ui/static/img/*.jpeg
-!app/ui/static/img/*.png
+!app/ui/static/img/*.pngdata/
