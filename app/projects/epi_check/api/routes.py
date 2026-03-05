@@ -1171,6 +1171,56 @@ async def detect_frame(
 #         logger.error(f"[Company {company_id}] register_face error: {e}")
 #         raise HTTPException(500, detail=f"Face registration failed: {str(e)}")
 
+# @router.post("/faces/register", tags=["Face Recognition"], summary="Register Person with Face Photo")
+# async def register_face(
+#     person_code: str = Form(...),
+#     person_name: str = Form(...),
+#     badge_id: str = Form(""),
+#     file: UploadFile = File(...),
+#     company_id: int = Depends(get_ui_company),
+# ):
+#     try:
+#         data = await file.read()
+#         if not data:
+#             raise HTTPException(400, detail="Empty image file")
+#         arr = np.frombuffer(data, dtype=np.uint8)
+#         img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+#         if img is None:
+#             raise HTTPException(400, detail="Invalid image — could not decode")
+
+#         # 1. Gera embedding via face engine (sem salvar no disco)
+#         result = epi_engine.face_engine.register_face(
+#             company_id, person_code, person_name, badge_id, img,
+#         )
+
+#         # 2. Persiste pessoa no MySQL
+#         person_id = await repo.upsert_person(
+#             company_id=company_id,
+#             person_code=person_code,
+#             person_name=person_name,
+#             badge_id=badge_id,
+#         )
+#         if person_id is None:
+#             raise HTTPException(500, detail="Falha ao salvar pessoa no banco de dados")
+
+#         # 3. Salva foto como base64 no MySQL (sem arquivo em disco)
+#         _, buf = cv2.imencode(".jpg", img)
+#         img_b64 = base64.b64encode(buf).decode()
+#         await repo.save_face_photo(
+#             company_id=company_id,
+#             person_code=person_code,
+#             filename=f"face_{person_code}_{uuid.uuid4().hex[:8]}.jpg",
+#             filepath=img_b64,   # armazena b64 no campo filepath
+#         )
+
+#         return {"success": True, **result}
+#     except HTTPException:
+#         raise
+#     except Exception as e:
+#         logger.error(f"[Company {company_id}] register_face error: {e}")
+#         raise HTTPException(500, detail=f"Face registration failed: {str(e)}")
+
+
 @router.post("/faces/register", tags=["Face Recognition"], summary="Register Person with Face Photo")
 async def register_face(
     person_code: str = Form(...),
@@ -1179,21 +1229,51 @@ async def register_face(
     file: UploadFile = File(...),
     company_id: int = Depends(get_ui_company),
 ):
+    """
+    Registra uma nova foto de rosto para uma pessoa.
+    
+    FIX: Armazena arquivo em disco + path em MySQL (não base64)
+    Evita: MySQL Error 1406 "Data too long for column 'filepath'"
+    
+    Args:
+        person_code: Código único da pessoa (ex: PERSON_001)
+        person_name: Nome da pessoa
+        badge_id: ID do crachá (opcional)
+        file: Arquivo de imagem (JPG/PNG)
+        company_id: ID da empresa
+        
+    Returns:
+        {
+            "success": true,
+            "person_code": "PERSON_001",
+            "photos": 1,
+            "quality_score": 0.8542,
+            "filepath": "/opt/vision/data/1/epi_check/people/PERSON_001/face_PERSON_001_a1b2c3d4.jpg"
+        }
+    """
     try:
+        # ========== 1. LEITURA E VALIDAÇÃO ==========
         data = await file.read()
         if not data:
             raise HTTPException(400, detail="Empty image file")
+        
         arr = np.frombuffer(data, dtype=np.uint8)
         img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
         if img is None:
             raise HTTPException(400, detail="Invalid image — could not decode")
-
-        # 1. Gera embedding via face engine (sem salvar no disco)
+        
+        # ========== 2. CÁLCULO DE QUALIDADE (BLUR DETECTION) ==========
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        laplacian_var = cv2.Laplacian(gray, cv2.CV_64F).var()
+        quality_score = round(min(laplacian_var / 100, 1.0), 4)
+        logger.debug(f"[Company {company_id}] Face quality score: {quality_score}")
+        
+        # ========== 3. GERA EMBEDDING VIA FACE ENGINE ==========
         result = epi_engine.face_engine.register_face(
             company_id, person_code, person_name, badge_id, img,
         )
-
-        # 2. Persiste pessoa no MySQL
+        
+        # ========== 4. PERSISTE PESSOA NO MYSQL ==========
         person_id = await repo.upsert_person(
             company_id=company_id,
             person_code=person_code,
@@ -1202,22 +1282,47 @@ async def register_face(
         )
         if person_id is None:
             raise HTTPException(500, detail="Falha ao salvar pessoa no banco de dados")
-
-        # 3. Salva foto como base64 no MySQL (sem arquivo em disco)
-        _, buf = cv2.imencode(".jpg", img)
-        img_b64 = base64.b64encode(buf).decode()
+        
+        # ========== 5. SALVA FOTO EM DISCO (FIX CRÍTICO) ==========
+        # Cria diretório da pessoa se não existir
+        from pathlib import Path
+        person_dir = Path(f"/opt/vision/data/{company_id}/epi_check/people/{person_code}")
+        person_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Define nome e caminho do arquivo
+        photo_filename = f"face_{person_code}_{uuid.uuid4().hex[:8]}.jpg"
+        photo_path = person_dir / photo_filename
+        
+        # ⭐ SALVA ARQUIVO REAL EM DISCO (não base64)
+        photo_path.write_bytes(data)
+        logger.info(f"[Company {company_id}] Face photo saved to disk: {photo_path}")
+        
+        # ========== 6. PERSISTE PATH EM MYSQL (NÃO BASE64) ==========
+        # Agora repo.save_face_photo recebe um caminho (~100 bytes)
+        # em vez de base64 gigante (50KB+)
         await repo.save_face_photo(
             company_id=company_id,
             person_code=person_code,
-            filename=f"face_{person_code}_{uuid.uuid4().hex[:8]}.jpg",
-            filepath=img_b64,   # armazena b64 no campo filepath
+            filename=photo_filename,
+            filepath=str(photo_path),  # ⭐ FIX: path string, NÃO base64
         )
-
-        return {"success": True, **result}
+        
+        # ========== 7. RETORNA RESPOSTA ==========
+        response = {
+            "success": True,
+            "person_code": result.get("person_code"),
+            "photos": result.get("photos", 1),
+            "quality_score": quality_score,
+            "filepath": str(photo_path),
+            "message": "Face registered successfully"
+        }
+        logger.info(f"[Company {company_id}] register_face SUCCESS: {person_code}")
+        return response
+        
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"[Company {company_id}] register_face error: {e}")
+        logger.error(f"[Company {company_id}] register_face error: {e}", exc_info=True)
         raise HTTPException(500, detail=f"Face registration failed: {str(e)}")
 
 
