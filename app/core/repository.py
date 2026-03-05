@@ -61,7 +61,7 @@ class VisionRepository:
             epi_missing  = len(missing)
             score        = round(epi_detected / epi_required, 4) if epi_required else 1.0
             sync_priority = 1 if not compliant else 5
-            
+
             source_type = str(source_type or "upload")[:50].strip()
             source_type = source_type.replace('\n', ' ').replace('\r', ' ')
 
