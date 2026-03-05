@@ -2214,18 +2214,77 @@ async function loadDashboard(){
 }
 
 // ---- CONFIG ----
-async function loadPPEConfig(){
-  const d=await(await fetch(API('/config'))).json();
-  document.getElementById('config-checkboxes').innerHTML=Object.entries(d.config).map(([k,v])=>
-    '<div class="ppe-item"><input type="checkbox" id="cfg-'+k+'" '+(v?'checked':'')+'><label for="cfg-'+k+'">'+k+'</label></div>'
-  ).join('');
-}
+// async function loadPPEConfig(){
+//   const d=await(await fetch(API('/config'))).json();
+//   document.getElementById('config-checkboxes').innerHTML=Object.entries(d.config).map(([k,v])=>
+//     '<div class="ppe-item"><input type="checkbox" id="cfg-'+k+'" '+(v?'checked':'')+'><label for="cfg-'+k+'">'+k+'</label></div>'
+//   ).join('');
+// }
+// async function savePPEConfig(){
+//   const c={};
+//   document.querySelectorAll('[id^="cfg-"]').forEach(e=>{c[e.id.replace('cfg-','')]=e.checked});
+//   await fetch(API('/config'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(c)});
+//   toast('PPE configuration saved');loadAnnotationClasses();
+// }
+
+
 async function savePPEConfig(){
-  const c={};
-  document.querySelectorAll('[id^="cfg-"]').forEach(e=>{c[e.id.replace('cfg-','')]=e.checked});
-  await fetch(API('/config'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(c)});
-  toast('PPE configuration saved');loadAnnotationClasses();
+  const c = {};
+  document.querySelectorAll('[id^="cfg-"]').forEach(e => {
+    const key = e.id.replace('cfg-', '');
+    c[key] = e.checked;
+  });
+  
+  console.log("Saving PPE config:", c);
+  
+  try {
+    const resp = await fetch(API('/config'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(c)
+    });
+    
+    if (!resp.ok) {
+      throw new Error(await resp.text());
+    }
+    
+    toast('✓ Configuração de PPE salva');
+    loadPPEConfig();
+  } catch (e) {
+    toast('Erro ao salvar: ' + e.message, 'error');
+    console.error(e);
+  }
 }
+
+
+async function loadPPEConfig(){
+  try {
+    const resp = await fetch(API('/config'));
+    const d = await resp.json();
+    const cfg = d.config || {};
+    
+    console.log("Loaded PPE config:", cfg);
+    
+    const html = Object.entries(cfg).map(([k, v]) => {
+      const isEnabled = v.enabled === true;
+      const displayName = v.display_name || k;
+      const required = v.required === true ? '<span style="color:var(--danger);font-size:10px;margin-left:4px">*</span>' : '';
+      
+      return `<div class="ppe-item">
+                <input type="checkbox" id="cfg-${k}" ${isEnabled ? 'checked' : ''}>
+                <label for="cfg-${k}">${displayName}${required}</label>
+              </div>`;
+    }).join('');
+    
+    document.getElementById('config-checkboxes').innerHTML = html;
+    console.log("PPE checkboxes rendered successfully");
+  } catch (e) {
+    console.error("Error loading PPE config:", e);
+    document.getElementById('config-checkboxes').innerHTML = '<span class="badge badge-err">Erro ao carregar configuração</span>';
+  }
+}
+
+
 
 // ---- UPLOAD ----
 async function uploadPhotos(){
