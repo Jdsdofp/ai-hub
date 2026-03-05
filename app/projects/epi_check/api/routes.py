@@ -799,7 +799,7 @@ async def _process_video_job(
             result=summary_for_detection,
             model_name=model_name,
             confidence_threshold=confidence,
-            source_type="video",
+            source_type="upload",
         )
         if non_compliant_frames:
             await repo.save_alert(
