@@ -1,3 +1,4 @@
+## app/core/repository.py
 # # Singleton — importe nos outros módulos com:
 # #   from app.core.repository import repo
 # repo = VisionRepository()
@@ -67,6 +68,9 @@ class VisionRepository:
                 if best.get("recognized"):
                     person_code = best.get("person_code")
                     person_name = best.get("person_name")
+
+            source_type = str(source_type or "upload")[:50].strip()
+            source_type = source_type.replace('\n', ' ').replace('\r', ' ')
 
             event_id = await db.insert_get_id(
                 """
