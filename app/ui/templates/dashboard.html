@@ -2791,39 +2791,150 @@
   }
 
   // ---- VIDEO ----
+  // async function detectVideo(){
+  //   const f=document.getElementById('video-file').files[0];
+  //   if(!f)return toast('Select video first','error');
+  //   const el=document.getElementById('video-result');
+
+  //   el.innerHTML='<div style="padding:32px;text-align:center;font-family:Space Mono,monospace;color:var(--text-muted)">'+
+  //     '<div style="font-size:28px;margin-bottom:12px">⏳</div>'+
+  //     '<div>Processing video <strong>'+f.name+'</strong>...</div>'+
+  //     '<div style="font-size:12px;margin-top:8px;color:var(--text-dim)">This may take a few minutes depending on video length</div></div>';
+  //   try{
+  //     _lastVideoFile = f;  // store for frame preview
+  //     const fd=new FormData();
+  //     fd.append('file',f);
+  //     fd.append('skip_frames',document.getElementById('video-skip').value);
+  //     fd.append('confidence',document.getElementById('video-conf').value);
+  //     fd.append('detect_faces',document.getElementById('video-faces').checked);
+  //     const resp=await fetch(API('/detect/video'),{method:'POST',body:fd});
+
+  //     if(!resp.ok){
+  //       const err=await resp.json().catch(()=>({detail:resp.statusText}));
+  //       el.innerHTML='<div class="result-box result-noncompliant"><div class="result-title fail">✗ Processing Failed</div>'+
+  //         '<div style="font-size:13px;margin-top:8px;color:var(--text-muted)">'+(err.detail||resp.statusText)+'</div></div>';
+  //       toast('Video processing failed: '+(err.detail||resp.statusText),'error');
+  //       return;
+  //     }
+
+  //     const r=await resp.json();
+
+  //     showVideoResult(r, f.name);
+  //     vpPlayerOpen(f, r.details || []);
+
+  //   }catch(e){
+  //     console.error('detectVideo error:',e);
+  //     el.innerHTML='<div class="result-box result-noncompliant"><div class="result-title fail">✗ Error</div>'+
+  //       '<div style="font-size:13px;margin-top:8px">'+e.message+'</div></div>';
+  //     toast('Video error: '+e.message,'error');
+  //   }
+  // }
+
+
   async function detectVideo(){
-    const f=document.getElementById('video-file').files[0];
-    if(!f)return toast('Select video first','error');
-    const el=document.getElementById('video-result');
-    el.innerHTML='<div style="padding:32px;text-align:center;font-family:Space Mono,monospace;color:var(--text-muted)">'+
-      '<div style="font-size:28px;margin-bottom:12px">⏳</div>'+
-      '<div>Processing video <strong>'+f.name+'</strong>...</div>'+
-      '<div style="font-size:12px;margin-top:8px;color:var(--text-dim)">This may take a few minutes depending on video length</div></div>';
-    try{
-      _lastVideoFile = f;  // store for frame preview
-      const fd=new FormData();
-      fd.append('file',f);
-      fd.append('skip_frames',document.getElementById('video-skip').value);
-      fd.append('confidence',document.getElementById('video-conf').value);
-      fd.append('detect_faces',document.getElementById('video-faces').checked);
-      const resp=await fetch(API('/detect/video'),{method:'POST',body:fd});
-      if(!resp.ok){
-        const err=await resp.json().catch(()=>({detail:resp.statusText}));
-        el.innerHTML='<div class="result-box result-noncompliant"><div class="result-title fail">✗ Processing Failed</div>'+
-          '<div style="font-size:13px;margin-top:8px;color:var(--text-muted)">'+(err.detail||resp.statusText)+'</div></div>';
-        toast('Video processing failed: '+(err.detail||resp.statusText),'error');
-        return;
-      }
-      const r=await resp.json();
-      showVideoResult(r, f.name);
-      vpPlayerOpen(f, r.details || []);
-    }catch(e){
-      console.error('detectVideo error:',e);
-      el.innerHTML='<div class="result-box result-noncompliant"><div class="result-title fail">✗ Error</div>'+
-        '<div style="font-size:13px;margin-top:8px">'+e.message+'</div></div>';
-      toast('Video error: '+e.message,'error');
+  const f = document.getElementById('video-file').files[0];
+  if (!f) return toast('Select video first', 'error');
+
+  const el = document.getElementById('video-result');
+  el.innerHTML =
+    '<div style="padding:32px;text-align:center;font-family:Space Mono,monospace;color:var(--text-muted)">' +
+    '<div style="font-size:28px;margin-bottom:12px">⏳</div>' +
+    '<div>Enviando <strong>' + f.name + '</strong>...</div>' +
+    '<div style="font-size:12px;margin-top:8px;color:var(--text-dim)">Aguarde...</div></div>';
+
+  try {
+    _lastVideoFile = f;
+    const fd = new FormData();
+    fd.append('file', f);
+    fd.append('skip_frames', document.getElementById('video-skip').value);
+    fd.append('confidence',  document.getElementById('video-conf').value);
+    fd.append('detect_faces', document.getElementById('video-faces').checked);
+
+    // 1. POST — cria o job
+    const resp = await fetch(API('/detect/video'), { method: 'POST', body: fd });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+      el.innerHTML = '<div class="result-box result-noncompliant"><div class="result-title fail">✗ Falha ao enviar</div>' +
+        '<div style="font-size:13px;margin-top:8px">' + (err.detail || resp.statusText) + '</div></div>';
+      toast('Erro: ' + (err.detail || resp.statusText), 'error');
+      return;
     }
+
+    const job = await resp.json();
+    const jobId = job.job_id;
+
+    el.innerHTML =
+      '<div style="padding:32px;text-align:center;font-family:Space Mono,monospace;color:var(--text-muted)">' +
+      '<div style="font-size:28px;margin-bottom:12px">⚙</div>' +
+      '<div>Processando vídeo — Job #' + jobId + '</div>' +
+      '<div style="font-size:12px;margin-top:8px;color:var(--text-dim)">Polling a cada 2s...</div>' +
+      '<div class="progress-bar" style="margin-top:16px;max-width:300px;margin-left:auto;margin-right:auto">' +
+      '<div class="progress-fill training-pulse" style="width:100%"></div></div></div>';
+
+    // 2. Polling até complete ou error
+    await _pollVideoJob(jobId, f.name);
+
+  } catch(e) {
+    console.error('detectVideo error:', e);
+    el.innerHTML = '<div class="result-box result-noncompliant"><div class="result-title fail">✗ Erro</div>' +
+      '<div style="font-size:13px;margin-top:8px">' + e.message + '</div></div>';
+    toast('Erro: ' + e.message, 'error');
   }
+}
+
+async function _pollVideoJob(jobId, fileName, attempt) {
+  attempt = attempt || 0;
+  const MAX_ATTEMPTS = 180; // 6 minutos (180 × 2s)
+
+  if (attempt >= MAX_ATTEMPTS) {
+    document.getElementById('video-result').innerHTML =
+      '<div class="result-box result-noncompliant"><div class="result-title fail">✗ Timeout</div>' +
+      '<div style="font-size:13px;margin-top:8px">O job não concluiu em 6 minutos.</div></div>';
+    toast('Timeout aguardando resultado do vídeo', 'error');
+    return;
+  }
+
+  try {
+    const r = await (await fetch(API('/detect/video/jobs/' + jobId))).json();
+
+    if (r.status === 'complete') {
+      // Monta objeto compatível com showVideoResult
+      const summary = r.result_summary || {};
+      const result = {
+        frames_processed:    r.frames_processed || summary.frames_total || 0,
+        compliant_frames:    r.frames_compliant || summary.frames_compliant || 0,
+        non_compliant_frames:(r.frames_processed || 0) - (r.frames_compliant || 0),
+        compliance_rate:     typeof r.compliance_rate === 'number'
+                               ? r.compliance_rate
+                               : (summary.compliance_rate || 0),
+        details:             r.details || [],
+      };
+      showVideoResult(result, fileName || r.original_name || '');
+      if (result.details && result.details.length) {
+        vpPlayerOpen(_lastVideoFile, result.details);
+      }
+      toast('✓ Vídeo processado — Job #' + jobId);
+      return;
+    }
+
+    if (r.status === 'error') {
+      document.getElementById('video-result').innerHTML =
+        '<div class="result-box result-noncompliant"><div class="result-title fail">✗ Erro no processamento</div>' +
+        '<div style="font-size:13px;margin-top:8px">' + (r.error_message || 'Erro desconhecido') + '</div></div>';
+      toast('Erro no job: ' + (r.error_message || 'desconhecido'), 'error');
+      return;
+    }
+
+    // ainda pending/processing — aguarda 2s e tenta novamente
+    setTimeout(() => _pollVideoJob(jobId, fileName, attempt + 1), 2000);
+
+  } catch(e) {
+    // erro de rede — tenta de novo com backoff
+    setTimeout(() => _pollVideoJob(jobId, fileName, attempt + 1), 3000);
+  }
+}
+
+
   async function detectYouTube(){
     const u=document.getElementById('yt-url').value;
     if(!u)return toast('Enter YouTube URL','error');
