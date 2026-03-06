@@ -2882,9 +2882,62 @@
   }
 }
 
+// async function _pollVideoJob(jobId, fileName, attempt) {
+//   attempt = attempt || 0;
+//   const MAX_ATTEMPTS = 180; // 6 minutos (180 × 2s)
+
+//   if (attempt >= MAX_ATTEMPTS) {
+//     document.getElementById('video-result').innerHTML =
+//       '<div class="result-box result-noncompliant"><div class="result-title fail">✗ Timeout</div>' +
+//       '<div style="font-size:13px;margin-top:8px">O job não concluiu em 6 minutos.</div></div>';
+//     toast('Timeout aguardando resultado do vídeo', 'error');
+//     return;
+//   }
+
+//   try {
+//     const r = await (await fetch(API('/detect/video/jobs/' + jobId))).json();
+
+//     if (r.status === 'complete') {
+//       // Monta objeto compatível com showVideoResult
+//       const summary = r.result_summary || {};
+//       const result = {
+//         frames_processed:    r.frames_processed || summary.frames_total || 0,
+//         compliant_frames:    r.frames_compliant || summary.frames_compliant || 0,
+//         non_compliant_frames:(r.frames_processed || 0) - (r.frames_compliant || 0),
+//         compliance_rate:     typeof r.compliance_rate === 'number'
+//                                ? r.compliance_rate
+//                                : (summary.compliance_rate || 0),
+//         details:             r.details || [],
+//       };
+//       showVideoResult(result, fileName || r.original_name || '');
+//       if (result.details && result.details.length) {
+//         vpPlayerOpen(_lastVideoFile, result.details);
+//       }
+//       toast('✓ Vídeo processado — Job #' + jobId);
+//       return;
+//     }
+
+//     if (r.status === 'error') {
+//       document.getElementById('video-result').innerHTML =
+//         '<div class="result-box result-noncompliant"><div class="result-title fail">✗ Erro no processamento</div>' +
+//         '<div style="font-size:13px;margin-top:8px">' + (r.error_message || 'Erro desconhecido') + '</div></div>';
+//       toast('Erro no job: ' + (r.error_message || 'desconhecido'), 'error');
+//       return;
+//     }
+
+//     // ainda pending/processing — aguarda 2s e tenta novamente
+//     setTimeout(() => _pollVideoJob(jobId, fileName, attempt + 1), 2000);
+
+//   } catch(e) {
+//     // erro de rede — tenta de novo com backoff
+//     setTimeout(() => _pollVideoJob(jobId, fileName, attempt + 1), 3000);
+//   }
+// }
+
+
 async function _pollVideoJob(jobId, fileName, attempt) {
   attempt = attempt || 0;
-  const MAX_ATTEMPTS = 180; // 6 minutos (180 × 2s)
+  const MAX_ATTEMPTS = 180;
 
   if (attempt >= MAX_ATTEMPTS) {
     document.getElementById('video-result').innerHTML =
@@ -2898,20 +2951,24 @@ async function _pollVideoJob(jobId, fileName, attempt) {
     const r = await (await fetch(API('/detect/video/jobs/' + jobId))).json();
 
     if (r.status === 'complete') {
-      // Monta objeto compatível com showVideoResult
       const summary = r.result_summary || {};
       const result = {
-        frames_processed:    r.frames_processed || summary.frames_total || 0,
-        compliant_frames:    r.frames_compliant || summary.frames_compliant || 0,
-        non_compliant_frames:(r.frames_processed || 0) - (r.frames_compliant || 0),
-        compliance_rate:     typeof r.compliance_rate === 'number'
-                               ? r.compliance_rate
-                               : (summary.compliance_rate || 0),
-        details:             r.details || [],
+        frames_processed:     r.frames_processed    || summary.frames_total        || 0,
+        compliant_frames:     r.frames_compliant     || summary.frames_compliant    || 0,
+        non_compliant_frames: (r.frames_processed || 0) - (r.frames_compliant || 0),
+        compliance_rate:      typeof r.compliance_rate === 'number'
+                                ? r.compliance_rate
+                                : (summary.compliance_rate || 0),
+        details: [],  // sem frames do banco — player detecta on-demand
       };
       showVideoResult(result, fileName || r.original_name || '');
-      if (result.details && result.details.length) {
-        vpPlayerOpen(_lastVideoFile, result.details);
+
+      // Abre o player em modo on-demand (passa o job summary pro player)
+      if (_lastVideoFile) {
+        vpPlayerOpen(_lastVideoFile, [], {
+          confidence:   r.confidence   || 0.45,
+          detect_faces: r.detect_faces || false,
+        });
       }
       toast('✓ Vídeo processado — Job #' + jobId);
       return;
@@ -2925,11 +2982,16 @@ async function _pollVideoJob(jobId, fileName, attempt) {
       return;
     }
 
-    // ainda pending/processing — aguarda 2s e tenta novamente
+    // Atualiza progresso na UI
+    if (r.progress_pct > 0) {
+      const el = document.getElementById('video-result');
+      const existing = el.querySelector('.vp-progress-label');
+      if (existing) existing.textContent = 'Processando... ' + Math.round(r.progress_pct) + '%';
+    }
+
     setTimeout(() => _pollVideoJob(jobId, fileName, attempt + 1), 2000);
 
   } catch(e) {
-    // erro de rede — tenta de novo com backoff
     setTimeout(() => _pollVideoJob(jobId, fileName, attempt + 1), 3000);
   }
 }
@@ -3246,6 +3308,10 @@ async function _pollVideoJob(jobId, fileName, attempt) {
   let _vpShowBoxes    = true;
   let _vpRafId        = null;
   let _vpLastFrame    = -1;
+  let _vpOnDemand    = false;
+  let _vpJobSettings = {};
+  let _vpDetectCache = {};
+  let _vpDetecting   = false;
 
   // Color map per class (matches backend ALL_CLASS_COLORS)
   const VP_COLORS = {
@@ -3257,32 +3323,61 @@ async function _pollVideoJob(jobId, fileName, attempt) {
     person:        '#FFA844',
   };
 
-  function vpPlayerOpen(file, details) {
-    if (!file || !details.length) return;
+  // function vpPlayerOpen(file, details) {
+  //   if (!file || !details.length) return;
 
-    // store annotations indexed by frame_number
-    _vpAnnotations = details;
+  //   // store annotations indexed by frame_number
+  //   _vpAnnotations = details;
 
-    const vid = document.getElementById('vp-player-video');
-    if (vid._objUrl) URL.revokeObjectURL(vid._objUrl);
-    vid._objUrl = URL.createObjectURL(file);
-    vid.src = vid._objUrl;
+  //   const vid = document.getElementById('vp-player-video');
+  //   if (vid._objUrl) URL.revokeObjectURL(vid._objUrl);
+  //   vid._objUrl = URL.createObjectURL(file);
+  //   vid.src = vid._objUrl;
 
-    document.getElementById('vp-player-filename').textContent = '▶ ' + file.name;
-    document.getElementById('vp-player-card').style.display = 'block';
-    document.getElementById('vp-play-btn').textContent = '▶ Play';
-    document.getElementById('vp-live-badge').className = 'vp-status-badge idle';
-    document.getElementById('vp-live-badge').textContent = '—';
+  //   document.getElementById('vp-player-filename').textContent = '▶ ' + file.name;
+  //   document.getElementById('vp-player-card').style.display = 'block';
+  //   document.getElementById('vp-play-btn').textContent = '▶ Play';
+  //   document.getElementById('vp-live-badge').className = 'vp-status-badge idle';
+  //   document.getElementById('vp-live-badge').textContent = '—';
 
-    vid.onloadedmetadata = () => {
-      document.getElementById('vp-seek').max = vid.duration;
-      vpUpdateTime();
-      vpStartRender();
-    };
+  //   vid.onloadedmetadata = () => {
+  //     document.getElementById('vp-seek').max = vid.duration;
+  //     vpUpdateTime();
+  //     vpStartRender();
+  //   };
 
-    // scroll to player
-    document.getElementById('vp-player-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
+  //   // scroll to player
+  //   document.getElementById('vp-player-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  // }
+
+  function vpPlayerOpen(file, details, jobSettings) {
+  if (!file) return;
+
+  _vpAnnotations  = details || [];
+  _vpOnDemand     = !details || details.length === 0;
+  _vpJobSettings  = jobSettings || { confidence: 0.45, detect_faces: false };
+  _vpDetectCache  = {};   // cache: segundoArredondado → resultado
+  _vpDetecting    = false;
+
+  const vid = document.getElementById('vp-player-video');
+  if (vid._objUrl) URL.revokeObjectURL(vid._objUrl);
+  vid._objUrl = URL.createObjectURL(file);
+  vid.src     = vid._objUrl;
+
+  document.getElementById('vp-player-filename').textContent = '▶ ' + file.name;
+  document.getElementById('vp-player-card').style.display   = 'block';
+  document.getElementById('vp-play-btn').textContent        = '▶ Play';
+  document.getElementById('vp-live-badge').className        = 'vp-status-badge idle';
+  document.getElementById('vp-live-badge').textContent      = _vpOnDemand ? '⚙ On-demand' : '—';
+
+  vid.onloadedmetadata = () => {
+    document.getElementById('vp-seek').max = vid.duration;
+    vpUpdateTime();
+    vpStartRender();
+  };
+
+  document.getElementById('vp-player-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
 
   function vpPlayerClose() {
     vpStopRender();
@@ -3364,113 +3459,274 @@ async function _pollVideoJob(jobId, fileName, attempt) {
     return best;
   }
 
+  // function vpStartRender() {
+  //   vpStopRender();
+  //   const vid     = document.getElementById('vp-player-video');
+  //   const canvas  = document.getElementById('vp-overlay');
+  //   const wrap    = document.getElementById('vp-player-wrap');
+
+  //   function render() {
+  //     // sync canvas size to video display size
+  //     const rect = vid.getBoundingClientRect();
+  //     if (canvas.width  !== Math.round(rect.width))  canvas.width  = Math.round(rect.width);
+  //     if (canvas.height !== Math.round(rect.height)) canvas.height = Math.round(rect.height);
+
+  //     const ctx = canvas.getContext('2d');
+  //     ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  //     if (!vid.paused || vid.currentTime > 0) {
+  //       vpUpdateTime();
+  //     }
+
+  //     const ann = vpGetAnnotationForTime(vid.currentTime);
+
+  //     if (ann) {
+  //       const vw = vid.videoWidth  || canvas.width;
+  //       const vh = vid.videoHeight || canvas.height;
+  //       const scaleX = canvas.width  / vw;
+  //       const scaleY = canvas.height / vh;
+
+  //       // draw boxes
+  //       if (_vpShowBoxes && ann.detections && ann.detections.length) {
+  //         ann.detections.forEach(det => {
+  //           const b = det.bbox;
+  //           if (!b) return;
+  //           const x = b.x * scaleX;
+  //           const y = b.y * scaleY;
+  //           const w = b.w * scaleX;
+  //           const h = b.h * scaleY;
+  //           const color = VP_COLORS[det.class_name] || '#63B3ED';
+
+  //           ctx.strokeStyle = color;
+  //           ctx.lineWidth   = 2.5;
+  //           ctx.strokeRect(x, y, w, h);
+
+  //           // semi-transparent fill
+  //           ctx.fillStyle = color + '22';
+  //           ctx.fillRect(x, y, w, h);
+
+  //           // label background + text
+  //           if (_vpShowLabels) {
+  //             const label = det.class_name + ' ' + Math.round(det.confidence * 100) + '%';
+  //             ctx.font = 'bold 12px Space Mono, monospace';
+  //             const tw = ctx.measureText(label).width;
+  //             const ty = Math.max(y - 4, 16);
+
+  //             ctx.fillStyle = color;
+  //             ctx.fillRect(x, ty - 14, tw + 8, 18);
+
+  //             ctx.fillStyle = '#fff';
+  //             ctx.fillText(label, x + 4, ty);
+  //           }
+  //         });
+  //       }
+
+  //       // compliance banner
+  //       const bannerH = 36;
+  //       if (ann.compliant) {
+  //         ctx.fillStyle = 'rgba(30,140,69,0.82)';
+  //         ctx.fillRect(0, 0, canvas.width, bannerH);
+  //         ctx.fillStyle = '#fff';
+  //         ctx.font = 'bold 14px Space Mono, monospace';
+  //         ctx.fillText('✓  COMPLIANT', 10, 24);
+  //       } else {
+  //         ctx.fillStyle = 'rgba(180,20,20,0.82)';
+  //         ctx.fillRect(0, 0, canvas.width, bannerH);
+  //         ctx.fillStyle = '#fff';
+  //         ctx.font = 'bold 13px Space Mono, monospace';
+  //         const missing = ann.missing && ann.missing.length ? '  Missing: ' + ann.missing.join(', ') : '';
+  //         ctx.fillText('✗  NON-COMPLIANT' + missing, 10, 24);
+  //       }
+
+  //       // frame number badge (bottom-right)
+  //       ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  //       ctx.fillRect(canvas.width - 100, canvas.height - 24, 96, 22);
+  //       ctx.fillStyle = '#a0aec0';
+  //       ctx.font = '10px Space Mono, monospace';
+  //       ctx.fillText('frame #' + (ann.frame_number || '?'), canvas.width - 96, canvas.height - 8);
+
+  //       // update live badge
+  //       const badge = document.getElementById('vp-live-badge');
+  //       if (ann.compliant) {
+  //         badge.className = 'vp-status-badge ok';
+  //         badge.textContent = '✓ COMPLIANT';
+  //       } else {
+  //         badge.className = 'vp-status-badge fail';
+  //         badge.textContent = '✗ ' + (ann.missing || []).slice(0, 2).join(', ');
+  //       }
+  //     }
+
+  //     _vpRafId = requestAnimationFrame(render);
+  //   }
+
+  //   _vpRafId = requestAnimationFrame(render);
+
+  //   // sync play/pause button
+  //   vid.onplay  = () => document.getElementById('vp-play-btn').textContent = '⏸ Pause';
+  //   vid.onpause = () => document.getElementById('vp-play-btn').textContent = '▶ Play';
+  //   vid.onended = () => document.getElementById('vp-play-btn').textContent = '▶ Play';
+  // }
+
+
   function vpStartRender() {
-    vpStopRender();
-    const vid     = document.getElementById('vp-player-video');
-    const canvas  = document.getElementById('vp-overlay');
-    const wrap    = document.getElementById('vp-player-wrap');
+  vpStopRender();
+  const vid    = document.getElementById('vp-player-video');
+  const canvas = document.getElementById('vp-overlay');
 
-    function render() {
-      // sync canvas size to video display size
-      const rect = vid.getBoundingClientRect();
-      if (canvas.width  !== Math.round(rect.width))  canvas.width  = Math.round(rect.width);
-      if (canvas.height !== Math.round(rect.height)) canvas.height = Math.round(rect.height);
+  function render() {
+    const rect = vid.getBoundingClientRect();
+    if (canvas.width  !== Math.round(rect.width))  canvas.width  = Math.round(rect.width);
+    if (canvas.height !== Math.round(rect.height)) canvas.height = Math.round(rect.height);
 
-      const ctx = canvas.getContext('2d');
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      if (!vid.paused || vid.currentTime > 0) {
-        vpUpdateTime();
-      }
+    if (!vid.paused || vid.currentTime > 0) vpUpdateTime();
 
+    // Modo on-demand: dispara detecção e usa cache
+    if (_vpOnDemand) {
+      _vpDetectFrame(vid);
+      const cacheKey = Math.floor(vid.currentTime * 2) / 2; // resolução 0.5s
+      const ann = _vpDetectCache[cacheKey];
+      if (ann) vpDrawAnnotations(ctx, canvas, vid, ann);
+      else      vpDrawLoadingBanner(ctx, canvas);
+    } else {
+      // Modo legado (details pré-carregados)
       const ann = vpGetAnnotationForTime(vid.currentTime);
-
-      if (ann) {
-        const vw = vid.videoWidth  || canvas.width;
-        const vh = vid.videoHeight || canvas.height;
-        const scaleX = canvas.width  / vw;
-        const scaleY = canvas.height / vh;
-
-        // draw boxes
-        if (_vpShowBoxes && ann.detections && ann.detections.length) {
-          ann.detections.forEach(det => {
-            const b = det.bbox;
-            if (!b) return;
-            const x = b.x * scaleX;
-            const y = b.y * scaleY;
-            const w = b.w * scaleX;
-            const h = b.h * scaleY;
-            const color = VP_COLORS[det.class_name] || '#63B3ED';
-
-            ctx.strokeStyle = color;
-            ctx.lineWidth   = 2.5;
-            ctx.strokeRect(x, y, w, h);
-
-            // semi-transparent fill
-            ctx.fillStyle = color + '22';
-            ctx.fillRect(x, y, w, h);
-
-            // label background + text
-            if (_vpShowLabels) {
-              const label = det.class_name + ' ' + Math.round(det.confidence * 100) + '%';
-              ctx.font = 'bold 12px Space Mono, monospace';
-              const tw = ctx.measureText(label).width;
-              const ty = Math.max(y - 4, 16);
-
-              ctx.fillStyle = color;
-              ctx.fillRect(x, ty - 14, tw + 8, 18);
-
-              ctx.fillStyle = '#fff';
-              ctx.fillText(label, x + 4, ty);
-            }
-          });
-        }
-
-        // compliance banner
-        const bannerH = 36;
-        if (ann.compliant) {
-          ctx.fillStyle = 'rgba(30,140,69,0.82)';
-          ctx.fillRect(0, 0, canvas.width, bannerH);
-          ctx.fillStyle = '#fff';
-          ctx.font = 'bold 14px Space Mono, monospace';
-          ctx.fillText('✓  COMPLIANT', 10, 24);
-        } else {
-          ctx.fillStyle = 'rgba(180,20,20,0.82)';
-          ctx.fillRect(0, 0, canvas.width, bannerH);
-          ctx.fillStyle = '#fff';
-          ctx.font = 'bold 13px Space Mono, monospace';
-          const missing = ann.missing && ann.missing.length ? '  Missing: ' + ann.missing.join(', ') : '';
-          ctx.fillText('✗  NON-COMPLIANT' + missing, 10, 24);
-        }
-
-        // frame number badge (bottom-right)
-        ctx.fillStyle = 'rgba(0,0,0,0.55)';
-        ctx.fillRect(canvas.width - 100, canvas.height - 24, 96, 22);
-        ctx.fillStyle = '#a0aec0';
-        ctx.font = '10px Space Mono, monospace';
-        ctx.fillText('frame #' + (ann.frame_number || '?'), canvas.width - 96, canvas.height - 8);
-
-        // update live badge
-        const badge = document.getElementById('vp-live-badge');
-        if (ann.compliant) {
-          badge.className = 'vp-status-badge ok';
-          badge.textContent = '✓ COMPLIANT';
-        } else {
-          badge.className = 'vp-status-badge fail';
-          badge.textContent = '✗ ' + (ann.missing || []).slice(0, 2).join(', ');
-        }
-      }
-
-      _vpRafId = requestAnimationFrame(render);
+      if (ann) vpDrawAnnotations(ctx, canvas, vid, ann);
     }
 
     _vpRafId = requestAnimationFrame(render);
-
-    // sync play/pause button
-    vid.onplay  = () => document.getElementById('vp-play-btn').textContent = '⏸ Pause';
-    vid.onpause = () => document.getElementById('vp-play-btn').textContent = '▶ Play';
-    vid.onended = () => document.getElementById('vp-play-btn').textContent = '▶ Play';
   }
+
+  _vpRafId = requestAnimationFrame(render);
+  vid.onplay  = () => document.getElementById('vp-play-btn').textContent = '⏸ Pause';
+  vid.onpause = () => document.getElementById('vp-play-btn').textContent = '▶ Play';
+  vid.onended = () => document.getElementById('vp-play-btn').textContent = '▶ Play';
+}
+
+// ── Função nova: banner de loading enquanto detecta ────────────────────
+function vpDrawLoadingBanner(ctx, canvas) {
+  ctx.fillStyle = 'rgba(26,115,232,0.75)';
+  ctx.fillRect(0, 0, canvas.width, 36);
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 13px Space Mono, monospace';
+  ctx.fillText('⚙  Detectando...', 10, 24);
+}
+
+
+async function _vpDetectFrame(vid) {
+  if (_vpDetecting || !vid.videoWidth) return;
+
+  const cacheKey = Math.floor(vid.currentTime * 2) / 2; // bucket de 0.5s
+  if (_vpDetectCache[cacheKey] !== undefined) return;    // já temos
+
+  _vpDetecting = true;
+  _vpDetectCache[cacheKey] = null; // marca como "em progresso"
+
+  try {
+    const cvs = document.createElement('canvas');
+    cvs.width  = vid.videoWidth;
+    cvs.height = vid.videoHeight;
+    cvs.getContext('2d').drawImage(vid, 0, 0);
+
+    const blob = await new Promise(r => cvs.toBlob(r, 'image/jpeg', 0.85));
+    const fd   = new FormData();
+    fd.append('file',         blob, 'frame.jpg');
+    fd.append('confidence',   _vpJobSettings.confidence   || 0.45);
+    fd.append('detect_faces', _vpJobSettings.detect_faces || false);
+    fd.append('face_threshold', '0.45');
+    fd.append('annotate', 'false'); // não precisa da imagem anotada, só os dados
+
+    const resp = await fetch(API('/detect/frame'), { method: 'POST', body: fd });
+    if (!resp.ok) { _vpDetecting = false; return; }
+    const r = await resp.json();
+
+    // Normaliza para o mesmo formato que os details pré-carregados
+    _vpDetectCache[cacheKey] = {
+      compliant:    r.compliant,
+      missing:      r.missing      || [],
+      detections:   r.detections   || [],
+      frame_number: Math.round(vid.currentTime * (_lastVideoFps || 25)),
+    };
+
+    // Atualiza badge
+    const badge = document.getElementById('vp-live-badge');
+    if (r.compliant) {
+      badge.className   = 'vp-status-badge ok';
+      badge.textContent = '✓ COMPLIANT';
+    } else {
+      badge.className   = 'vp-status-badge fail';
+      badge.textContent = '✗ ' + (r.missing || []).slice(0, 2).join(', ');
+    }
+
+  } catch(e) {
+    // silencioso — próximo frame tenta de novo
+  } finally {
+    _vpDetecting = false;
+  }
+}
+
+
+function vpDrawAnnotations(ctx, canvas, vid, ann) {
+  const vw     = vid.videoWidth  || canvas.width;
+  const vh     = vid.videoHeight || canvas.height;
+  const scaleX = canvas.width  / vw;
+  const scaleY = canvas.height / vh;
+
+  if (_vpShowBoxes && ann.detections && ann.detections.length) {
+    ann.detections.forEach(det => {
+      const b = det.bbox; if (!b) return;
+      const x = b.x * scaleX, y = b.y * scaleY;
+      const w = b.w * scaleX, h = b.h * scaleY;
+      const color = VP_COLORS[det.class_name] || '#63B3ED';
+
+      ctx.strokeStyle = color;
+      ctx.lineWidth   = 2.5;
+      ctx.strokeRect(x, y, w, h);
+      ctx.fillStyle = color + '22';
+      ctx.fillRect(x, y, w, h);
+
+      if (_vpShowLabels) {
+        const label = det.class_name + ' ' + Math.round(det.confidence * 100) + '%';
+        ctx.font = 'bold 12px Space Mono, monospace';
+        const tw = ctx.measureText(label).width;
+        const ty = Math.max(y - 4, 16);
+        ctx.fillStyle = color;
+        ctx.fillRect(x, ty - 14, tw + 8, 18);
+        ctx.fillStyle = '#fff';
+        ctx.fillText(label, x + 4, ty);
+      }
+    });
+  }
+
+  // Banner compliance
+  const bannerH = 36;
+  if (ann.compliant) {
+    ctx.fillStyle = 'rgba(30,140,69,0.82)';
+    ctx.fillRect(0, 0, canvas.width, bannerH);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 14px Space Mono, monospace';
+    ctx.fillText('✓  COMPLIANT', 10, 24);
+  } else {
+    ctx.fillStyle = 'rgba(180,20,20,0.82)';
+    ctx.fillRect(0, 0, canvas.width, bannerH);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 13px Space Mono, monospace';
+    const miss = ann.missing && ann.missing.length ? '  Missing: ' + ann.missing.join(', ') : '';
+    ctx.fillText('✗  NON-COMPLIANT' + miss, 10, 24);
+  }
+
+  // Badge frame
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  ctx.fillRect(canvas.width - 100, canvas.height - 24, 96, 22);
+  ctx.fillStyle = '#a0aec0';
+  ctx.font = '10px Space Mono, monospace';
+  ctx.fillText('frame #' + (ann.frame_number || '?'), canvas.width - 96, canvas.height - 8);
+}
+
+
+
 
   function vpStopRender() {
     if (_vpRafId) { cancelAnimationFrame(_vpRafId); _vpRafId = null; }
