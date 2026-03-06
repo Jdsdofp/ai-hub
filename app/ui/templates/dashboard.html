@@ -3642,6 +3642,8 @@ async function _vpDetectFrame(vid) {
     if (!resp.ok) { _vpDetecting = false; return; }
     const r = await resp.json();
 
+    console.log('detect/frame response:', JSON.stringify(r, null, 2));
+
     // Normaliza para o mesmo formato que os details pré-carregados
     _vpDetectCache[cacheKey] = {
       compliant:    r.compliant,
