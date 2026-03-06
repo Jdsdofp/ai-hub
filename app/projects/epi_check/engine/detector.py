@@ -6,6 +6,11 @@ FIXES v3.1:
   - BUG-01: build_face_db() variável sobrescrita incorretamente (dead assignment)
   - BUG-02: _train_worker() yaml_path e project sem .resolve() (falha em containers)
   - BUG-04: recognize_faces() import dentro de loop interno (performance)
+
+NOVO v3.2:
+  - Fallback model: se modelo da empresa não detectar nada, usa modelo público
+    de construção civil (ppe_fallback.pt) com remapeamento automático de classes.
+    Coloque o modelo em: {DATA_ROOT}/shared/models/ppe_fallback.pt
 """
 import time
 import json
@@ -38,6 +43,42 @@ DEFAULT_PPE_CONFIG = {
     "thermal_coat": False, "thermal_pants": False, "gloves": False,
     "helmet": True, "boots": True, "person": True,
 }
+
+# ── Mapeamento do modelo público → classes SmartX ─────────────────────────────
+# Modelo: Construction Site Safety (Roboflow/snehilsanyal)
+# Classes originais: Hardhat, Mask, NO-Hardhat, NO-Mask, NO-Safety Vest,
+#                    Person, Safety Cone, Safety Vest, machinery, vehicle
+# None = ignorar (não mapear para nenhuma classe do sistema)
+FALLBACK_CLASS_MAP = {
+    "hardhat":           "helmet",
+    "hard hat":          "helmet",
+    "helmet":            "helmet",
+    "safety vest":       "thermal_coat",   # colete → thermal_coat (mais próximo)
+    "vest":              "thermal_coat",
+    "reflective vest":   "thermal_coat",
+    "safety boot":       "boots",
+    "boots":             "boots",
+    "boot":              "boots",
+    "gloves":            "gloves",
+    "glove":             "gloves",
+    "safety gloves":     "gloves",
+    "person":            "person",
+    "worker":            "person",
+    # Classes negativas e irrelevantes — ignorar
+    "no-hardhat":        None,
+    "no hardhat":        None,
+    "no-safety vest":    None,
+    "no safety vest":    None,
+    "no-mask":           None,
+    "no mask":           None,
+    "mask":              None,
+    "safety cone":       None,
+    "machinery":         None,
+    "vehicle":           None,
+    "no-vest":           None,
+    "no vest":           None,
+}
+# ─────────────────────────────────────────────────────────────────────────────
 
 
 class FaceEngine:
@@ -78,7 +119,7 @@ class FaceEngine:
         if not people_dir.exists():
             return face_db
 
-        registry = self._load_registry(company_id)  # FIX BUG-01: carregar registry uma vez fora do loop
+        registry = self._load_registry(company_id)
 
         for person_folder in sorted(people_dir.iterdir()):
             if not person_folder.is_dir():
@@ -95,7 +136,6 @@ class FaceEngine:
                 if faces:
                     embeddings.append(faces[0].embedding)
 
-            # FIX BUG-01: não sobrescrever face_db com np.mean antes de popular com dict completo
             reg_info = registry.get(person_folder.name, {})
             if embeddings:
                 avg_embedding = np.mean(embeddings, axis=0)
@@ -151,7 +191,6 @@ class FaceEngine:
                 if db_emb is None:
                     continue
 
-                # FIX BUG-04: norm importado no topo — sem import dentro do loop
                 score = float(np.dot(emb, db_emb) / (norm(emb) * norm(db_emb) + 1e-9))
                 if score > best_score and score > threshold:
                     best_score = score
@@ -299,14 +338,12 @@ class _TeeWriter:
     def write(self, text: str):
         self.original.write(text)
         self._buf += text
-        # Processa linhas completas
         while "\n" in self._buf:
             line, self._buf = self._buf.split("\n", 1)
             line = line.rstrip()
             if line:
                 with self.lock:
                     self.log_list.append(line)
-                    # Mantém no máximo 600 linhas no buffer
                     if len(self.log_list) > 600:
                         del self.log_list[:200]
 
@@ -323,13 +360,16 @@ class _TeeWriter:
 class EPIEngine:
     """Per-company EPI detection using YOLOv8 with face recognition."""
 
+    # Chave reservada para o modelo de fallback (compartilhado entre empresas)
+    _FALLBACK_KEY = "__fallback__"
+
     def __init__(self):
         self._models: Dict[str, object] = {}
-        self._models.clear()  # garante sem cache antigo
+        self._models.clear()
         self._lock = threading.Lock()
         self._train_status: Dict[int, dict] = {}
-        self._train_logs:   Dict[int, list]  = {}   # ← NOVO: buffer de logs por empresa
-        self._log_lock = threading.Lock()            # ← NOVO: lock separado para logs
+        self._train_logs:   Dict[int, list]  = {}
+        self._log_lock = threading.Lock()
         self.face_engine = FaceEngine()
         self.converter   = AnnotationConverter()
 
@@ -339,7 +379,8 @@ class EPIEngine:
         print("result: ", self._train_status)
         print("Logs: ", self._train_logs)
 
-    # --- PPE Config ---
+    # ── PPE Config ────────────────────────────────────────────────────────────
+
     def get_ppe_config(self, company_id: int) -> dict:
         cfg_path = CompanyData.epi(company_id, "ppe_config.json")
         if cfg_path.exists():
@@ -363,7 +404,8 @@ class EPIEngine:
             remap_table[old_id] = new_id
         return remapped, remap_table
 
-    # --- Model management ---
+    # ── Model management ──────────────────────────────────────────────────────
+
     def _model_key(self, company_id: int, model_name: str) -> str:
         return f"{company_id}:{model_name}"
 
@@ -395,7 +437,89 @@ class EPIEngine:
             self._models[key] = model
             return model
 
-    # --- Detection ---
+    def _load_fallback_model(self) -> Optional[object]:
+        """
+        Carrega o modelo de fallback (compartilhado entre todas as empresas).
+        Caminho esperado: {DATA_ROOT}/shared/models/ppe_fallback.pt
+        """
+        if self._FALLBACK_KEY in self._models:
+            return self._models[self._FALLBACK_KEY]
+
+        fallback_path = Path(settings.DATA_ROOT) / "shared" / "models" / "ppe_fallback.pt"
+        if not fallback_path.exists():
+            logger.debug(f"Fallback model not found at: {fallback_path}")
+            return None
+
+        with self._lock:
+            if self._FALLBACK_KEY in self._models:
+                return self._models[self._FALLBACK_KEY]
+            try:
+                from ultralytics import YOLO
+                model = YOLO(str(fallback_path))
+                self._models[self._FALLBACK_KEY] = model
+                logger.info(f"Fallback PPE model loaded: {fallback_path} — classes: {model.names}")
+                return model
+            except Exception as e:
+                logger.error(f"Failed to load fallback model: {e}")
+                return None
+
+    def _run_fallback(self, img: np.ndarray, confidence: float) -> Tuple[list, set]:
+        """
+        Executa o modelo de fallback e retorna (detections, detected_names)
+        com as classes já remapeadas para o padrão SmartX.
+        Usa confidence levemente reduzida para maior sensibilidade.
+        """
+        fb_model = self._load_fallback_model()
+        if fb_model is None:
+            return [], set()
+
+        fb_conf = max(confidence - 0.1, 0.15)
+        try:
+            fb_results = fb_model.predict(
+                source=img, conf=fb_conf,
+                imgsz=settings.EPI_INPUT_SIZE, verbose=False,
+            )
+        except Exception as e:
+            logger.warning(f"Fallback model inference error: {e}")
+            return [], set()
+
+        detections = []
+        detected_names = set()
+        fb_names = fb_model.names or {}
+
+        if fb_results and fb_results[0].boxes is not None:
+            for box in fb_results[0].boxes:
+                cls_id   = int(box.cls[0])
+                conf     = float(box.conf[0])
+                raw_name = fb_names.get(cls_id, "").lower().strip()
+                mapped   = FALLBACK_CLASS_MAP.get(raw_name)
+
+                if mapped is None:
+                    # Tenta match parcial para nomes não mapeados exatamente
+                    for key, val in FALLBACK_CLASS_MAP.items():
+                        if key in raw_name or raw_name in key:
+                            mapped = val
+                            break
+
+                if mapped is None:
+                    continue  # classe sem mapeamento — ignorar
+
+                x1, y1, x2, y2 = box.xyxy[0].cpu().numpy().astype(int)
+                detections.append({
+                    "class_name": mapped,
+                    "confidence": round(conf, 4),
+                    "bbox": {"x": int(x1), "y": int(y1), "w": int(x2-x1), "h": int(y2-y1)},
+                    "source": "fallback",
+                })
+                detected_names.add(mapped)
+
+        if detections:
+            logger.debug(f"Fallback detected: {detected_names}")
+
+        return detections, detected_names
+
+    # ── Detection ─────────────────────────────────────────────────────────────
+
     def detect_image(self, company_id: int, img: np.ndarray,
                      model_name: str = "best", confidence: float = 0.4,
                      detect_faces: bool = False, face_threshold: float = 0.0) -> dict:
@@ -414,32 +538,42 @@ class EPIEngine:
 
         if results and results[0].boxes is not None:
             for box in results[0].boxes:
-                cls_id = int(box.cls[0])
-                conf = float(box.conf[0])
+                cls_id   = int(box.cls[0])
+                conf     = float(box.conf[0])
                 cls_name = model_names.get(cls_id, f"class_{cls_id}").lower()
                 x1, y1, x2, y2 = box.xyxy[0].cpu().numpy().astype(int)
                 detections.append({
-                    "class_name": cls_name, "confidence": round(conf, 4),
-                    "bbox": {"x": int(x1), "y": int(y1), "w": int(x2 - x1), "h": int(y2 - y1)},
+                    "class_name": cls_name,
+                    "confidence": round(conf, 4),
+                    "bbox": {"x": int(x1), "y": int(y1), "w": int(x2-x1), "h": int(y2-y1)},
                 })
                 detected_names.add(cls_name)
 
+        # ── FALLBACK: modelo principal não detectou nada → tenta modelo público ──
+        if not detections:
+            fb_detections, fb_names = self._run_fallback(img, confidence)
+            if fb_detections:
+                detections     = fb_detections
+                detected_names = fb_names
+                logger.info(f"[Company {company_id}] Primary model: 0 detections — fallback used: {fb_names}")
+        # ─────────────────────────────────────────────────────────────────────────
+
         required = {n for n in config if config.get(n) and n != "person"}
-        missing = sorted(required - detected_names)
+        missing  = sorted(required - detected_names)
 
         faces = []
         if detect_faces:
             faces = self.face_engine.recognize_faces(company_id, img, face_threshold)
 
         return {
-            "compliant": len(missing) == 0,
+            "compliant":      len(missing) == 0,
             "required_count": len(required),
             "detected_count": len(required) - len(missing),
-            "missing": missing,
-            "detections": detections,
-            "faces": faces,
-            "model_name": model_name,
-            "processing_ms": int((time.time() - t0) * 1000),
+            "missing":        missing,
+            "detections":     detections,
+            "faces":          faces,
+            "model_name":     model_name,
+            "processing_ms":  int((time.time() - t0) * 1000),
         }
 
     def detect_and_annotate(self, company_id: int, img: np.ndarray,
@@ -454,6 +588,9 @@ class EPIEngine:
             color = ALL_CLASS_COLORS.get(det["class_name"], (255, 255, 0))
             cv2.rectangle(annotated, (b["x"], b["y"]), (b["x"] + b["w"], b["y"] + b["h"]), color, 3)
             label = f"{det['class_name']} {det['confidence']:.0%}"
+            # Indicador visual de fallback
+            if det.get("source") == "fallback":
+                label += " [fb]"
             (tw, th), _ = cv2.getTextSize(label, font, 0.6, 2)
             cv2.rectangle(annotated, (b["x"], max(b["y"] - th - 8, 0)),
                           (b["x"] + tw + 6, b["y"]), color, -1)
@@ -483,7 +620,8 @@ class EPIEngine:
 
         return annotated, result
 
-    # --- Video ---
+    # ── Video ─────────────────────────────────────────────────────────────────
+
     def process_video(self, company_id: int, video_path: str, model_name: str = "best",
                       confidence: float = 0.4, skip_frames: int = 5,
                       max_frames: int = 0, detect_faces: bool = False) -> list:
@@ -515,11 +653,6 @@ class EPIEngine:
         return self._train_status.get(company_id, {"status": "idle"})
 
     def get_train_logs(self, company_id: int, offset: int = 0) -> dict:
-        """
-        Retorna linhas do log de treinamento a partir de `offset`.
-        O frontend faz polling passando o total recebido anteriormente
-        como offset, recebendo apenas as linhas novas.
-        """
         with self._log_lock:
             logs = self._train_logs.get(company_id, [])
             total = len(logs)
@@ -532,7 +665,6 @@ class EPIEngine:
         if self._train_status.get(company_id, {}).get("status") == "training":
             return {"status": "error", "error": "Training already in progress"}
 
-        # Limpa log anterior
         with self._log_lock:
             self._train_logs[company_id] = []
 
@@ -548,93 +680,29 @@ class EPIEngine:
         t.start()
         return self._train_status[company_id]
 
-    # def _parse_yolo_line(self, company_id: int, line: str, total_epochs: int):
-    #     """
-    #     Extrai métricas de uma linha de output do YOLOv8 e atualiza _train_status.
-
-    #     Formatos reconhecidos:
-    #       Epoch:   "  3/60   3.2G   1.234   2.345   1.123  128  640"
-    #       mAP:     "all  128  512  0.712  0.689  0.734  0.621  0.489"
-    #     """
-    #     import re
-
-    #     status = self._train_status.get(company_id, {})
-
-    #     # ── Linha de epoch ────────────────────────────────────────────
-    #     # Formato: "  <epoch>/<total>   <GPU>G   <box_loss>   <cls_loss>  ..."
-    #     m = re.search(r'(\d+)/(\d+)\s+[\d.]+G\s+([\d.]+)\s+([\d.]+)', line)
-    #     if m:
-    #         epoch    = int(m.group(1))
-    #         total    = int(m.group(2))
-    #         box_loss = float(m.group(3))
-    #         cls_loss = float(m.group(4))
-
-    #         elapsed = time.time() - status.get("train_start_ts", time.time())
-    #         eta     = (elapsed / epoch) * (total - epoch) if epoch > 0 else 0
-
-    #         status.update({
-    #             "status":          "training",
-    #             "epoch":           epoch,
-    #             "total_epochs":    total,
-    #             "box_loss":        round(box_loss, 4),
-    #             "cls_loss":        round(cls_loss, 4),
-    #             "elapsed_seconds": int(elapsed),
-    #             "eta_seconds":     int(eta),
-    #         })
-    #         self._train_status[company_id] = status
-    #         return
-
-    #     # ── Linha de mAP ──────────────────────────────────────────────
-    #     # Formato: "  all  128  512  P  R  mAP50  mAP50-95"
-    #     m2 = re.search(r'\ball\b\s+\d+\s+\d+\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)', line)
-    #     if m2:
-    #         try:
-    #             map50 = float(m2.group(3))
-    #             if 0.0 < map50 <= 1.0:
-    #                 status["map50"] = round(map50, 4)
-    #                 self._train_status[company_id] = status
-    #         except (ValueError, IndexError):
-    #             pass
-
     def _parse_yolo_line(self, company_id: int, line: str, total_epochs: int):
-        """
-        Extrai métricas de uma linha de output do YOLOv8 e atualiza _train_status.
-        Versão melhorada com mais padrões de regex.
-        """
         import re
 
         status = self._train_status.get(company_id, {})
         if not status:
             return
 
-
-        # ── Linha de epoch (formato principal) ────────────────────────────
-        # Formato: "  3/60      3.2G      1.234      2.345      1.123      128      640"
         m = re.search(r'^\s*(\d+)/(\d+)\s+([\d.]+)G\s+([\d.]+)\s+([\d.]+)', line)
         if m:
             epoch    = int(m.group(1))
             total    = int(m.group(2))
             box_loss = float(m.group(4))
             cls_loss = float(m.group(5))
-
-            # Calcula tempo decorrido e ETA
-            elapsed = time.time() - status.get("train_start_ts", time.time())
-            eta = (elapsed / epoch) * (total - epoch) if epoch > 0 else 0
-            
+            elapsed  = time.time() - status.get("train_start_ts", time.time())
+            eta      = (elapsed / epoch) * (total - epoch) if epoch > 0 else 0
             status.update({
-                "status":          "training",
-                "epoch":           epoch,
-                "total_epochs":    total,
-                "box_loss":        round(box_loss, 4),
-                "cls_loss":        round(cls_loss, 4),
-                "elapsed_seconds": int(elapsed),
-                "eta_seconds":     int(eta),
+                "status": "training", "epoch": epoch, "total_epochs": total,
+                "box_loss": round(box_loss, 4), "cls_loss": round(cls_loss, 4),
+                "elapsed_seconds": int(elapsed), "eta_seconds": int(eta),
             })
             self._train_status[company_id] = status
             return
 
-        # ── Linha de mAP (formato principal) ──────────────────────────────
-        # Formato: "  all  128  512  0.712  0.689  0.734"
         m2 = re.search(r'all\s+\d+\s+\d+\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)', line)
         if m2:
             try:
@@ -646,30 +714,22 @@ class EPIEngine:
                 pass
             return
 
-        # ── Formato alternativo de epoch (sem GPU) ────────────────────────
         m3 = re.search(r'^\s*(\d+)/(\d+)\s+\d+\s+([\d.]+)\s+([\d.]+)', line)
         if m3:
             epoch    = int(m3.group(1))
             total    = int(m3.group(2))
             box_loss = float(m3.group(3))
             cls_loss = float(m3.group(4))
-
-            elapsed = time.time() - status.get("train_start_ts", time.time())
-            eta = (elapsed / epoch) * (total - epoch) if epoch > 0 else 0
-
+            elapsed  = time.time() - status.get("train_start_ts", time.time())
+            eta      = (elapsed / epoch) * (total - epoch) if epoch > 0 else 0
             status.update({
-                "status":          "training",
-                "epoch":           epoch,
-                "total_epochs":    total,
-                "box_loss":        round(box_loss, 4),
-                "cls_loss":        round(cls_loss, 4),
-                "elapsed_seconds": int(elapsed),
-                "eta_seconds":     int(eta),
+                "status": "training", "epoch": epoch, "total_epochs": total,
+                "box_loss": round(box_loss, 4), "cls_loss": round(cls_loss, 4),
+                "elapsed_seconds": int(elapsed), "eta_seconds": int(eta),
             })
             self._train_status[company_id] = status
             return
 
-        # ── Linha de mAP (formato com mais casas) ─────────────────────────
         m4 = re.search(r'all\s+\d+\s+\d+\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+[\d.]+\s+[\d.]+', line)
         if m4:
             try:
@@ -682,10 +742,6 @@ class EPIEngine:
             return
 
     def _train_worker(self, company_id, base_model, epochs, batch_size, img_size, patience):
-        """
-        FIX BUG-02: paths com .resolve() para evitar falhas em containers.
-        NOVO: captura stdout do YOLOv8 via _TeeWriter para logs ao vivo.
-        """
         import sys
 
         try:
@@ -703,32 +759,27 @@ class EPIEngine:
                 "status":         "training",
                 "epoch":          0,
                 "total_epochs":   epochs,
-                "train_start_ts": time.time(),   # timestamp para cálculo de ETA
+                "train_start_ts": time.time(),
             }
 
-            # ── Redireciona stdout para capturar logs linha a linha ────
             original_stdout = sys.stdout
             log_list = self._train_logs.setdefault(company_id, [])
 
             def _on_line(line: str):
-                """Callback chamado para cada linha capturada."""
                 self._parse_yolo_line(company_id, line, epochs)
 
             tee = _TeeWriter(original_stdout, log_list, self._log_lock)
-            tee._on_line_callback = _on_line  # hook extra para parse imediato
+            tee._on_line_callback = _on_line
 
-            # Monkey-patch write para disparar o callback por linha
             _orig_tee_write = tee.write
 
             def _write_with_parse(text: str):
                 _orig_tee_write(text)
-                # Dispara parse para cada linha que acabou de entrar
                 for line in text.splitlines():
                     if line.strip():
                         _on_line(line)
 
             tee.write = _write_with_parse
-            # ─────────────────────────────────────────────────────────
 
             sys.stdout = tee
             try:
@@ -744,24 +795,23 @@ class EPIEngine:
                     project=project_path,
                     exist_ok=True,
                     plots=True,
-                    verbose=True,   # garante output de métricas por epoch
+                    verbose=True,
                 )
             finally:
-                sys.stdout = original_stdout  # sempre restaura stdout
+                sys.stdout = original_stdout
 
             best_path = str(
                 CompanyData.epi(company_id, "models", "epi_detector", "weights", "best.pt").resolve()
             )
             self._train_status[company_id] = {
-                "status":     "complete",
-                "model_path": best_path,
-                "epoch":      epochs,
+                "status":       "complete",
+                "model_path":   best_path,
+                "epoch":        epochs,
                 "total_epochs": epochs,
             }
             self._models.pop(self._model_key(company_id, "best"), None)
             logger.info(f"[Company {company_id}] Training complete: {best_path}")
 
-            # Linha final no log
             with self._log_lock:
                 self._train_logs[company_id].append(
                     f"✓ Training complete — model saved to: {best_path}"
@@ -775,7 +825,8 @@ class EPIEngine:
                     f"✗ TRAINING FAILED: {e}"
                 )
 
-    # --- Dataset ---
+    # ── Dataset ───────────────────────────────────────────────────────────────
+
     def generate_dataset(self, company_id: int, train_split: float = 0.8) -> dict:
         import random
         import shutil
@@ -792,18 +843,18 @@ class EPIEngine:
         logger.info(f"[Company {company_id}] Active classes: {remapped}, Remap table: {remap_table}")
 
         if not label_files:
-            raw_dir = CompanyData.epi(company_id, "photos_raw")
+            raw_dir  = CompanyData.epi(company_id, "photos_raw")
             raw_txts = list(raw_dir.rglob("*.txt"))
             if raw_txts:
                 return {"error": f"No annotations in annotations/ folder, but found {len(raw_txts)} .txt files in photos_raw/. Run the Converter (PHASE 3C) first."}
             return {"error": "No annotation .txt files found. Annotate images first (Annotate tab), then generate the dataset."}
 
         pairs = []
-        skipped_no_image = 0
+        skipped_no_image  = 0
         skipped_no_active = 0
 
         for lbl_path in label_files:
-            base = lbl_path.stem
+            base      = lbl_path.stem
             img_found = None
             for ext in [".jpg", ".jpeg", ".png", ".bmp", ".webp"]:
                 cand = ann_dir / (base + ext)
@@ -837,14 +888,11 @@ class EPIEngine:
 
         if not pairs:
             msg = "No valid image+label pairs found. "
-            if skipped_no_image > 0:
-                msg += f"{skipped_no_image} labels have no matching image in annotations/. "
-            if skipped_no_active > 0:
-                msg += f"{skipped_no_active} labels have no active class IDs. Check PPE Config. "
+            if skipped_no_image  > 0: msg += f"{skipped_no_image} labels have no matching image in annotations/. "
+            if skipped_no_active > 0: msg += f"{skipped_no_active} labels have no active class IDs. Check PPE Config. "
             msg += f"Active class IDs: {sorted(active_ids)}"
             return {"error": msg}
 
-        # Clear old dataset
         for sub in ["dataset/train/images", "dataset/train/labels",
                      "dataset/valid/images", "dataset/valid/labels"]:
             d = CompanyData.epi(company_id, sub)
@@ -853,7 +901,7 @@ class EPIEngine:
                 f.unlink()
 
         random.shuffle(pairs)
-        split_idx = int(len(pairs) * train_split)
+        split_idx   = int(len(pairs) * train_split)
         train_pairs = pairs[:split_idx]
         valid_pairs = pairs[split_idx:]
 
