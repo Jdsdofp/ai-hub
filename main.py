@@ -11,6 +11,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
+from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
 
 from app.core.config import settings
@@ -193,6 +194,20 @@ else:
         "Logo e assets da UI não serão servidos. "
         "Crie a pasta app/ui/static/img/ e adicione o logoSmartx.jpeg."
     )
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://analyticsapp.smartxhub.cloud",
+        "http://localhost:5173",
+        "http://localhost:3000",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 # API routes
 from app.projects.epi_check.api.routes import router as epi_router
