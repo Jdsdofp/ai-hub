@@ -1923,6 +1923,27 @@ class VisionRepository:
             logger.error(f"[Repo] expire_timed_out_sessions: {e}")
             return 0
 
+    # async def get_validation_photos(
+    #     self, company_id: int, session_uuid: str
+    # ) -> list:
+    #     """Retorna todas as fotos de uma sessão."""
+    #     try:
+    #         return await db.fetch_all(
+    #             """
+    #             SELECT photo_seq, filename, filepath,
+    #                    face_detected, face_confidence, face_person_code,
+    #                    epi_compliant, compliance_score,
+    #                    epi_units_required, epi_units_detected, epi_units_missing,
+    #                    model_name, processing_ms, captured_at
+    #             FROM vision_validation_photos
+    #             WHERE company_id = %s AND session_uuid = %s
+    #             ORDER BY photo_seq ASC
+    #             """,
+    #             (company_id, session_uuid),
+    #         )
+    #     except Exception as e:
+    #         logger.error(f"[Repo] get_validation_photos: {e}")
+    #         return []
     async def get_validation_photos(
         self, company_id: int, session_uuid: str
     ) -> list:
@@ -1930,21 +1951,36 @@ class VisionRepository:
         try:
             return await db.fetch_all(
                 """
-                SELECT photo_seq, filename, filepath,
-                       face_detected, face_confidence, face_person_code,
-                       epi_compliant, compliance_score,
-                       epi_units_required, epi_units_detected, epi_units_missing,
-                       model_name, processing_ms, captured_at
-                FROM vision_validation_photos
-                WHERE company_id = %s AND session_uuid = %s
-                ORDER BY photo_seq ASC
+                SELECT
+                    vvp.photo_seq,
+                    vvp.filename,
+                    vvp.filepath,
+                    vvp.face_detected,
+                    vvp.face_confidence,
+                    vvp.face_person_code,
+                    vp.person_name,
+                    vvp.epi_compliant,
+                    vvp.compliance_score,
+                    vvp.epi_units_required,
+                    vvp.epi_units_detected,
+                    vvp.epi_units_missing,
+                    vvp.model_name,
+                    vvp.processing_ms,
+                    vvp.captured_at
+                FROM vision_validation_photos vvp
+                LEFT JOIN vision_people vp
+                    ON vp.person_code = vvp.face_person_code
+                    AND vp.company_id = vvp.company_id
+                WHERE
+                    vvp.company_id = %s
+                    AND vvp.session_uuid = %s
+                ORDER BY vvp.photo_seq ASC
                 """,
                 (company_id, session_uuid),
             )
         except Exception as e:
             logger.error(f"[Repo] get_validation_photos: {e}")
             return []
-
 
 # Singleton — importe nos outros módulos com:
 #   from app.core.repository import repo
