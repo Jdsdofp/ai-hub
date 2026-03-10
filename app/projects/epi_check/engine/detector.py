@@ -99,10 +99,12 @@ class FaceEngine:
                 import insightface
                 self._app = insightface.app.FaceAnalysis(
                     name=settings.FACE_MODEL,
-                    providers=["CPUExecutionProvider"],
+                    providers=["CUDAExecutionProvider", "CPUExecutionProvider"],
                 )
-                self._app.prepare(ctx_id=-1, det_size=(settings.FACE_DET_SIZE, settings.FACE_DET_SIZE))
-                logger.info("InsightFace model loaded")
+                self._app.prepare(
+                    ctx_id=0,
+                    det_size=(settings.FACE_DET_SIZE, settings.FACE_DET_SIZE)
+                )
             except Exception as e:
                 logger.error(f"InsightFace load failed: {e}")
                 self._app = None
