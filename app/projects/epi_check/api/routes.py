@@ -850,6 +850,85 @@ async def _process_video_job(
                 pass
 
 
+
+
+
+
+@router.post("/camera/analyze-framing", tags=["Camera Setup"], 
+             summary="Análise de enquadramento da câmera")
+async def analyze_camera_framing(
+    file: UploadFile = File(..., description="Frame da câmera para análise", alias="image"),
+    company_id: int = Depends(get_ui_company),
+):
+    """
+    Analisa o enquadramento da câmera para detecção de EPIs.
+    
+    Avalia:
+    - Distância adequada (pessoas visíveis)
+    - Ângulo da câmera (frontal ideal)
+    - Cobertura da área
+    - Qualidade de detecção
+    
+    Retorna score de 0-100 e recomendações.
+    """
+    try:
+        from app.projects.epi_check.engine.framing_analyzer import framing_analyzer
+        
+        # Ler imagem
+        contents = await file.read()
+        nparr = np.frombuffer(contents, np.uint8)
+        frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        
+        if frame is None:
+            raise HTTPException(400, detail="Invalid image")
+        
+        h, w = frame.shape[:2]
+        
+        # Detectar pessoas e EPIs usando o método correto
+        result = epi_engine.detect_image(
+            company_id=company_id,
+            img=frame,
+            model_name="best",
+            confidence=0.4,
+            detect_faces=False
+        )
+        detections = result.get("detections", [])
+        
+        # Analisar enquadramento
+        score = framing_analyzer.analyze_frame(frame, detections, w, h)
+        
+        return {
+            "overall_score": score.overall_score,
+            "is_acceptable": score.is_acceptable,
+            "breakdown": {
+                "distance": score.distance_score,
+                "angle": score.angle_score,
+                "coverage": score.coverage_score,
+                "detection": score.detection_score
+            },
+            "metrics": {
+                "person_count": score.person_count,
+                "avg_person_height_px": score.avg_person_height,
+                "head_visibility_percent": score.head_visibility,
+                "angle_type": score.angle_estimate
+            },
+            "recommendations": score.recommendations,
+            "issues": score.issues,
+            "frame_size": {"width": w, "height": h}
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[Company {company_id}] analyze_camera_framing error: {e}", exc_info=True)
+        raise HTTPException(500, detail=str(e))
+
+
+
+
+
+
+
 # ── Endpoints ──────────────────────────────────────────────────────────────
 
 @router.post(
@@ -1919,7 +1998,7 @@ def _consolidate_decision(
     # Melhor reconhecimento
     recognized = [p for p in face_results if p.get("face_person_code")]
     person_code = recognized[0].get("face_person_code") if recognized else None
-    person_name = recognized[0].get("face_person_name") if recognized else None
+    person_name = recognized[0].get("person_name") if recognized else None
 
     # ── EPI consolidation ────────────────────────────────────────────
     epi_scores = [p.get("compliance_score") or 0.0 for p in photos]
@@ -2141,6 +2220,7 @@ async def validation_photo(
                     "face_detected":    r.get("face_detected", False),
                     "face_confidence":  r.get("face_confidence"),
                     "face_person_code": r.get("face_person_code"),
+                    "person_name":      r.get("person_name"),
                     "epi_compliant":    r.get("epi_compliant", False),
                     "compliance_score": r.get("compliance_score", 0.0),
                 }
@@ -2250,6 +2330,7 @@ async def validation_close(
                 "face_detected":    r.get("face_detected", False),
                 "face_confidence":  r.get("face_confidence"),
                 "face_person_code": r.get("face_person_code"),
+                "person_name":      r.get("person_name"),
                 "epi_compliant":    r.get("epi_compliant", False),
                 "compliance_score": r.get("compliance_score", 0.0),
             }
