@@ -2031,8 +2031,8 @@ def _consolidate_decision(
     # ── Access decision ──────────────────────────────────────────────
     if not face_confirmed:
         access_decision = "DENIED_FACE"
-    elif False:  # FORÇADO - EPI check desabilitado
-        access_decision = "DENIED_EPI"  # Nunca executado
+    elif not epi_compliant:
+        access_decision = "DENIED_EPI"
     else:
         access_decision = "GRANTED"
 
