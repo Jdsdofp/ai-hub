@@ -577,14 +577,14 @@ class EPIEngine:
                     "bbox": {"x": int(x1), "y": int(y1), "w": int(x2-x1), "h": int(y2-y1)},
                 })
 
-#         # ── FALLBACK: modelo principal não detectou nada → tenta modelo público ──
-#         if not detections:
-#             fb_detections, fb_names = self._run_fallback(img, confidence)
-#             if fb_detections:
-#                 detections     = fb_detections
-#                 detected_names = fb_names
-#                 logger.info(f"[Company {company_id}] Primary model: 0 detections — fallback used: {fb_names}")
-#         # ─────────────────────────────────────────────────────────────────────────
+        # ── FALLBACK: modelo principal não detectou nada → tenta modelo público ──
+        if not detections:
+            fb_detections, fb_names = self._run_fallback(img, confidence)
+            if fb_detections:
+                detections     = fb_detections
+                detected_names = fb_names
+                logger.info(f"[Company {company_id}] Primary model: 0 detections — fallback used: {fb_names}")
+        # ─────────────────────────────────────────────────────────────────────────
 
         required = {n for n in config if config.get(n) and n != "person"}
         missing  = sorted(required - detected_names)
