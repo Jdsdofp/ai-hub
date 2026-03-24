@@ -10,8 +10,8 @@ class PPEConfig(BaseModel):
     thermal_coat: bool = Field(False, description="Enable thermal coat detection (class ID 0)")
     thermal_pants: bool = Field(False, description="Enable thermal pants detection (class ID 1)")
     gloves: bool = Field(False, description="Enable gloves detection (class ID 2)")
-    helmet: bool = Field(True, description="Enable helmet detection (class ID 3)")
-    boots: bool = Field(True, description="Enable boots detection (class ID 4)")
+    helmet: bool = Field(False, description="Enable helmet detection (class ID 3)")
+    boots: bool = Field(False, description="Enable boots detection (class ID 4)")
     person: bool = Field(True, description="Enable person detection (class ID 5)")
 
     model_config = {
@@ -21,8 +21,8 @@ class PPEConfig(BaseModel):
                     "thermal_coat": False,
                     "thermal_pants": False,
                     "gloves": False,
-                    "helmet": True,
-                    "boots": True,
+                    "helmet": False,
+                    "boots": False,
                     "person": True,
                 }
             ]

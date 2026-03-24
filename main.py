@@ -213,6 +213,9 @@ app.add_middleware(
 from app.projects.epi_check.api.routes import router as epi_router
 app.include_router(epi_router, prefix="/api/v1/epi")
 
+from app.projects.epi_check.api.ws_proxy import router as ws_proxy_router
+app.include_router(ws_proxy_router, prefix="/api/v1/epi")
+
 # UI routes
 from app.ui.routes import router as ui_router
 app.include_router(ui_router, tags=["UI"])

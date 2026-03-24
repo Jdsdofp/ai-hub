@@ -397,16 +397,26 @@ class EPIEngine:
 
         print("result: ", self._train_status)
         print("Logs: ", self._train_logs)
+        self._ppe_config_cache: Dict[int, dict] = {}
 
     # ── PPE Config ────────────────────────────────────────────────────────────
 
     def get_ppe_config(self, company_id: int) -> dict:
+        # 1. Cache (carregado do banco no startup e atualizado no POST /config)
+        cached = self._ppe_config_cache.get(company_id)
+        if cached:
+            return cached
+        # 2. Fallback: arquivo no disco (legado)
         cfg_path = CompanyData.epi(company_id, "ppe_config.json")
         if cfg_path.exists():
-            return json.loads(cfg_path.read_text())
+            cfg = json.loads(cfg_path.read_text())
+            self._ppe_config_cache[company_id] = cfg  # promove para cache
+            return cfg
         return dict(DEFAULT_PPE_CONFIG)
 
     def save_ppe_config(self, company_id: int, config: dict):
+        # Atualiza cache E arquivo (arquivo vira backup)
+        self._ppe_config_cache[company_id] = config
         cfg_path = CompanyData.epi(company_id, "ppe_config.json")
         cfg_path.write_text(json.dumps(config, indent=2))
 

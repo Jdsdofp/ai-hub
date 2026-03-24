@@ -24,7 +24,7 @@ Este arquivo cobre:
 """
 
 import json
-from datetime import datetime
+from datetime import datetime, date
 from pathlib import Path
 from typing import Optional
 from loguru import logger
@@ -321,19 +321,48 @@ class VisionRepository:
             logger.error(f"[Repo] save_face_photo: {e}")
             return None
 
-    async def list_people(self, company_id: int, active_only: bool = True) -> list:
+    async def list_people(
+        self,
+        company_id: int,
+        active_only: bool = True,
+        is_inside: Optional[bool] = None,
+        has_photos: Optional[bool] = None,
+        search: Optional[str] = None,
+        limit: int = 500,
+        offset: int = 0,
+    ) -> list:
         try:
-            extra = "AND active = 1" if active_only else ""
+            conditions = ["company_id = %s"]
+            params: list = [company_id]
+
+            if active_only:
+                conditions.append("active = 1")
+            if is_inside is not None:
+                conditions.append("is_inside = %s")
+                params.append(1 if is_inside else 0)
+            if has_photos is True:
+                conditions.append("face_photos_count > 0")
+            elif has_photos is False:
+                conditions.append("face_photos_count = 0")
+            if search:
+                conditions.append("(person_name LIKE %s OR person_code LIKE %s OR badge_id LIKE %s)")
+                like = f"%{search}%"
+                params.extend([like, like, like])
+
+            where = " AND ".join(conditions)
+            params.extend([limit, offset])
+
             return await db.fetch_all(
                 f"""
                 SELECT person_code, person_name, badge_id, department,
                        face_photos_count, active,
                        last_entry_at, last_exit_at, is_inside, created_at
                 FROM vision_people
-                WHERE company_id = %s {extra}
+                WHERE {where}
                 ORDER BY person_name
+                LIMIT %s OFFSET %s
                 """,
-                (company_id,),
+                params,
             )
         except Exception as e:
             logger.error(f"[Repo] list_people: {e}")
@@ -1890,6 +1919,40 @@ class VisionRepository:
         except Exception as e:
             logger.error(f"[Repo] close_validation_session: {e}")
             return False
+
+    async def update_person_presence(
+        self,
+        company_id: int,
+        person_code: str,
+        session_id: int,
+        is_entry: bool,
+    ) -> None:
+        """Atualiza last_entry_at/last_exit_at e is_inside em vision_people."""
+        try:
+            if is_entry:
+                await db.execute(
+                    """UPDATE vision_people SET
+                        is_inside          = 1,
+                        last_entry_at      = NOW(),
+                        current_session_id = %s,
+                        updated_at         = NOW()
+                    WHERE company_id = %s AND person_code = %s""",
+                    (session_id, company_id, person_code)
+                )
+                logger.info(f"[Repo] ENTRY registrado — person_code={person_code}")
+            else:
+                await db.execute(
+                    """UPDATE vision_people SET
+                        is_inside          = 0,
+                        last_exit_at       = NOW(),
+                        current_session_id = NULL,
+                        updated_at         = NOW()
+                    WHERE company_id = %s AND person_code = %s""",
+                    (company_id, person_code)
+                )
+                logger.info(f"[Repo] EXIT registrado — person_code={person_code}")
+        except Exception as e:
+            logger.warning(f"[Repo] update_person_presence falhou: {e}")
 
     async def expire_timed_out_sessions(self, company_id: int) -> int:
         """

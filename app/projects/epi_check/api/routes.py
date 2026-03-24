@@ -1781,11 +1781,24 @@ async def analytics_training_history(
 @router.get("/analytics/people", tags=["Analytics"], summary="People (MySQL)")
 async def analytics_people(
     active_only: bool = Query(True),
+    is_inside: Optional[bool] = Query(None, description="Filtrar quem está dentro agora"),
+    has_photos: Optional[bool] = Query(None, description="Filtrar por presença de fotos"),
+    search: Optional[str] = Query(None, description="Busca por nome, código ou crachá"),
+    limit: int = Query(500, ge=1, le=1000),
+    offset: int = Query(0, ge=0),
     company_id: int = Depends(get_ui_company),
 ):
-    """Pessoas registradas no MySQL."""
+    """Pessoas registradas no MySQL com filtros opcionais."""
     try:
-        return await repo.list_people(company_id, active_only)
+        return await repo.list_people(
+            company_id,
+            active_only=active_only,
+            is_inside=is_inside,
+            has_photos=has_photos,
+            search=search,
+            limit=limit,
+            offset=offset,
+        )
     except Exception as e:
         raise HTTPException(500, detail=str(e))
 
@@ -2271,6 +2284,15 @@ async def validation_photo(
                 person_code=decision.get("person_code"),
                 person_name=decision.get("person_name"),
             )
+            # Atualiza presença em vision_people
+            if decision.get("person_code"):
+                await repo.update_person_presence(
+                    company_id=company_id,
+                    person_code=decision["person_code"],
+                    session_id=session_id,
+                    is_entry=session.get("direction", "ENTRY") == "ENTRY",
+                )
+
             # Publica alerta MQTT se negado
             if decision["access_decision"] != "GRANTED":
                 await mqtt_client.publish_alert(company_id, "ACCESS_DENIED", {
@@ -2312,6 +2334,7 @@ async def validation_photo(
 async def validation_close(
     session_uuid: str = Form(...),
     company_id: int = Depends(get_ui_company),
+    person_code_override: Optional[str] = Form(None),
 ):
     """
     Fecha a sessão manualmente com as fotos recebidas até agora.
@@ -2347,6 +2370,43 @@ async def validation_close(
             session_status="complete",
             **decision,
         )
+        # ─── Registra entrada/saída em vision_people ──────────────────────
+        logger.info("[presence-debug] access_decision=" + str(decision.get("access_decision")) + " person_code_override=" + str(person_code_override))
+        if decision.get("access_decision") == "GRANTED":
+            try:
+                from app.core.database import db as _db
+                _pc = (person_code_override or
+                       decision.get("person_code") or
+                       session.get("person_code"))
+                if not _pc:
+                    _row = await _db.fetch_one(
+                        """SELECT person_code FROM vision_validation_sessions
+                           WHERE company_id=%s AND door_id=%s
+                           AND person_code IS NOT NULL
+                           ORDER BY id DESC LIMIT 1""",
+                        (company_id, session.get("door_id", ""))
+                    )
+                    _pc = _row["person_code"] if _row else None
+                if _pc:
+                    _direction = session.get("direction", "ENTRY")
+                    _is_entry = _direction != "EXIT"
+                    await repo.update_person_presence(
+                        company_id=company_id,
+                        person_code=_pc,
+                        session_id=session["id"],
+                        is_entry=_is_entry,
+                    )
+                    logger.info("[presence] " + ("ENTRY" if _is_entry else "EXIT") + " registrado: " + str(_pc))
+            except Exception as _pe:
+                logger.warning("[presence] Falha: " + str(_pe))
+        if decision.get("person_code"):
+            await repo.update_person_presence(
+                company_id=company_id,
+                person_code=decision["person_code"],
+                session_id=session["id"],
+                is_entry=session.get("direction", "ENTRY") == "ENTRY",
+            )
+
         return {
             "session_uuid": session_uuid,
             "status": "complete",
