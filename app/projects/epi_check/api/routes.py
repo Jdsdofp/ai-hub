@@ -1,3 +1,5 @@
+
+#app/projects/epi_check/api
 """
 EPI Check API v3 — REST endpoints for PPE detection, face recognition,
 annotation converter, training, upload, and streaming.
