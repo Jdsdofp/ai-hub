@@ -1447,6 +1447,7 @@
     <div class="tab" onclick="showPanel('video', this)"><span class="tab-icon">▶</span> Detect Video</div>
     <div class="tab" onclick="showPanel('files', this)"><span class="tab-icon">🗂</span> Files</div>
     <div class="tab" onclick="showPanel('stream', this)"><span class="tab-icon">◈</span> Live Stream</div>
+    <div class="tab" onclick="showPanel('review', this);loadReview()"><span class="tab-icon">🔍</span> Review <span id="review-badge" style="background:#e53e3e;color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;margin-left:4px;display:none">0</span></div>
   </nav>
 
   <div class="toast" id="toast"></div>
@@ -2141,7 +2142,27 @@
     </div>
   </div>
 
-  </div><!-- fim .panels -->
+    <div class="panel" id="panel-review">
+    <div class="section-header">
+      <div class="section-title">Active Learning Review Queue</div>
+      <div class="section-sub">Revise e aprove frames capturados automaticamente para retreino</div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-icon">🔍</div>
+        <div class="card-title">Frames Pendentes</div>
+        <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+          <span id="review-total-badge" class="badge badge-warn">0 frames</span>
+          <button class="btn btn-ghost btn-sm" onclick="loadReview()">Refresh</button>
+        </div>
+      </div>
+      <div id="review-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;margin-top:8px">
+        <div class="empty-state" data-icon="🔍">Nenhum frame pendente de revisao</div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- fim .panels -->
 
   <script>
   let CID={{company_id}};
@@ -2158,6 +2179,61 @@
   const classNames={0:'thermal_coat',1:'thermal_pants',2:'gloves',3:'helmet',4:'boots',5:'person'};
 
   function API(p){return'/api/v1/epi'+p+'?company_id='+CID}
+  const reviewClassNames={0:'thermal_coat',1:'thermal_pants',2:'gloves',3:'helmet',4:'boots',5:'person'};
+  const reviewClassColors={0:'#FC8181',1:'#63B3ED',2:'#68D391',3:'#F6E05E',4:'#B794F4',5:'#F6AD55'};
+  async function loadReview(){
+    const grid=document.getElementById('review-grid');
+    grid.innerHTML='<div style="color:var(--text-muted);padding:24px">Carregando...</div>';
+    try{
+      const r=await(await fetch(API('/review/list'))).json();
+      const badge=document.getElementById('review-badge');
+      const totalBadge=document.getElementById('review-total-badge');
+      totalBadge.textContent=r.total+' frames';
+      if(r.total>0){badge.style.display='inline';badge.textContent=r.total;}else{badge.style.display='none';}
+      grid.innerHTML='';
+      for(const frame of r.frames){
+        const card=document.createElement('div');
+        card.style.cssText='background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px;';
+        const tags=frame.annotations.map(a=>'<span style="background:'+( reviewClassColors[a.class_id]||'#999')+'22;border:1px solid '+(reviewClassColors[a.class_id]||'#999')+';color:'+(reviewClassColors[a.class_id]||'#999')+';padding:2px 8px;border-radius:4px;font-size:11px">'+(reviewClassNames[a.class_id]||'cls'+a.class_id)+'</span>').join(' ');
+        const annsB64=btoa(JSON.stringify(frame.annotations));
+        card.innerHTML='<div style="font-family:Space Mono,monospace;font-size:11px;color:var(--text-muted);margin-bottom:8px">'+frame.filename+' &nbsp;·&nbsp; '+frame.size+' &nbsp;·&nbsp; <span style="color:var(--primary)">'+frame.annotations.length+' anotações</span></div><div style="position:relative;margin-bottom:10px"><img src="/api/v1/epi/review/image/'+frame.filename+'?company_id='+CID+'" style="width:100%;border-radius:6px;display:block" onload="reviewDrawBoxes(this,''+annsB64+'')" onerror="this.style.background='#333';this.alt='sem preview'"><canvas id="rc-'+frame.filename.replace('.','_')+'" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none"></canvas></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">'+tags+'</div><div style="display:flex;gap:8px"><button class="btn btn-success" style="flex:1" onclick="reviewApprove(''+frame.filename+'')" >✓ Aprovar</button><button class="btn btn-danger" style="flex:1" onclick="reviewReject(''+frame.filename+'')" >✕ Rejeitar</button></div>';
+        grid.appendChild(card);
+      }
+    }catch(e){grid.innerHTML='<div class="badge badge-err">Erro: '+e.message+'</div>';}
+  }
+  function reviewDrawBoxes(img,annsB64){
+    try{
+      const annotations=JSON.parse(atob(annsB64));
+      const canvas=document.getElementById('rc-'+img.src.split('/').pop().split('?')[0].replace('.','_'));
+      canvas.width=img.naturalWidth;canvas.height=img.naturalHeight;
+      const ctx=canvas.getContext('2d');
+      annotations.forEach(a=>{
+        const x=(a.cx-a.w/2)*img.naturalWidth,y=(a.cy-a.h/2)*img.naturalHeight;
+        const w=a.w*img.naturalWidth,h=a.h*img.naturalHeight;
+        const color=reviewClassColors[a.class_id]||'#fff';
+        ctx.strokeStyle=color;ctx.lineWidth=3;ctx.strokeRect(x,y,w,h);
+        ctx.fillStyle=color+'44';ctx.fillRect(x,y,w,h);
+        ctx.fillStyle=color;ctx.font='bold 14px monospace';
+        ctx.fillText(reviewClassNames[a.class_id]||'cls'+a.class_id,x+4,y+18);
+      });
+    }catch(e){}
+  }
+  async function reviewApprove(filename){
+    try{
+      const fd=new FormData();fd.append('filename',filename);
+      const r=await(await fetch(API('/review/approve'),{method:'POST',body:fd})).json();
+      toast('✓ Aprovado! Total: '+r.total_annotations+' anotações');
+      loadReview();
+    }catch(e){toast('Erro: '+e.message,'error');}
+  }
+  async function reviewReject(filename){
+    try{
+      const fd=new FormData();fd.append('filename',filename);
+      await fetch(API('/review/reject'),{method:'POST',body:fd});
+      toast('Frame rejeitado','warn');
+      loadReview();
+    }catch(e){toast('Erro: '+e.message,'error');}
+  }
   function switchCompany(){
     CID=parseInt(document.getElementById('companySelect').value);
     const panelMap={dashboard:loadDashboard,config:loadPPEConfig,annotate:loadAnnotationImages,faces:loadPeople,train:pollTrainStatus};

@@ -2917,3 +2917,12 @@ async def review_reject(filename: str = Form(...), company_id: int = Depends(get
         return {"rejected": filename}
     except Exception as e:
         raise HTTPException(500, detail=str(e))
+
+
+@router.get("/review/image/{filename}", tags=["Active Learning"], summary="Servir imagem de review")
+async def review_image(filename: str, company_id: int = Depends(get_ui_company)):
+    img_path = Path(f"/opt/vision/data/{company_id}/epi_check/review/images/{filename}")
+    if not img_path.exists():
+        raise HTTPException(404, detail="Imagem nao encontrada")
+    from fastapi.responses import FileResponse
+    return FileResponse(str(img_path), media_type="image/jpeg")
