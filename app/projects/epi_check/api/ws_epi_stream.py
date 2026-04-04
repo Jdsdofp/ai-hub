@@ -14,6 +14,7 @@ import asyncio
 import json
 import time
 from collections import deque
+from pathlib import Path
 
 import cv2
 import numpy as np
@@ -104,6 +105,7 @@ async def epi_video_stream(
 
     session = EpiStreamSession(window_seconds=window_seconds)
     frame_id = 0
+    best_frame = {"img": None, "score": -1.0, "detections": [], "missing": []}
     last_frame_time = 0.0
     min_interval = 1.0 / fps
 
@@ -192,6 +194,10 @@ async def epi_video_stream(
                 detections = result.get("detections", [])
 
                 logger.info(f"[EPI] detectado={[d['class_name'] for d in detections]} faltando={missing}")
+                # Calcula score do frame (média de confiança das detecções)
+                frame_score = sum(d["confidence"] for d in detections) / max(len(detections), 1) if detections else 0.0
+                if frame_score > best_frame["score"]:
+                    best_frame = {"img": img.copy(), "score": frame_score, "detections": detections, "missing": missing}
                 session.push(compliant, face_detected, person_code)
 
                 results_list = list(session.results)
@@ -220,6 +226,40 @@ async def epi_video_stream(
                 if session.ready_to_decide and not session.decided:
                     session.decided = True
                     decision = session.decide()
+                    # Salva melhor frame para active learning
+                    if best_frame["img"] is not None and best_frame["score"] >= 0.3:
+                        try:
+                            review_dir = Path(f"/opt/vision/data/{company_id}/epi_check/review/images")
+                            review_dir.mkdir(parents=True, exist_ok=True)
+                            import uuid as _uuid
+                            fname = f"{_uuid.uuid4().hex[:12]}.jpg"
+                            cv2.imwrite(str(review_dir / fname), best_frame["img"])
+                            # Anotação automática YOLO
+                            label_dir = Path(f"/opt/vision/data/{company_id}/epi_check/review/labels")
+                            label_dir.mkdir(parents=True, exist_ok=True)
+                            h, w = best_frame["img"].shape[:2]
+                            lines = []
+                            config = epi_engine.get_ppe_config(company_id)
+                            class_map = {v: k for k, v in epi_engine._load_model(company_id).names.items()}
+                            for d in best_frame["detections"]:
+                                cls_id = class_map.get(d["class_name"])
+                                if cls_id is None: continue
+                                b = d["bbox"]
+                                cx = (b["x"] + b["w"] / 2) / w
+                                cy = (b["y"] + b["h"] / 2) / h
+                                bw = b["w"] / w
+                                bh = b["h"] / h
+                                lines.append(f"{cls_id} {cx:.6f} {cy:.6f} {bw:.6f} {bh:.6f}")
+                            (label_dir / fname.replace(".jpg", ".txt")).write_text("\n".join(lines))
+                            logger.info(f"[ActiveLearning] Frame salvo: {fname} score={best_frame['score']:.2f} deteccoes={len(best_frame['detections'])}")
+                            # Verifica threshold para auto-retreino
+                            approved = len(list(Path(f"/opt/vision/data/{company_id}/epi_check/annotations").glob("*.txt")))
+                            review_count = len(list(label_dir.glob("*.txt")))
+                            if review_count >= 20:
+                                logger.info(f"[ActiveLearning] {review_count} frames acumulados — retreino disponivel")
+                        except Exception as _e:
+                            logger.warning(f"[ActiveLearning] Erro ao salvar frame: {_e}")
+                    best_frame = {"img": None, "score": -1.0, "detections": [], "missing": []}
                     logger.info(f"[EpiStream] company={company_id} decision={decision['access_decision']} "
                                 f"compliance={decision['compliance_rate']:.0%} face={decision['face_rate']:.0%} "
                                 f"frames={decision['total_frames']}")

@@ -2848,3 +2848,72 @@ async def get_presence_history(
         logger.error(f"[Company {company_id}] get_presence_history error: {e}")
         raise HTTPException(500, detail=f"Failed to get presence history: {str(e)}")
 
+
+
+# ======================================================================
+# ACTIVE LEARNING — Review Queue
+# ======================================================================
+
+@router.get("/review/list", tags=["Active Learning"], summary="Listar frames pendentes de revisão")
+async def review_list(company_id: int = Depends(get_ui_company)):
+    try:
+        img_dir = Path(f"/opt/vision/data/{company_id}/epi_check/review/images")
+        lbl_dir = Path(f"/opt/vision/data/{company_id}/epi_check/review/labels")
+        if not img_dir.exists():
+            return {"total": 0, "frames": []}
+        frames = []
+        for img_path in sorted(img_dir.glob("*.jpg")):
+            stem = img_path.stem
+            lbl_path = lbl_dir / f"{stem}.txt"
+            annotations = []
+            if lbl_path.exists():
+                for line in lbl_path.read_text().strip().splitlines():
+                    parts = line.strip().split()
+                    if len(parts) == 5:
+                        annotations.append({"class_id": int(parts[0]), "cx": float(parts[1]), "cy": float(parts[2]), "w": float(parts[3]), "h": float(parts[4])})
+            img = cv2.imread(str(img_path))
+            size = f"{img.shape[1]}x{img.shape[0]}" if img is not None else "?"
+            frames.append({"filename": img_path.name, "size": size, "annotations": annotations, "has_label": lbl_path.exists()})
+        return {"total": len(frames), "frames": frames}
+    except Exception as e:
+        raise HTTPException(500, detail=str(e))
+
+
+@router.post("/review/approve", tags=["Active Learning"], summary="Aprovar frame")
+async def review_approve(filename: str = Form(...), company_id: int = Depends(get_ui_company)):
+    try:
+        img_src = Path(f"/opt/vision/data/{company_id}/epi_check/review/images/{filename}")
+        lbl_src = Path(f"/opt/vision/data/{company_id}/epi_check/review/labels/{Path(filename).stem}.txt")
+        ann_dir = Path(f"/opt/vision/data/{company_id}/epi_check/annotations")
+        ann_dir.mkdir(parents=True, exist_ok=True)
+        if not img_src.exists():
+            raise HTTPException(404, detail=f"Frame não encontrado: {filename}")
+        shutil.copy2(str(img_src), str(ann_dir / filename))
+        if lbl_src.exists():
+            shutil.copy2(str(lbl_src), str(ann_dir / lbl_src.name))
+        img_src.unlink()
+        if lbl_src.exists():
+            lbl_src.unlink()
+        review_count = len(list(Path(f"/opt/vision/data/{company_id}/epi_check/review/labels").glob("*.txt")))
+        ann_count = len(list(ann_dir.glob("*.txt")))
+        logger.info(f"[ActiveLearning] Aprovado: {filename} | review={review_count} | annotations={ann_count}")
+        return {"approved": filename, "review_remaining": review_count, "total_annotations": ann_count}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, detail=str(e))
+
+
+@router.post("/review/reject", tags=["Active Learning"], summary="Rejeitar frame")
+async def review_reject(filename: str = Form(...), company_id: int = Depends(get_ui_company)):
+    try:
+        img_src = Path(f"/opt/vision/data/{company_id}/epi_check/review/images/{filename}")
+        lbl_src = Path(f"/opt/vision/data/{company_id}/epi_check/review/labels/{Path(filename).stem}.txt")
+        if img_src.exists():
+            img_src.unlink()
+        if lbl_src.exists():
+            lbl_src.unlink()
+        logger.info(f"[ActiveLearning] Rejeitado: {filename}")
+        return {"rejected": filename}
+    except Exception as e:
+        raise HTTPException(500, detail=str(e))
