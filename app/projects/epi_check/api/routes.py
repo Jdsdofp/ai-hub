@@ -58,6 +58,24 @@ from app.mqtt.client import mqtt_client
 
 router = APIRouter()
 
+# ── SSE session queues ────────────────────────────────────────────────────────
+import asyncio as _asyncio
+_sse_queues: dict[str, "_asyncio.Queue"] = {}
+
+def _sse_get_or_create(session_uuid: str) -> "_asyncio.Queue":
+    if session_uuid not in _sse_queues:
+        _sse_queues[session_uuid] = _asyncio.Queue(maxsize=50)
+    return _sse_queues[session_uuid]
+
+async def _sse_push(session_uuid: str, event: str, data: dict):
+    q = _sse_queues.get(session_uuid)
+    if q:
+        try:
+            q.put_nowait({"event": event, "data": data})
+        except _asyncio.QueueFull:
+            pass
+# ─────────────────────────────────────────────────────────────────────────────
+
 
 # ======================================================================
 # HELPERS
@@ -2304,7 +2322,8 @@ async def validation_photo(
                     "session_uuid": session_uuid,
                 })
 
-        return _sanitize_result({
+        # ── Push SSE ─────────────────────────────────────────────────────────
+        _payload = _sanitize_result({
             "session_uuid": session_uuid,
             "photo_seq": photo_seq_current,
             "photo_count_received": new_count,
@@ -2313,13 +2332,19 @@ async def validation_photo(
             "face_detected": face_detected,
             "face_confidence": face_confidence,
             "face_person_code": face_person_code,
+            "face_bbox": face_bbox if isinstance(face_bbox, dict) else None,
             "epi_compliant": epi_compliant,
             "compliance_score": compliance_score,
             "missing": missing,
+            "detections": detections,
             "processing_ms": processing_ms,
-            "annotated_base64": annotated_b64,
             "final_decision": final_decision,
         })
+        _event_name = "session_complete" if session_complete else "photo_result"
+        await _sse_push(session_uuid, _event_name, _payload)
+        # ─────────────────────────────────────────────────────────────────
+
+        return {**_payload, "annotated_base64": annotated_b64}
 
     except HTTPException:
         raise
@@ -2498,6 +2523,56 @@ async def validation_cancel(
     except Exception as e:
         logger.error(f"[Company {company_id}] validation_cancel error: {e}")
         raise HTTPException(500, detail=f"Validation cancel failed: {str(e)}")
+
+
+# ======================================================================
+# VALIDATION SSE — Server-Sent Events stream por sessão
+# ======================================================================
+
+@router.get(
+    "/validation/{session_uuid}/stream",
+    tags=["Validation"],
+    summary="SSE stream — recebe resultados de cada foto em tempo real",
+)
+async def validation_stream(
+    session_uuid: str,
+    company_id: int = Depends(get_ui_company),
+):
+    """
+    Abre um stream SSE para a sessão de validação.
+    Eventos: connected | photo_result | session_complete | session_closed
+    """
+    import asyncio
+
+    queue = _sse_get_or_create(session_uuid)
+
+    async def generate():
+        yield f"event: connected\ndata: {json.dumps({'session_uuid': session_uuid})}\n\n"
+        try:
+            while True:
+                try:
+                    item = await asyncio.wait_for(queue.get(), timeout=25.0)
+                    event = item["event"]
+                    data  = item["data"]
+                    yield f"event: {event}\ndata: {json.dumps(data)}\n\n"
+                    if event in ("session_complete", "session_closed"):
+                        break
+                except asyncio.TimeoutError:
+                    yield ": keepalive\n\n"
+        except asyncio.CancelledError:
+            pass
+        finally:
+            _sse_queues.pop(session_uuid, None)
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
+        },
+    )
 
 
 # ======================================================================

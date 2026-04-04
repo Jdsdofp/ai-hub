@@ -1,5 +1,4 @@
-
-FROM nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu22.04
+FROM nvidia/cuda:12.4.1-cudnn-runtime-ubuntu22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
@@ -18,6 +17,7 @@ RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
 WORKDIR /opt/vision
 
 COPY requirements.txt .
+RUN pip3 install --no-cache-dir torch==2.5.1+cu124 torchvision==0.20.1+cu124 --index-url https://download.pytorch.org/whl/cu124
 RUN pip3 install --no-cache-dir -r requirements.txt
 
 COPY . .

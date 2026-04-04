@@ -114,10 +114,7 @@ class FaceEngine:
                 self._app = None
 
     def build_face_db(self, company_id: int) -> dict:
-        """Build face database with persistent embedding cache.
-        IO paralelo para leitura de imagens + inferencia sequencial (InsightFace nao e thread-safe).
-        Na primeira run: calcula e salva cache. Runs seguintes: carrega do cache em ~1s.
-        """
+        """Build face database from registered people photos."""
         self._ensure_loaded()
         if self._app is None:
             return {}
@@ -130,119 +127,39 @@ class FaceEngine:
 
         registry = self._load_registry(company_id)
 
-        # ── Cache persistente de embeddings ──────────────────────────────────
-        cache_path = CompanyData.epi(company_id, "embeddings_cache.json")
-        try:
-            if cache_path.exists():
-                raw = json.loads(cache_path.read_text())
-                embedding_cache = {k: np.array(v) if v is not None else None
-                                   for k, v in raw.items()}
-            else:
-                embedding_cache = {}
-        except Exception:
-            embedding_cache = {}
-
-        person_folders = [f for f in sorted(people_dir.iterdir()) if f.is_dir()]
-        new_cache = {}
-        cache_updated = False
-        t0 = time.time()
-
-        # ── Passo 1: IO paralelo — lê todas as imagens do disco em paralelo ──
-        from concurrent.futures import ThreadPoolExecutor
-
-        def _read_images(person_folder):
-            """Lê imagens do disco (IO-bound, safe para threads)."""
-            img_files = [f for f in person_folder.glob("*.*")
-                         if f.suffix.lower() in {".jpg", ".jpeg", ".png"}]
-            imgs = []
-            for img_file in img_files:
-                img = cv2.imread(str(img_file))
-                if img is not None:
-                    imgs.append(img)
-            return person_folder.name, len(img_files), imgs
-
-        person_images = {}  # person_code -> (n_files, [imgs])
-        with ThreadPoolExecutor(max_workers=8) as executor:
-            for person_code, n_files, imgs in executor.map(_read_images, person_folders):
-                person_images[person_code] = (n_files, imgs)
-
-        logger.info(f"[Company {company_id}] IO done in {int((time.time()-t0)*1000)}ms — {len(person_images)} people")
-
-        # ── Passo 2: Inferencia sequencial (InsightFace nao e thread-safe) ───
-        cache_hits = 0
-        for person_folder in person_folders:
-            person_code = person_folder.name
-            n_files, imgs = person_images.get(person_code, (0, []))
-            reg_info = registry.get(person_code, {})
-
-            if not imgs:
-                if reg_info:
-                    logger.warning(f"[Company {company_id}] Person '{person_code}' has no valid face embeddings")
-                    face_db[person_code] = {
-                        "embedding": None,
-                        "name": reg_info.get("name", person_code),
-                        "badge_id": reg_info.get("badge_id", ""),
-                    }
+        for person_folder in sorted(people_dir.iterdir()):
+            if not person_folder.is_dir():
                 continue
 
-            # Verifica cache — key = "person_code:n_fotos"
-            cache_key = f"{person_code}:{n_files}"
-            if cache_key in embedding_cache:
-                cached_emb = embedding_cache[cache_key]
-                cache_hits += 1
-                if cached_emb is not None:
-                    face_db[person_code] = {
-                        "embedding": cached_emb,
-                        "name": reg_info.get("name", person_code) if reg_info else person_code,
-                        "badge_id": reg_info.get("badge_id", "") if reg_info else "",
-                    }
-                elif reg_info:
-                    face_db[person_code] = {
-                        "embedding": None,
-                        "name": reg_info.get("name", person_code),
-                        "badge_id": reg_info.get("badge_id", ""),
-                    }
-                continue  # cache hit — pula inferencia
-
-            # Cache miss — roda InsightFace
             embeddings = []
-            for img in imgs:
+            for img_file in person_folder.glob("*.*"):
+                if img_file.suffix.lower() not in {".jpg", ".jpeg", ".png"}:
+                    continue
+                img = cv2.imread(str(img_file))
+                if img is None:
+                    continue
                 faces = self._app.get(img)
                 if faces:
                     embeddings.append(faces[0].embedding)
 
+            reg_info = registry.get(person_folder.name, {})
             if embeddings:
-                avg_emb = np.mean(embeddings, axis=0)
-                face_db[person_code] = {
-                    "embedding": avg_emb,
-                    "name": reg_info.get("name", person_code) if reg_info else person_code,
+                avg_embedding = np.mean(embeddings, axis=0)
+                face_db[person_folder.name] = {
+                    "embedding": avg_embedding,
+                    "name": reg_info.get("name", person_folder.name) if reg_info else person_folder.name,
                     "badge_id": reg_info.get("badge_id", "") if reg_info else "",
                 }
-                new_cache[cache_key] = avg_emb.tolist()
-                cache_updated = True
-            else:
-                if reg_info:
-                    logger.warning(f"[Company {company_id}] Person '{person_code}' has no valid face embeddings")
-                    face_db[person_code] = {
-                        "embedding": None,
-                        "name": reg_info.get("name", person_code),
-                        "badge_id": reg_info.get("badge_id", ""),
-                    }
-                new_cache[cache_key] = None
-                cache_updated = True
+            elif reg_info:
+                logger.warning(f"[Company {company_id}] Person '{person_folder.name}' has no valid face embeddings")
+                face_db[person_folder.name] = {
+                    "embedding": None,
+                    "name": reg_info.get("name", person_folder.name),
+                    "badge_id": reg_info.get("badge_id", ""),
+                }
 
-        # ── Salva cache atualizado ────────────────────────────────────────────
-        if cache_updated:
-            merged = {**embedding_cache, **new_cache}
-            try:
-                cache_path.write_text(json.dumps(merged))
-                logger.info(f"[Company {company_id}] Embedding cache saved: {len(merged)} entries")
-            except Exception as e:
-                logger.warning(f"[Company {company_id}] Failed to save embedding cache: {e}")
-
-        elapsed = int((time.time() - t0) * 1000)
         self._face_dbs[company_id] = face_db
-        logger.info(f"[Company {company_id}] Face DB: {len(face_db)} people | cache_hits={cache_hits} | {elapsed}ms")
+        logger.info(f"[Company {company_id}] Face DB: {len(face_db)} people")
         return face_db
 
     def recognize_faces(self, company_id: int, img: np.ndarray, face_threshold: float = 0.0) -> list:
@@ -660,7 +577,6 @@ class EPIEngine:
                     "confidence": round(conf, 4),
                     "bbox": {"x": int(x1), "y": int(y1), "w": int(x2-x1), "h": int(y2-y1)},
                 })
-                detected_names.add(cls_name)
 
         # ── FALLBACK: modelo principal não detectou nada → tenta modelo público ──
         # if not detections:
