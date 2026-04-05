@@ -4536,7 +4536,8 @@ function vpDrawAnnotations(ctx, canvas, vid, ann) {
       mCtx.drawImage(vid, 0, 0, mergeCanvas.width, mergeCanvas.height);
 
       // Pega anotação mais próxima do tempo atual
-      const ann = vpGetAnnotationForTime(vid.currentTime);
+      const cacheKey = Math.floor(vid.currentTime * 2) / 2;
+      const ann = vpGetAnnotationForTime(vid.currentTime) || _vpDetectCache[cacheKey];
       if (!ann) return;
 
       const vw = vid.videoWidth  || mergeCanvas.width;
