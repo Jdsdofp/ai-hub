@@ -4476,8 +4476,8 @@ function vpDrawAnnotations(ctx, canvas, vid, ann) {
   // }
 
   async function vpDownload() {
-    if (!_lastVideoFile || !_vpAnnotations.length) {
-      toast('Nenhum vídeo ou anotações carregadas.', 'error');
+    if (!_lastVideoFile) {
+      toast('Nenhum vídeo carregado.', 'error');
       return;
     }
 
