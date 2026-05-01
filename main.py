@@ -16,6 +16,7 @@ from loguru import logger
 
 from app.core.config import settings
 from app.core.database import db
+from app.core.xfinder_db import xfinder_db
 from app.core.company import CompanyData
 from app.mqtt.client import mqtt_client
 from app.streaming.manager import stream_manager
@@ -99,7 +100,7 @@ OPENAPI_TAGS = [
 #     yield
 #     stream_manager.stop_all()
 #     await mqtt_client.disconnect()
-#     await db.disconnect()
+#     await xfinder_db.disconnect()
 #     logger.info("Shutdown complete")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -109,6 +110,7 @@ async def lifespan(app: FastAPI):
 
     try:
         await db.connect()
+        await xfinder_db.connect()
     except Exception as e:
         logger.warning(f"MySQL not available: {e}. Running without database.")
 
@@ -139,6 +141,7 @@ async def lifespan(app: FastAPI):
 
     stream_manager.stop_all()
     await mqtt_client.disconnect()
+    await xfinder_db.disconnect()
     await db.disconnect()
     logger.info("Shutdown complete")
 
@@ -208,6 +211,74 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+
+
+
+@app.get("/companies", tags=["System"])
+async def list_companies():
+    """Lista todas as empresas do xfinderdb_prod."""
+    from app.core.xfinder_db import xfinder_db
+    if not xfinder_db.available:
+        raise HTTPException(503, detail="XFinder DB not available")
+    rows = await xfinder_db.fetch_all(
+        """
+        SELECT cd.company_id, cd.full_name, cd.admin_alias,
+               cd.def_city, cd.def_country, cd.lang, cd.time_zone
+        FROM company_details cd
+        INNER JOIN company c ON c.id = cd.company_id
+        ORDER BY cd.company_id ASC
+        """,
+        ()
+    )
+    return [
+        {
+            "company_id": r["company_id"],
+            "full_name": r["full_name"] or f"Company {r['company_id']}",
+            "admin_alias": r["admin_alias"],
+            "city": r["def_city"],
+            "country": r["def_country"],
+            "lang": r["lang"],
+            "time_zone": r["time_zone"],
+        }
+        for r in rows
+    ]
+
+# ── Company endpoints (xfinderdb_prod) ───────────────────────────────────────
+from app.core.company_resolver import company_resolver
+
+@app.get("/company/cache/stats", tags=["System"])
+async def company_cache_stats():
+    return company_resolver.cache_stats()
+
+@app.delete("/company/{company_id}/cache", tags=["System"])
+async def invalidate_company_cache(company_id: int):
+    company_resolver.invalidate(company_id)
+    return {"invalidated": company_id}
+
+@app.get("/company/{company_id}", tags=["System"])
+async def get_company_details(company_id: int):
+    from app.core.xfinder_db import xfinder_db
+    if not xfinder_db.available:
+        raise HTTPException(503, detail="XFinder DB not available")
+    info = await company_resolver.get(company_id)
+    if not info:
+        raise HTTPException(404, detail=f"Company {company_id} not found")
+    return info.to_safe_dict()
+
+@app.get("/company/{company_id}/logo", tags=["System"])
+async def get_company_logo(company_id: int, small: bool = False):
+    from fastapi.responses import Response
+    from app.core.xfinder_db import xfinder_db
+    if not xfinder_db.available:
+        raise HTTPException(503, detail="XFinder DB not available")
+    info = await company_resolver.get(company_id)
+    if not info:
+        raise HTTPException(404, detail=f"Company {company_id} not found")
+    logo_bytes = info.logo_small if small else info.logo
+    if not logo_bytes:
+        raise HTTPException(404, detail="Logo not found for this company")
+    return Response(content=logo_bytes, media_type=info.image_type or "image/jpeg")
 
 # API routes
 from app.projects.epi_check.api.routes import router as epi_router

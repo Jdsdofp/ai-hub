@@ -1424,13 +1424,31 @@
     <div class="header-divider"></div>
     <div class="status-dot"></div>
     <span class="status-text">ONLINE</span>
-    <div class="company-selector">
+    <div class="company-selector" style="position:relative">
       <span class="company-label">Company</span>
-      <select class="company-sel" id="companySelect" onchange="switchCompany()">
-        <option value="1">Company 1</option>
-        <option value="2">Company 2</option>
-        <option value="3">Company 3</option>
-      </select>
+      <div id="companyDropdown" style="position:relative;display:inline-block">
+        <button id="companyBtn"
+          onclick="toggleCompanyList()"
+          style="width:220px;padding:4px 10px;border:1px solid var(--border);border-radius:6px;
+                 background:var(--surface2);color:var(--text);font-size:13px;cursor:pointer;
+                 text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"
+        >Carregando...</button>
+        <div id="companyList"
+          style="display:none;position:absolute;right:0;top:110%;width:300px;
+                 background:var(--surface2);border:1px solid var(--border);
+                 border-radius:8px;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.3)">
+          <div style="padding:8px">
+            <input type="text" id="companySearch"
+              placeholder="Buscar por ID ou nome..."
+              autocomplete="off"
+              oninput="filterCompanies()"
+              style="width:100%;padding:6px 10px;border:1px solid var(--border);border-radius:6px;
+                     background:var(--surface3);color:var(--text);font-size:13px;box-sizing:border-box"
+            />
+          </div>
+          <div id="companyListItems" style="max-height:220px;overflow-y:auto"></div>
+        </div>
+      </div>
     </div>
   </header>
 
@@ -2235,12 +2253,86 @@
       loadReview();
     }catch(e){toast('Erro: '+e.message,'error');}
   }
-  function switchCompany(){
-    CID=parseInt(document.getElementById('companySelect').value);
+  let _allCompanies = [];
+
+  async function loadCompanies(){
+    try {
+      const res = await fetch('/companies');
+      if (!res.ok) throw new Error('companies not found');
+      _allCompanies = await res.json();
+      renderCompanyList(_allCompanies);
+      const current = _allCompanies.find(c => c.company_id === CID);
+      if (current) {
+        document.getElementById('companyBtn').textContent = current.company_id + ' - ' + current.full_name;
+      }
+    } catch(e) {
+      console.warn('loadCompanies:', e);
+    }
+  }
+
+  function renderCompanyList(list){
+    const box = document.getElementById('companyListItems');
+    if (!list.length) {
+      box.innerHTML = '<div style="padding:10px;font-size:12px">Nenhuma empresa encontrada</div>';
+      return;
+    }
+    const items = list.map(function(c){
+      const label = c.full_name || ('Company ' + c.company_id);
+      const safe  = label.replace(/"/g,'').replace(/'/g,'');
+      const div   = document.createElement('div');
+      div.style.cssText = 'padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border);color:var(--text)';
+      div.onmouseover = function(){ this.style.background = 'var(--surface3)'; };
+      div.onmouseout  = function(){ this.style.background = ''; };
+      div.onclick     = function(){ selectCompany(c.company_id, safe); };
+      div.innerHTML   = '<span style="color:var(--primary);font-weight:600;margin-right:6px">'
+                      + c.company_id + '</span><span>' + label + '</span>';
+      return div;
+    });
+    box.innerHTML = '';
+    items.forEach(function(el){ box.appendChild(el); });
+  }
+
+  function filterCompanies(){
+    const q = document.getElementById('companySearch').value.toLowerCase();
+    document.getElementById('companyList').style.display = 'block';
+    const filtered = _allCompanies.filter(c =>
+      String(c.company_id).includes(q) ||
+      (c.full_name||'').toLowerCase().includes(q)
+    );
+    renderCompanyList(filtered);
+  }
+
+  function toggleCompanyList(){
+    const box = document.getElementById('companyList');
+    const isOpen = box.style.display === 'block';
+    box.style.display = isOpen ? 'none' : 'block';
+    if (!isOpen) {
+      renderCompanyList(_allCompanies);
+      setTimeout(function(){ document.getElementById('companySearch').focus(); }, 50);
+    } else {
+      document.getElementById('companySearch').value = '';
+    }
+  }
+
+  function selectCompany(id, name){
+    CID = id;
+    document.getElementById('companyBtn').textContent = id + ' - ' + name;
+    document.getElementById('companyList').style.display = 'none';
     const panelMap={dashboard:loadDashboard,config:loadPPEConfig,annotate:loadAnnotationImages,faces:loadPeople,train:pollTrainStatus};
     const activePanel=document.querySelector('.panel.active');
-    if(activePanel){const id=activePanel.id.replace('panel-','');if(panelMap[id])panelMap[id]();}
-    toast('Switched to Company '+CID);
+    if(activePanel){const pid=activePanel.id.replace('panel-','');if(panelMap[pid])panelMap[pid]();}
+    toast('Switched to ' + id + ' - ' + name);
+  }
+
+  document.addEventListener('click', function(e){
+    const dd = document.getElementById('companyDropdown');
+    if (dd && !dd.contains(e.target) && e.target.id !== 'companySearch') {
+      document.getElementById('companyList').style.display = 'none';
+    }
+  });
+
+  function switchCompany(){
+    // substituido por selectCompany()
   }
 
   function showPanel(n,el){
@@ -3376,7 +3468,7 @@ async function _pollVideoJob(jobId, fileName, attempt) {
     if(sid===currentStreamId)currentStreamId=null;refreshSessions();toast('Session stopped');
   }
 
-  document.getElementById('companySelect').value=CID;
+  loadCompanies();
   loadDashboard();
 
   // ==================== INLINE VIDEO PLAYER ====================

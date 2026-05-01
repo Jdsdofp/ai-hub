@@ -1,5 +1,6 @@
 """
 API security: key validation and company_id extraction.
+Inclui validação real de company_id via xfinderdb_prod.
 """
 from fastapi import Header, HTTPException, Depends, Query
 from typing import Optional
@@ -28,11 +29,27 @@ async def get_company_id(
         raise HTTPException(status_code=400, detail=f"Invalid company_id: '{cid}'")
 
 
+async def _validate_company(company_id: int, strict: bool = False) -> int:
+    from app.core.xfinder_db import xfinder_db
+    from app.core.company_resolver import company_resolver
+    if not xfinder_db.available:
+        return company_id
+    exists = await company_resolver.validate(company_id)
+    if not exists:
+        if strict:
+            raise HTTPException(status_code=404, detail=f"Company {company_id} not found.")
+        logger.warning = __import__("loguru").logger.warning
+        __import__("loguru").logger.warning(
+            f"[Security] company_id={company_id} not found in xfinderdb — proceeding anyway"
+        )
+    return company_id
+
+
 async def get_authenticated_company(
     api_key: str = Depends(verify_api_key),
     company_id: int = Depends(get_company_id),
 ) -> int:
-    return company_id
+    return await _validate_company(company_id, strict=True)
 
 
 async def get_ui_company(
@@ -43,6 +60,15 @@ async def get_ui_company(
     if cid is None:
         return 1
     try:
-        return int(cid)
+        cid_int = int(cid)
     except (ValueError, TypeError):
         return 1
+    return await _validate_company(cid_int, strict=False)
+
+
+async def get_company_info(
+    company_id: int = Depends(get_ui_company),
+):
+    """Retorna CompanyInfo completo (lang, timezone, logo, etc.) ou None."""
+    from app.core.company_resolver import company_resolver
+    return await company_resolver.get(company_id)

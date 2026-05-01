@@ -108,6 +108,15 @@ class Settings(BaseSettings):
     EDGE_MODE: bool = False
     EDGE_DEVICE_ID: str = "edge-001"
 
+    # ── XFinder DB (xfinderdb_prod) ─────────────────────────────────
+    XFINDER_MYSQL_HOST: str = "localhost"
+    XFINDER_MYSQL_PORT: int = 3306
+    XFINDER_MYSQL_USER: str = "root"
+    XFINDER_MYSQL_PASSWORD: str = ""
+    XFINDER_MYSQL_DATABASE: str = "xfinderdb_prod"
+    XFINDER_MYSQL_POOL_SIZE: int = 5
+    COMPANY_CACHE_TTL: int = 300
+
     class Config:
         # env_file = ".env"
         env_file = str(ENV_FILE)
