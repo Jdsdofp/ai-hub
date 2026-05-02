@@ -8,7 +8,7 @@ FIXES v3.1:
 import uvicorn
 from pathlib import Path
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Header, HTTPException
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi.middleware.cors import CORSMiddleware
@@ -243,6 +243,171 @@ async def list_companies():
         }
         for r in rows
     ]
+
+
+
+# ── Station Init endpoint ─────────────────────────────────────────────────────
+@app.get("/station/init", tags=["System"])
+async def station_init(x_api_key: str = Header(None, alias="X-API-Key")):
+    """
+    Valida token da máquina e retorna tema + dados da empresa.
+    Chamado pelo EpiCameraStation na inicialização.
+    """
+    from app.core.api_key_service import api_key_service as _aks2
+    from app.core.xfinder_db import xfinder_db
+
+    if not x_api_key:
+        raise HTTPException(401, detail="X-API-Key header required")
+
+    info = await _aks2.validate(x_api_key)
+    if not info:
+        raise HTTPException(401, detail="Invalid, expired or inactive API key")
+
+    if not xfinder_db.available:
+        raise HTTPException(503, detail="XFinder DB not available")
+
+    # Busca tema da empresa
+    theme_row = await xfinder_db.fetch_one(
+        "SELECT * FROM company_theme WHERE company_id = %s LIMIT 1",
+        (info.company_id,)
+    )
+
+    # Busca dados da empresa
+    company_row = await xfinder_db.fetch_one(
+        """SELECT full_name, admin_alias, logo, logo_small, image_type,
+                  lang, time_zone, currency, def_city, def_country
+           FROM company_details WHERE company_id = %s LIMIT 1""",
+        (info.company_id,)
+    )
+
+    # Monta logo em base64 se existir
+    import base64
+    logo_b64 = None
+    logo_type = "image/png"
+    if company_row and company_row.get("logo"):
+        raw = company_row["logo"]
+        if isinstance(raw, (bytes, bytearray)):
+            # Decodifica bytes para string primeiro
+            raw_str = raw.decode("ascii", errors="ignore").strip()
+            img_type = company_row.get("image_type") or "image/png"
+            if img_type.startswith("data:"):
+                img_type = img_type.split(":")[1].split(";")[0].strip()
+            if "/" not in img_type:
+                img_type = "image/png"
+            logo_type = img_type
+            # Se já é base64 puro (começa com iVBOR ou similar), usa direto
+            # Se é binário real (começa com bytes não-ASCII), então encoda
+            if all(c < 128 for c in raw[:10]):
+                logo_b64 = raw_str  # já é base64 como texto
+            else:
+                logo_b64 = base64.b64encode(raw).decode()
+        elif isinstance(raw, str):
+            # String — pode ser data URL completa ex: data:image/png;base64,iVBOR...
+            s = raw.strip()
+            if s.startswith("data:"):
+                try:
+                    header, b64 = s.split(",", 1)
+                    logo_type = header.split(":")[1].split(";")[0]
+                    logo_b64 = b64  # já é base64 puro, usar direto
+                except Exception:
+                    logo_b64 = None
+            else:
+                logo_b64 = s  # base64 puro sem prefixo
+
+    theme = {}
+    if theme_row:
+        def hex_color(v):
+            if not v: return None
+            v = str(v).strip().lstrip("#")
+            return f"#{v}" if v else None
+        theme = {
+            "colorPrimary":          hex_color(theme_row.get("color_primary"))          or "#2373FE",
+            "colorPrimaryDark":      hex_color(theme_row.get("color_primary_dark"))      or "#919297",
+            "colorAccent":           hex_color(theme_row.get("color_accent"))            or "#239ed3",
+            "colorFontTitle":        hex_color(theme_row.get("color_font_title"))        or "#FFFFFF",
+            "colorFontSubtitle":     hex_color(theme_row.get("color_font_subtitle"))     or "#FFFFFF",
+            "colorMenuBackground":   hex_color(theme_row.get("color_webmenu_background")) or "#2373FE",
+            "colorLogoBackground":   hex_color(theme_row.get("color_weblogo_background")) or "#2373FE",
+            "colorHeaderBg":         hex_color(theme_row.get("color_header_bg"))         or "#2373FE",
+            "colorSidebarActive":    hex_color(theme_row.get("color_sidebar_active"))    or "#2373FE",
+            "logoUrl":               theme_row.get("logo_url"),
+        }
+
+    return {
+        "valid": True,
+        "key": info.to_dict(),
+        "company": {
+            "company_id":  info.company_id,
+            "full_name":   company_row.get("full_name")   if company_row else info.company_name,
+            "admin_alias": company_row.get("admin_alias") if company_row else None,
+            "lang":        company_row.get("lang")        if company_row else "en",
+            "time_zone":   company_row.get("time_zone")   if company_row else "UTC",
+            "currency":    company_row.get("currency")    if company_row else None,
+            "city":        company_row.get("def_city")    if company_row else None,
+            "country":     company_row.get("def_country") if company_row else None,
+            "logo":        (f"data:{logo_type};base64,{logo_b64}" if logo_b64 else None),
+        },
+        "theme": theme,
+    }
+
+# ── API Keys endpoints ────────────────────────────────────────────────────────
+from app.core.api_key_service import api_key_service as _aks
+from fastapi import Query as _Query, Header as _Header
+from typing import Optional as _Optional
+from datetime import date as _date
+
+@app.post("/api-keys", tags=["API Keys"])
+async def create_api_key(body: dict):
+    try:
+        result = await _aks.create(
+            company_id     = body["company_id"],
+            machine_id     = body["machine_id"],
+            machine_name   = body.get("machine_name"),
+            device_profile = body.get("device_profile", "Generic"),
+            module         = body.get("module", "epi_station"),
+            source         = body.get("source", "manual"),
+            location       = body.get("location"),
+            site_id        = body.get("site_id"),
+            zone_id        = body.get("zone_id"),
+            license_type   = body.get("license_type", "trial"),
+            license_volume = body.get("license_volume", 1),
+            valid_from     = _date.fromisoformat(body["valid_from"])  if body.get("valid_from")  else None,
+            valid_until    = _date.fromisoformat(body["valid_until"]) if body.get("valid_until") else None,
+            rate_limit_rpm = body.get("rate_limit_rpm", 120),
+            description    = body.get("description"),
+            created_by     = body.get("created_by"),
+        )
+        return {"success": True, "message": "Copie o token agora — nao sera exibido novamente.", "data": result}
+    except Exception as e:
+        raise HTTPException(400, detail=str(e))
+
+@app.get("/api-keys", tags=["API Keys"])
+async def list_api_keys(company_id: _Optional[int] = _Query(None)):
+    if company_id:
+        rows = await _aks.list_by_company(company_id)
+    else:
+        rows = await _aks.list_all()
+    return {"success": True, "data": rows, "total": len(rows)}
+
+@app.get("/api-keys/validate", tags=["API Keys"])
+async def validate_api_key(x_api_key: str = _Header(None, alias="X-API-Key")):
+    if not x_api_key:
+        raise HTTPException(401, detail="X-API-Key header required")
+    info = await _aks.validate(x_api_key)
+    if not info:
+        raise HTTPException(401, detail="Invalid, expired or inactive API key")
+    return {"valid": True, "status": info.status, "data": info.to_dict()}
+
+@app.delete("/api-keys/{key_id}", tags=["API Keys"])
+async def revoke_api_key(key_id: int, reason: str = _Query(None)):
+    await _aks.revoke(key_id, reason)
+    return {"success": True, "revoked": key_id}
+
+@app.patch("/api-keys/{key_id}/toggle", tags=["API Keys"])
+async def toggle_api_key(key_id: int, active: bool = _Query(...)):
+    await _aks.toggle_active(key_id, active)
+    return {"success": True, "key_id": key_id, "active": active}
+
 
 # ── Company endpoints (xfinderdb_prod) ───────────────────────────────────────
 from app.core.company_resolver import company_resolver
