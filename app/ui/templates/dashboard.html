@@ -1465,6 +1465,8 @@
     <div class="tab" onclick="showPanel('video', this)"><span class="tab-icon">▶</span> Detect Video</div>
     <div class="tab" onclick="showPanel('files', this)"><span class="tab-icon">🗂</span> Files</div>
     <div class="tab" onclick="showPanel('stream', this)"><span class="tab-icon">◈</span> Live Stream</div>
+    <div class="tab" onclick="showPanel('monitor', this);loadMonitor()"><span class="tab-icon">📊</span> Monitor</div>
+    <div class="tab" onclick="showPanel('apikeys', this);loadApiKeys()"><span class="tab-icon">🔑</span> API Keys</div>
     <div class="tab" onclick="showPanel('review', this);loadReview()"><span class="tab-icon">🔍</span> Review <span id="review-badge" style="background:#e53e3e;color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;margin-left:4px;display:none">0</span></div>
   </nav>
 
@@ -1915,6 +1917,186 @@
   </div>
 
   <!-- ===== LIVE STREAM ===== -->
+  <!-- ===== MONITOR ===== -->
+  <div class="panel" id="panel-monitor">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+      <h2 style="font-size:17px;font-weight:700;margin:0">📊 Monitor do Servidor</h2>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span id="monitor-last-update" style="font-size:11px;color:var(--text-muted)"></span>
+        <button onclick="loadMonitor()" style="background:transparent;border:1px solid var(--border);color:var(--text-muted);padding:6px 12px;border-radius:8px;cursor:pointer;font-size:12px">↻ Atualizar</button>
+        <button onclick="toggleMonitorAuto()" id="monitor-auto-btn" style="background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);color:#10B981;padding:6px 12px;border-radius:8px;cursor:pointer;font-size:12px">⏱ Auto ON</button>
+      </div>
+    </div>
+    <div id="monitor-content">
+      <div style="text-align:center;padding:40px;color:var(--text-muted)">Clique na aba para carregar</div>
+    </div>
+  </div>
+
+  <!-- ===== API KEYS ===== -->
+  <div class="panel" id="panel-apikeys">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+      <h2 style="font-size:17px;font-weight:700;margin:0">🔑 API Keys — Vision Platform</h2>
+      <button onclick="showCreateKeyForm()" style="background:linear-gradient(135deg,#1D4ED8,#3B82F6);border:none;color:#fff;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px">
+        + Nova Key
+      </button>
+    </div>
+
+    <!-- Token recém criado -->
+    <div id="new-token-box" style="display:none;margin-bottom:16px;padding:14px 18px;background:rgba(16,185,129,0.1);border:1.5px solid rgba(16,185,129,0.35);border-radius:12px">
+      <div style="font-weight:700;color:#10B981;margin-bottom:8px;font-size:13px">✅ Key criada! Copie o token agora — não será exibido novamente.</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <code id="new-token-value" style="flex:1;padding:10px;background:#0F172A;color:#86EFAC;border-radius:8px;font-size:12px;word-break:break-all;font-family:monospace"></code>
+        <button onclick="copyNewToken()" id="copy-token-btn" style="padding:10px 14px;background:#1E293B;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:12px;white-space:nowrap">📋 Copiar</button>
+        <button onclick="document.getElementById('new-token-box').style.display='none'" style="padding:10px;background:transparent;border:none;cursor:pointer;color:#64748B;font-size:16px">✕</button>
+      </div>
+    </div>
+
+    <!-- Formulário criar key -->
+    <div id="create-key-form" style="display:none;margin-bottom:20px;padding:20px;background:var(--surface2);border:1.5px solid var(--border);border-radius:14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <h3 style="margin:0;font-size:15px;font-weight:700">Nova API Key</h3>
+        <button onclick="hideCreateKeyForm()" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--text-muted)">✕</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+        <div style="grid-column:span 2">
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:4px">Nome da Máquina *</label>
+          <input id="kf-name" placeholder="EPI-TABLET-PORTARIA-01" style="width:100%;padding:8px 12px;background:var(--surface3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;box-sizing:border-box">
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:4px">Device Profile</label>
+          <select id="kf-profile" style="width:100%;padding:8px 12px;background:var(--surface3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;box-sizing:border-box">
+            <option>Tablet</option><option>Generic</option><option>RaspberryPi</option><option>EdgeBox</option><option>LoRaWAN</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:4px">Módulo</label>
+          <select id="kf-module" style="width:100%;padding:8px 12px;background:var(--surface3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;box-sizing:border-box">
+            <option value="epi_station">EPI Station</option>
+            <option value="lone_worker">Lone Worker</option>
+            <option value="iot_tracking">IoT Tracking</option>
+            <option value="face_id">Face ID</option>
+            <option value="all">Todos</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:4px">Licença</label>
+          <select id="kf-license" style="width:100%;padding:8px 12px;background:var(--surface3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;box-sizing:border-box">
+            <option value="trial">Trial</option>
+            <option value="basic">Basic</option>
+            <option value="professional" selected>Professional</option>
+            <option value="enterprise">Enterprise</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:4px">Localização</label>
+          <input id="kf-location" placeholder="Portaria Principal" style="width:100%;padding:8px 12px;background:var(--surface3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;box-sizing:border-box">
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:4px">Válido até</label>
+          <input id="kf-until" type="date" style="width:100%;padding:8px 12px;background:var(--surface3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;box-sizing:border-box">
+        </div>
+        <div style="grid-column:span 3">
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:4px">Descrição</label>
+          <input id="kf-desc" placeholder="Notas sobre esta key..." style="width:100%;padding:8px 12px;background:var(--surface3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;box-sizing:border-box">
+        </div>
+      </div>
+      <div id="kf-error" style="display:none;margin-top:12px;padding:8px 12px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;font-size:13px;color:#EF4444"></div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">
+        <button onclick="hideCreateKeyForm()" style="padding:8px 16px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;font-size:13px">Cancelar</button>
+        <button onclick="createApiKey()" id="kf-save-btn" style="padding:8px 18px;border-radius:8px;border:none;background:linear-gradient(135deg,#1D4ED8,#3B82F6);color:#fff;cursor:pointer;font-size:13px;font-weight:600">✓ Gerar Key</button>
+      </div>
+    </div>
+
+    <!-- Lista de keys -->
+    <div id="api-keys-list">
+      <div style="text-align:center;padding:40px;color:var(--text-muted)">Carregando...</div>
+    </div>
+  </div>
+
+    <!-- ===== MONITOR ===== -->
+  <div class="panel" id="panel-monitor">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+      <h2 style="font-size:17px;font-weight:700;margin:0">📊 Monitor do Servidor</h2>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span id="monitor-last-update" style="font-size:11px;color:var(--text-muted)"></span>
+        <button onclick="loadMonitor()" style="background:transparent;border:1px solid var(--border);color:var(--text-muted);padding:6px 12px;border-radius:8px;cursor:pointer;font-size:12px">↻ Atualizar</button>
+        <button onclick="toggleMonitorAuto()" id="monitor-auto-btn" style="background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);color:#10B981;padding:6px 12px;border-radius:8px;cursor:pointer;font-size:12px">⏱ Auto ON</button>
+      </div>
+    </div>
+    <div id="monitor-content">
+      <div style="text-align:center;padding:40px;color:var(--text-muted)">Clique na aba para carregar</div>
+    </div>
+  </div>
+
+  <!-- ===== API KEYS ===== -->
+  <div class="panel" id="panel-apikeys">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+      <h2 style="font-size:17px;font-weight:700;margin:0">🔑 API Keys — Vision Platform</h2>
+      <button onclick="showCreateKeyForm()" style="background:linear-gradient(135deg,#1D4ED8,#3B82F6);border:none;color:#fff;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600">+ Nova Key</button>
+    </div>
+    <div id="new-token-box" style="display:none;margin-bottom:16px;padding:14px 18px;background:rgba(16,185,129,0.1);border:1.5px solid rgba(16,185,129,0.35);border-radius:12px">
+      <div style="font-weight:700;color:#10B981;margin-bottom:8px;font-size:13px">Token criado! Copie agora — nao sera exibido novamente.</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <code id="new-token-value" style="flex:1;padding:10px;background:#0F172A;color:#86EFAC;border-radius:8px;font-size:12px;word-break:break-all;font-family:monospace"></code>
+        <button onclick="copyNewToken()" id="copy-token-btn" style="padding:10px 14px;background:#1E293B;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:12px;white-space:nowrap">Copiar</button>
+        <button onclick="document.getElementById('new-token-box').style.display='none'" style="padding:10px;background:transparent;border:none;cursor:pointer;color:#64748B;font-size:16px">x</button>
+      </div>
+    </div>
+    <div id="create-key-form" style="display:none;margin-bottom:20px;padding:20px;background:var(--surface2);border:1.5px solid var(--border);border-radius:14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <h3 style="margin:0;font-size:15px;font-weight:700">Nova API Key</h3>
+        <button onclick="hideCreateKeyForm()" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--text-muted)">x</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+        <div style="grid-column:span 2">
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:4px">Nome da Maquina *</label>
+          <input id="kf-name" placeholder="EPI-TABLET-PORTARIA-01" style="width:100%;padding:8px 12px;background:var(--surface3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;box-sizing:border-box">
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:4px">Device Profile</label>
+          <select id="kf-profile" style="width:100%;padding:8px 12px;background:var(--surface3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;box-sizing:border-box">
+            <option>Tablet</option><option>Generic</option><option>RaspberryPi</option><option>EdgeBox</option><option>LoRaWAN</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:4px">Modulo</label>
+          <select id="kf-module" style="width:100%;padding:8px 12px;background:var(--surface3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;box-sizing:border-box">
+            <option value="epi_station">EPI Station</option>
+            <option value="lone_worker">Lone Worker</option>
+            <option value="iot_tracking">IoT Tracking</option>
+            <option value="face_id">Face ID</option>
+            <option value="all">Todos</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:4px">Licenca</label>
+          <select id="kf-license" style="width:100%;padding:8px 12px;background:var(--surface3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;box-sizing:border-box">
+            <option value="trial">Trial</option><option value="basic">Basic</option>
+            <option value="professional" selected>Professional</option><option value="enterprise">Enterprise</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:4px">Localizacao</label>
+          <input id="kf-location" placeholder="Portaria Principal" style="width:100%;padding:8px 12px;background:var(--surface3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;box-sizing:border-box">
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:4px">Valido ate</label>
+          <input id="kf-until" type="date" style="width:100%;padding:8px 12px;background:var(--surface3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;box-sizing:border-box">
+        </div>
+        <div style="grid-column:span 3">
+          <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:4px">Descricao</label>
+          <input id="kf-desc" placeholder="Notas sobre esta key..." style="width:100%;padding:8px 12px;background:var(--surface3);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;box-sizing:border-box">
+        </div>
+      </div>
+      <div id="kf-error" style="display:none;margin-top:12px;padding:8px 12px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;font-size:13px;color:#EF4444"></div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">
+        <button onclick="hideCreateKeyForm()" style="padding:8px 16px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;font-size:13px">Cancelar</button>
+        <button onclick="createApiKey()" id="kf-save-btn" style="padding:8px 18px;border-radius:8px;border:none;background:linear-gradient(135deg,#1D4ED8,#3B82F6);color:#fff;cursor:pointer;font-size:13px;font-weight:600">Gerar Key</button>
+      </div>
+    </div>
+    <div id="api-keys-list"><div style="text-align:center;padding:40px;color:var(--text-muted)">Clique na aba para carregar</div></div>
+  </div>
+
   <div class="panel" id="panel-stream">
     <div class="section-header">
       <div class="section-title">Live Stream</div>
@@ -3468,7 +3650,252 @@ async function _pollVideoJob(jobId, fileName, attempt) {
     if(sid===currentStreamId)currentStreamId=null;refreshSessions();toast('Session stopped');
   }
 
-  loadCompanies();
+
+
+  // ==================== MONITOR ====================
+  let _monitorInterval = null;
+
+  function toggleMonitorAuto(){
+    const btn = document.getElementById('monitor-auto-btn');
+    if(_monitorInterval){
+      clearInterval(_monitorInterval); _monitorInterval=null;
+      btn.textContent='⏱ Auto OFF'; btn.style.background='rgba(107,114,128,0.15)';
+      btn.style.borderColor='rgba(107,114,128,0.3)'; btn.style.color='#6B7280';
+    } else {
+      _monitorInterval = setInterval(loadMonitor, 10000);
+      btn.textContent='⏱ Auto ON'; btn.style.background='rgba(16,185,129,0.15)';
+      btn.style.borderColor='rgba(16,185,129,0.3)'; btn.style.color='#10B981';
+    }
+  }
+
+  function gauge(pct, color){
+    const c = pct > 90 ? '#EF4444' : pct > 70 ? '#F59E0B' : color;
+    return `<div style="width:100%;height:8px;background:var(--surface3);border-radius:4px;overflow:hidden">
+      <div style="width:${pct}%;height:100%;background:${c};border-radius:4px;transition:width .5s"></div>
+    </div>`;
+  }
+
+  function statCard(icon, title, value, sub, color, pct){
+    return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span style="font-size:18px">${icon}</span>
+        <span style="font-size:12px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em">${title}</span>
+      </div>
+      <div style="font-size:26px;font-weight:800;color:${color};margin-bottom:4px">${value}</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">${sub}</div>
+      ${pct !== null ? gauge(pct, color) : ''}
+    </div>`;
+  }
+
+  async function loadMonitor(){
+    const box = document.getElementById('monitor-content');
+    try {
+      const r = await fetch('/monitor?company_id='+CID);
+      const d = await r.json();
+      document.getElementById('monitor-last-update').textContent = 'Atualizado: ' + new Date().toLocaleTimeString('pt-BR');
+
+      const disk   = d.disk   || {};
+      const sys    = d.system || {};
+      const gpu    = d.gpu    || {};
+      const keys   = d.api_keys || {};
+      const det    = d.detections || {};
+      const det24  = det.last_24h || {};
+      const daily  = det.daily_7d || [];
+
+      const diskColor = disk.used_pct > 90 ? '#EF4444' : disk.used_pct > 75 ? '#F59E0B' : '#10B981';
+      const diskAlert = disk.used_pct > 90 ? `<div style="margin-bottom:16px;padding:12px 16px;background:rgba(239,68,68,0.1);border:1.5px solid rgba(239,68,68,0.4);border-radius:10px;font-size:13px;color:#EF4444;display:flex;align-items:center;gap:8px">⚠️ <strong>Disco crítico:</strong> apenas ${disk.free_gb}GB livres (${disk.used_pct}% usado). Considere expandir o volume.</div>` : '';
+
+      // Gráfico 7 dias simples
+      const maxEvents = Math.max(...daily.map(d=>d.events), 1);
+      const chartBars = daily.map(d => {
+        const h = Math.max(4, Math.round((d.events/maxEvents)*60));
+        const c = d.compliance_pct >= 70 ? '#10B981' : d.compliance_pct >= 40 ? '#F59E0B' : '#EF4444';
+        const day = d.day ? d.day.slice(5) : '';
+        return `<div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex:1">
+          <div style="font-size:10px;color:var(--text-muted)">${d.events}</div>
+          <div style="width:100%;height:${h}px;background:${c};border-radius:4px 4px 0 0;min-height:4px"></div>
+          <div style="font-size:10px;color:var(--text-muted)">${day}</div>
+        </div>`;
+      }).join('');
+
+      // Company dirs
+      const topDirs = (disk.company_dirs||[]).filter(d=>d.size_mb>0).slice(0,5).map(d=>
+        `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px">
+          <span>Company ${d.company_id}</span>
+          <span style="font-weight:600">${d.size_mb} MB</span>
+        </div>`
+      ).join('');
+
+      box.innerHTML = diskAlert + `
+      <!-- Row 1: Sistema -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px">
+        ${statCard('💾','Disco',disk.used_gb+'GB',`${disk.free_gb}GB livres de ${disk.total_gb}GB`,diskColor,disk.used_pct)}
+        ${statCard('🧠','RAM',sys.ram_used_gb+'GB',`${sys.ram_pct}% de ${sys.ram_total_gb}GB`,'#3B82F6',sys.ram_pct)}
+        ${statCard('⚡','CPU',sys.cpu_pct+'%','Utilização atual',sys.cpu_pct>80?'#EF4444':sys.cpu_pct>50?'#F59E0B':'#10B981',sys.cpu_pct)}
+        ${gpu.name ? statCard('🎮','GPU '+gpu.temp_c+'°C',gpu.util_pct+'%',`VRAM: ${gpu.mem_used_mb}/${gpu.mem_total_mb}MB`,'#8B5CF6',gpu.mem_pct) : statCard('🎮','GPU','N/A','Não disponível','#6B7280',null)}
+      </div>
+
+      <!-- Row 2: App -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px">
+        ${statCard('🗂','Data Dir',disk.data_size_mb+'MB',`${disk.debug_count} debug files`,'#06B6D4',null)}
+        ${statCard('🔑','API Keys',keys.active+' ativas',`${keys.total} total · ${keys.total_uses} usos`,'#10B981',null)}
+        ${statCard('🔍','Detecções 24h',det24.total||0,`Conformidade: ${det24.avg_compliance||0}%`,det24.avg_compliance>=70?'#10B981':det24.avg_compliance>=40?'#F59E0B':'#EF4444',null)}
+        ${statCard('✅','Compliance',det24.total>0?Math.round((det24.compliant/det24.total)*100)+'%':'—',`${det24.compliant||0} ok · ${det24.non_compliant||0} falha`,det24.avg_compliance>=70?'#10B981':'#F59E0B',det24.total>0?Math.round((det24.compliant/det24.total)*100):null)}
+      </div>
+
+      <!-- Row 3: Charts -->
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px">
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px">
+          <div style="font-size:13px;font-weight:700;margin-bottom:12px">📈 Detecções — Últimos 7 dias</div>
+          ${daily.length ? `<div style="display:flex;align-items:flex-end;gap:6px;height:80px">${chartBars}</div>` : '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px">Sem dados nos últimos 7 dias</div>'}
+        </div>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px">
+          <div style="font-size:13px;font-weight:700;margin-bottom:12px">📁 Disco por Company</div>
+          ${topDirs || '<div style="font-size:13px;color:var(--text-muted)">Sem dados</div>'}
+        </div>
+      </div>`;
+    } catch(e) {
+      box.innerHTML = '<div style="text-align:center;padding:40px;color:#EF4444">Erro: '+e.message+'</div>';
+    }
+  }
+
+    // ==================== API KEYS ====================
+  async function loadApiKeys(){
+    const list = document.getElementById('api-keys-list');
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)">Carregando...</div>';
+    try {
+      const r = await fetch('/api-keys?company_id='+CID);
+      const d = await r.json();
+      const keys = d.data || [];
+      if(!keys.length){
+        list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)">Nenhuma API Key encontrada. Crie a primeira!</div>';
+        return;
+      }
+      const statusCfg = {
+        ACTIVE:        {color:'#10B981',bg:'rgba(16,185,129,0.12)',label:'Ativo'},
+        INACTIVE:      {color:'#6B7280',bg:'rgba(107,114,128,0.12)',label:'Inativo'},
+        REVOKED:       {color:'#EF4444',bg:'rgba(239,68,68,0.12)',label:'Revogado'},
+        EXPIRED:       {color:'#F59E0B',bg:'rgba(245,158,11,0.12)',label:'Expirado'},
+        NOT_YET_VALID: {color:'#3B82F6',bg:'rgba(59,130,246,0.12)',label:'Não iniciado'},
+      };
+      const modLabel = {epi_station:'EPI Station',lone_worker:'Lone Worker',iot_tracking:'IoT Tracking',face_id:'Face ID',all:'Todos'};
+      const licLabel = {trial:'Trial',basic:'Basic',professional:'Professional',enterprise:'Enterprise'};
+      const fmt = d => d ? new Date(d).toLocaleDateString('pt-BR') : '—';
+      const fmtDt = d => d ? new Date(d).toLocaleString('pt-BR') : 'Nunca';
+
+      list.innerHTML = keys.map(k => {
+        const st = statusCfg[k.status] || statusCfg.INACTIVE;
+        const dr = k.days_remaining;
+        return `
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;margin-bottom:10px;overflow:hidden">
+          <div style="display:flex;align-items:center;gap:14px;padding:14px 18px">
+            <div style="width:38px;height:38px;border-radius:10px;background:${k.active?'linear-gradient(135deg,#1D4ED8,#3B82F6)':'var(--surface3)'};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px">${k.active?'🖥':'💤'}</div>
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;flex-wrap:wrap">
+                <span style="font-weight:700;font-size:14px">${k.machine_name||k.machine_id}</span>
+                <span style="font-size:11px;padding:2px 8px;border-radius:20px;background:${st.bg};color:${st.color};font-weight:600">${st.label}</span>
+                <span style="font-size:11px;padding:2px 8px;border-radius:20px;background:rgba(59,130,246,0.1);color:#3B82F6">${modLabel[k.module]||k.module}</span>
+                ${k.location?`<span style="font-size:11px;color:var(--text-muted)">📍 ${k.location}</span>`:''}
+              </div>
+              <div style="font-family:monospace;font-size:12px;color:var(--text-muted)">${k.token_preview}</div>
+            </div>
+            <div style="display:flex;gap:16px;flex-shrink:0;text-align:center">
+              <div><div style="font-size:17px;font-weight:800">${k.use_count}</div><div style="font-size:10px;color:var(--text-muted);text-transform:uppercase">Usos</div></div>
+              ${dr!==null?`<div><div style="font-size:17px;font-weight:800;color:${dr<30?'#F59E0B':'#10B981'}">${dr}d</div><div style="font-size:10px;color:var(--text-muted);text-transform:uppercase">Restam</div></div>`:''}
+              <div><div style="font-size:12px;font-weight:600">${licLabel[k.license_type]||k.license_type}</div><div style="font-size:10px;color:var(--text-muted);text-transform:uppercase">Licença</div></div>
+            </div>
+            <div style="display:flex;gap:6px;flex-shrink:0">
+              ${k.status!=='REVOKED'?`
+              <button onclick="toggleApiKey(${k.id},${k.active})" title="${k.active?'Desativar':'Ativar'}" style="padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:transparent;cursor:pointer;color:${k.active?'#10B981':'#94A3B8'};font-size:14px">${k.active?'👁':'🚫'}</button>
+              <button onclick="revokeApiKey(${k.id})" title="Revogar" style="padding:6px 10px;border-radius:8px;border:1px solid rgba(239,68,68,0.3);background:rgba(239,68,68,0.06);cursor:pointer;color:#EF4444;font-size:14px">🗑</button>
+              `:'<span style="font-size:11px;color:#EF4444;padding:6px">Revogado</span>'}
+            </div>
+          </div>
+          <div style="padding:10px 18px;border-top:1px solid var(--border);display:flex;gap:16px;font-size:12px;color:var(--text-muted)">
+            <span>💻 ${k.device_profile}</span>
+            <span>📅 Válido até: ${fmt(k.valid_until)}</span>
+            <span>🕐 Último uso: ${fmtDt(k.last_used_at)}</span>
+            <span>🆔 ${k.machine_id}</span>
+          </div>
+        </div>`;
+      }).join('');
+    } catch(e) {
+      list.innerHTML = '<div style="text-align:center;padding:40px;color:#EF4444">Erro ao carregar keys: '+e.message+'</div>';
+    }
+  }
+
+  function showCreateKeyForm(){
+    const d = new Date(); d.setFullYear(d.getFullYear()+1);
+    document.getElementById('kf-until').value = d.toISOString().split('T')[0];
+    document.getElementById('create-key-form').style.display='block';
+    document.getElementById('kf-error').style.display='none';
+    document.getElementById('kf-name').focus();
+  }
+  function hideCreateKeyForm(){ document.getElementById('create-key-form').style.display='none'; }
+
+  async function createApiKey(){
+    const name = document.getElementById('kf-name').value.trim();
+    if(!name){ document.getElementById('kf-error').textContent='Nome da máquina obrigatório'; document.getElementById('kf-error').style.display='block'; return; }
+    const btn = document.getElementById('kf-save-btn');
+    btn.textContent='Criando...'; btn.disabled=true;
+    try {
+      const r = await fetch('/api-keys', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          company_id: CID,
+          machine_id: 'machine-'+Date.now()+'-'+Math.random().toString(36).slice(2,7),
+          machine_name: name,
+          device_profile: document.getElementById('kf-profile').value,
+          module: document.getElementById('kf-module').value,
+          license_type: document.getElementById('kf-license').value,
+          location: document.getElementById('kf-location').value,
+          valid_from: new Date().toISOString().split('T')[0],
+          valid_until: document.getElementById('kf-until').value || null,
+          description: document.getElementById('kf-desc').value,
+          created_by: 'dashboard',
+          source: 'manual',
+          rate_limit_rpm: 120,
+        })
+      });
+      const d = await r.json();
+      if(!r.ok) throw new Error(d.detail||'Erro');
+      hideCreateKeyForm();
+      document.getElementById('new-token-value').textContent = d.data.token;
+      document.getElementById('new-token-box').style.display='block';
+      document.getElementById('kf-name').value='';
+      loadApiKeys();
+      toast('API Key criada com sucesso!');
+    } catch(e){
+      document.getElementById('kf-error').textContent=e.message;
+      document.getElementById('kf-error').style.display='block';
+    } finally {
+      btn.textContent='✓ Gerar Key'; btn.disabled=false;
+    }
+  }
+
+  async function revokeApiKey(id){
+    if(!confirm('Revogar esta API Key? Ação irreversível.')) return;
+    await fetch('/api-keys/'+id+'?reason=Revogado+pelo+dashboard', {method:'DELETE'});
+    loadApiKeys();
+    toast('Key revogada','warn');
+  }
+
+  async function toggleApiKey(id, active){
+    await fetch('/api-keys/'+id+'/toggle?active='+(active?'false':'true'), {method:'PATCH'});
+    loadApiKeys();
+    toast(active?'Key desativada':'Key ativada');
+  }
+
+  function copyNewToken(){
+    const t = document.getElementById('new-token-value').textContent;
+    navigator.clipboard.writeText(t).then(()=>{
+      const btn = document.getElementById('copy-token-btn');
+      btn.textContent='✅ Copiado!';
+      setTimeout(()=>btn.textContent='📋 Copiar', 2000);
+    });
+  }
+
+    loadCompanies();
   loadDashboard();
 
   // ==================== INLINE VIDEO PLAYER ====================

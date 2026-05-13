@@ -246,6 +246,159 @@ async def list_companies():
 
 
 
+
+# ── Monitor endpoint ─────────────────────────────────────────────────────────
+@app.get("/monitor", tags=["System"])
+async def get_monitor_stats(company_id: int = 1):
+    """Painel de monitoramento — disco, GPU, CPU, RAM, keys, detecções."""
+    import os, shutil, glob
+    from app.core.xfinder_db import xfinder_db
+
+    stats = {}
+
+    # ── Disco ────────────────────────────────────────────────────────────────
+    try:
+        total, used, free = shutil.disk_usage("/opt/vision/data")
+        data_dir = "/opt/vision/data"
+        debug_count = len(glob.glob(f"{data_dir}/debug_*.jpg"))
+        debug_size  = sum(os.path.getsize(f) for f in glob.glob(f"{data_dir}/debug_*.jpg") if os.path.exists(f))
+
+        # Tamanho por company
+        company_dirs = []
+        for d in os.listdir(data_dir):
+            full = os.path.join(data_dir, d)
+            if os.path.isdir(full) and d.isdigit():
+                size = sum(
+                    os.path.getsize(os.path.join(dp, f))
+                    for dp, _, files in os.walk(full)
+                    for f in files
+                )
+                company_dirs.append({"company_id": int(d), "size_mb": round(size/1024/1024, 2)})
+        company_dirs.sort(key=lambda x: x["size_mb"], reverse=True)
+
+        stats["disk"] = {
+            "total_gb":   round(total/1024**3, 2),
+            "used_gb":    round(used/1024**3, 2),
+            "free_gb":    round(free/1024**3, 2),
+            "used_pct":   round(used/total*100, 1),
+            "data_size_mb": round(sum(
+                os.path.getsize(os.path.join(dp, f))
+                for dp, _, files in os.walk(data_dir)
+                for f in files
+            )/1024/1024, 2),
+            "debug_count": debug_count,
+            "debug_size_kb": round(debug_size/1024, 1),
+            "company_dirs": company_dirs[:10],
+        }
+    except Exception as e:
+        stats["disk"] = {"error": str(e)}
+
+    # ── CPU / RAM ─────────────────────────────────────────────────────────────
+    try:
+        import psutil
+        cpu = psutil.cpu_percent(interval=0.5)
+        mem = psutil.virtual_memory()
+        stats["system"] = {
+            "cpu_pct":    round(cpu, 1),
+            "ram_total_gb": round(mem.total/1024**3, 2),
+            "ram_used_gb":  round(mem.used/1024**3, 2),
+            "ram_pct":      round(mem.percent, 1),
+        }
+    except Exception as e:
+        stats["system"] = {"error": str(e)}
+
+    # ── GPU ───────────────────────────────────────────────────────────────────
+    try:
+        import subprocess
+        out = subprocess.check_output(
+            ["nvidia-smi", "--query-gpu=name,utilization.gpu,memory.used,memory.total,temperature.gpu",
+             "--format=csv,noheader,nounits"], timeout=3
+        ).decode().strip()
+        parts = [p.strip() for p in out.split(",")]
+        stats["gpu"] = {
+            "name":       parts[0],
+            "util_pct":   int(parts[1]),
+            "mem_used_mb": int(parts[2]),
+            "mem_total_mb": int(parts[3]),
+            "mem_pct":    round(int(parts[2])/int(parts[3])*100, 1),
+            "temp_c":     int(parts[4]),
+        }
+    except Exception as e:
+        stats["gpu"] = {"error": str(e)}
+
+    # ── API Keys ─────────────────────────────────────────────────────────────
+    try:
+        if xfinder_db.available:
+            rows = await xfinder_db.fetch_all(
+                """SELECT
+                    COUNT(*) as total,
+                    SUM(active=1 AND (valid_until IS NULL OR valid_until >= CURDATE()) AND revoked_at IS NULL) as active_count,
+                    SUM(revoked_at IS NOT NULL) as revoked_count,
+                    SUM(valid_until IS NOT NULL AND valid_until < CURDATE()) as expired_count,
+                    SUM(use_count) as total_uses,
+                    MAX(last_used_at) as last_used
+                FROM vision_api_keys WHERE company_id = %s""",
+                (company_id,)
+            )
+            r = rows[0] if rows else {}
+            stats["api_keys"] = {
+                "total":         int(r.get("total") or 0),
+                "active":        int(r.get("active_count") or 0),
+                "revoked":       int(r.get("revoked_count") or 0),
+                "expired":       int(r.get("expired_count") or 0),
+                "total_uses":    int(r.get("total_uses") or 0),
+                "last_used":     str(r.get("last_used") or ""),
+            }
+        else:
+            stats["api_keys"] = {"error": "xfinder_db unavailable"}
+    except Exception as e:
+        stats["api_keys"] = {"error": str(e)}
+
+    # ── Detecções ────────────────────────────────────────────────────────────
+    try:
+        from app.core.database import db
+        rows = await db.fetch_all(
+            """SELECT
+                COUNT(*) as total_events,
+                SUM(compliant=1) as compliant,
+                SUM(compliant=0) as non_compliant,
+                ROUND(AVG(compliance_score)*100,1) as avg_compliance_pct,
+                MAX(created_at) as last_event
+            FROM vision_detection_events
+            WHERE company_id = %s AND created_at >= NOW() - INTERVAL 24 HOUR""",
+            (company_id,)
+        )
+        r = rows[0] if rows else {}
+
+        # Últimos 7 dias por dia
+        daily = await db.fetch_all(
+            """SELECT DATE(created_at) as day,
+                COUNT(*) as events,
+                ROUND(AVG(compliance_score)*100,1) as compliance_pct
+            FROM vision_detection_events
+            WHERE company_id = %s AND created_at >= NOW() - INTERVAL 7 DAY
+            GROUP BY DATE(created_at) ORDER BY day ASC""",
+            (company_id,)
+        )
+
+        stats["detections"] = {
+            "last_24h": {
+                "total":          int(r.get("total_events") or 0),
+                "compliant":      int(r.get("compliant") or 0),
+                "non_compliant":  int(r.get("non_compliant") or 0),
+                "avg_compliance": float(r.get("avg_compliance_pct") or 0),
+                "last_event":     str(r.get("last_event") or ""),
+            },
+            "daily_7d": [
+                {"day": str(d["day"]), "events": int(d["events"]), "compliance_pct": float(d["compliance_pct"] or 0)}
+                for d in daily
+            ]
+        }
+    except Exception as e:
+        stats["detections"] = {"error": str(e)}
+
+    return stats
+
 # ── Station Init endpoint ─────────────────────────────────────────────────────
 @app.get("/station/init", tags=["System"])
 async def station_init(x_api_key: str = Header(None, alias="X-API-Key")):
@@ -402,6 +555,18 @@ async def validate_api_key(x_api_key: str = _Header(None, alias="X-API-Key")):
 async def revoke_api_key(key_id: int, reason: str = _Query(None)):
     await _aks.revoke(key_id, reason)
     return {"success": True, "revoked": key_id}
+
+@app.delete("/api-keys/{key_id}/permanent", tags=["API Keys"])
+async def delete_api_key_permanent(key_id: int):
+    """Exclui permanentemente uma API key do banco."""
+    from app.core.xfinder_db import xfinder_db
+    if not xfinder_db.available:
+        raise HTTPException(503, detail="XFinder DB not available")
+    await xfinder_db.fetch_one(
+        "DELETE FROM vision_api_keys WHERE id = %s",
+        (key_id,)
+    )
+    return {"success": True, "deleted": key_id}
 
 @app.patch("/api-keys/{key_id}/toggle", tags=["API Keys"])
 async def toggle_api_key(key_id: int, active: bool = _Query(...)):
