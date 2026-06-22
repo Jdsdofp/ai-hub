@@ -2926,3 +2926,8 @@ async def review_image(filename: str, company_id: int = Depends(get_ui_company))
         raise HTTPException(404, detail="Imagem nao encontrada")
     from fastapi.responses import FileResponse
     return FileResponse(str(img_path), media_type="image/jpeg")
+
+
+# ── Controle de Acesso (câmeras, portas, exposição NR-36) ─────────────────────
+from app.projects.epi_check.api.routes_access import router as access_router
+router.include_router(access_router)

@@ -81,7 +81,7 @@ class VisionRepository:
                     epi_required_count, epi_detected_count, epi_missing_count,
                     compliance_score, missing_items, detections, faces,
                     snapshot_path, person_code, person_name,
-                    camera_id, zone_id, edge_device_id,
+                    camera_id, current_zone_id, edge_device_id,
                     model_name, confidence_threshold, processing_ms,
                     source_type, sync_priority
                 ) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
@@ -94,7 +94,7 @@ class VisionRepository:
                     json.dumps(detections),
                     json.dumps(faces),
                     snapshot_path, person_code, person_name,
-                    camera_id, zone_id, edge_device_id,
+                    camera_id, current_zone_id, edge_device_id,
                     model_name or result.get("model_name"),
                     confidence_threshold,
                     result.get("processing_ms", 0),
@@ -160,7 +160,7 @@ class VisionRepository:
                 SELECT id, compliant, epi_required_count, epi_detected_count,
                        epi_missing_count, compliance_score, missing_items,
                        detections, faces, snapshot_path, person_code, person_name,
-                       camera_id, zone_id, model_name, processing_ms,
+                       camera_id, current_zone_id, model_name, processing_ms,
                        source_type, sync_status, created_at
                 FROM vision_detection_events
                 WHERE company_id = %s {extra}
@@ -191,11 +191,11 @@ class VisionRepository:
                 """
                 INSERT INTO vision_alerts
                     (company_id, alert_type, severity, details,
-                     person_code, camera_id, zone_id)
+                     person_code, camera_id, current_zone_id)
                 VALUES (%s,%s,%s,%s,%s,%s,%s)
                 """,
                 (company_id, alert_type, severity, json.dumps(details),
-                 person_code, camera_id, zone_id),
+                 person_code, camera_id, current_zone_id),
             )
         except Exception as e:
             logger.error(f"[Repo] save_alert: {e}")
@@ -209,7 +209,7 @@ class VisionRepository:
             return await db.fetch_all(
                 f"""
                 SELECT id, alert_type, severity, details, person_code,
-                       camera_id, zone_id, acknowledged, resolved,
+                       camera_id, current_zone_id, acknowledged, resolved,
                        sync_status, created_at
                 FROM vision_alerts
                 WHERE company_id = %s {extra}
@@ -753,7 +753,7 @@ class VisionRepository:
             await db.execute(
                 """
                 INSERT INTO vision_compliance_hourly
-                    (company_id, hour_ts, zone_id,
+                    (company_id, hour_ts, current_zone_id,
                      total_sessions, compliant_count, compliance_rate)
                 VALUES (%s,%s,%s,%s,%s,%s)
                 ON DUPLICATE KEY UPDATE
@@ -761,7 +761,7 @@ class VisionRepository:
                     compliant_count = compliant_count + VALUES(compliant_count),
                     compliance_rate = compliant_count / total_sessions
                 """,
-                (company_id, hour_ts, zone_id, total, compliant, rate),
+                (company_id, hour_ts, current_zone_id, total, compliant, rate),
             )
             return True
         except Exception as e:
@@ -781,7 +781,7 @@ class VisionRepository:
             await db.execute(
                 """
                 INSERT INTO vision_compliance_daily
-                    (company_id, date, zone_id,
+                    (company_id, date, current_zone_id,
                      total_sessions, compliant_count, compliance_rate)
                 VALUES (%s,%s,%s,%s,%s,%s)
                 ON DUPLICATE KEY UPDATE
@@ -789,7 +789,7 @@ class VisionRepository:
                     compliant_count = compliant_count + VALUES(compliant_count),
                     compliance_rate = compliant_count / total_sessions
                 """,
-                (company_id, date, zone_id, total, compliant, rate),
+                (company_id, date, current_zone_id, total, compliant, rate),
             )
             return True
         except Exception as e:

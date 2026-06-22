@@ -504,6 +504,9 @@ class EPIEngine:
         cfg_path = CompanyData.epi(company_id, "ppe_config.json")
         cfg_path.write_text(json.dumps(config, indent=2))
 
+    def set_ppe_config_cache(self, company_id: int, cfg: dict):
+        self._ppe_config_cache[company_id] = cfg
+
     def get_active_classes(self, company_id: int) -> dict:
         config = self.get_ppe_config(company_id)
         return {cid: name for cid, name in ALL_PPE_CLASSES.items() if config.get(name, False)}
