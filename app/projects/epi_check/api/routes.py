@@ -2931,3 +2931,44 @@ async def review_image(filename: str, company_id: int = Depends(get_ui_company))
 # ── Controle de Acesso (câmeras, portas, exposição NR-36) ─────────────────────
 from app.projects.epi_check.api.routes_access import router as access_router
 router.include_router(access_router)
+
+
+# ======================================================================
+# DETECT FACE ONLY — fluxo EXIT (só reconhecimento facial, sem EPI)
+# ======================================================================
+@router.post("/detect/face", tags=["Detection — Image"],
+    summary="Recognize face only — EXIT flow, no PPE check")
+async def detect_face_only(
+    file: UploadFile = File(...),
+    face_threshold: float = Form(0.45),
+    company_id: int = Depends(get_ui_company),
+):
+    try:
+        data = await file.read()
+        if not data:
+            raise HTTPException(400, detail="Empty frame")
+        arr = np.frombuffer(data, dtype=np.uint8)
+        img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+        if img is None:
+            raise HTTPException(400, detail="Invalid frame — could not decode")
+
+        faces = epi_engine.face_engine.recognize_faces(company_id, img, face_threshold)
+        best = faces[0] if faces else None
+
+        return {
+            "compliant":              True,
+            "missing":                [],
+            "detections":             [],
+            "face_detected":          bool(best),
+            "face_recognized":        best.get("recognized", False) if best else False,
+            "face_person_code":       best.get("person_code", None)      if best else None,
+            "face_person_name":       best.get("person_name", None)        if best else None,
+            "face_confidence":        best.get("confidence", 0.0)         if best else 0.0,
+            "window_progress":        0,
+            "session_compliant_rate": 1.0,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[Company {company_id}] detect_face_only error: {e}")
+        raise HTTPException(500, detail=f"Face detection failed: {str(e)}")
